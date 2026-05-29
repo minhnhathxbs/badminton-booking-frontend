@@ -57,26 +57,12 @@ export default function Header() {
   return (
     <header className="bg-white border-b border-gray-200 px-4 md:px-8 py-3 relative z-50">
       <div className="flex items-center justify-between">
-        {/* Logo */}
         <Link
           to="/trang-chu"
-          className="flex items-center gap-3 text-blue-600 font-bold text-xl"
+          className="flex items-center gap-1 text-blue-600 font-bold text-xl"
         >
-          <div className="w-10 h-10 rounded-full bg-[#eef3ff] flex items-center justify-center text-blue-600">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M8.5 2.5a15.3 15.3 0 0 1 0 19"></path>
-              <path d="M15.5 2.5a15.3 15.3 0 0 0 0 19"></path>
-            </svg>
+          <div className="w-28 flex-shrink-0">
+            <img src="/logo.png" className="w-full object-contain" />
           </div>
           <div className="leading-tight">
             <div>Badminton</div>
@@ -155,12 +141,21 @@ export default function Header() {
               )}
             </div>
           ) : (
-            <Link
-              to="/login"
-              className="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700"
-            >
-              Đăng nhập
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/dang-ky"
+                className="px-5 py-2 rounded-xl text-sm font-bold border border-blue-600 text-blue-600 hover:bg-blue-50 transition"
+              >
+                Đăng ký
+              </Link>
+
+              <Link
+                to="/dang-nhap"
+                className="bg-blue-600 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-blue-700 transition"
+              >
+                Đăng nhập
+              </Link>
+            </div>
           )}
         </div>
       </div>

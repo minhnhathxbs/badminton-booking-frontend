@@ -66,23 +66,10 @@ export default function AuthPage({ initialForm = "login" }) {
 
       <div className="relative z-10 bg-white/90 backdrop-blur-xl w-full max-w-[480px] rounded-3xl shadow-2xl border border-white p-8 sm:p-10">
         <div className="flex justify-center items-center gap-3 mb-8 text-[#0a192f] font-bold text-2xl tracking-tight">
-          <div className="w-10 h-10 rounded-full bg-[#eef3ff] flex items-center justify-center text-[#349DFF] shadow-sm">
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M8.5 2.5a15.3 15.3 0 0 1 0 19"></path>
-              <path d="M15.5 2.5a15.3 15.3 0 0 0 0 19"></path>
-            </svg>
+          <div className="flex items-center gap-1 mb-4 text-[#0a192f] font-bold text-2xl tracking-tight">
+            <img src="/logo.png" className="w-36 object-contain" />
+            <div>BadmintonBooking</div>
           </div>
-          <div>BadmintonBooking</div>
         </div>
 
         <div key={activeForm} className="animate-fade-in">

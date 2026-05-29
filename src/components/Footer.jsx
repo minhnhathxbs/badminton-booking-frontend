@@ -5,23 +5,8 @@ export default function Footer() {
     <footer className="bg-white border-t border-gray-200 pt-12 pb-6 mt-10">
       <div className="max-w-[1200px] mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10 text-center md:text-left">
         <div className="flex flex-col items-center md:items-start">
-          <div className="flex items-center gap-3 text-blue-600 font-bold text-xl mb-4">
-            <div className="w-10 h-10 rounded-full bg-[#eef3ff] flex items-center justify-center text-blue-600">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M8.5 2.5a15.3 15.3 0 0 1 0 19"></path>
-                <path d="M15.5 2.5a15.3 15.3 0 0 0 0 19"></path>
-              </svg>
-            </div>
+          <div className="flex items-center gap-2 text-blue-600 font-bold text-xl mb-4">
+            <img src="/logo.png" className="w-24 object-contain" />
             <div className="leading-tight text-left">
               <div>Badminton</div>
               <div className="text-[10px] text-gray-500 font-normal tracking-wide">
