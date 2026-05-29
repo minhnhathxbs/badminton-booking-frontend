@@ -33,8 +33,10 @@ export default function RegisterForm({ setActiveForm }) {
         mat_khau: formData.mat_khau,
       });
 
-      alert("Đăng ký thành công! Vui lòng đăng nhập.");
-      setActiveForm("login");
+      setActiveForm("login", {
+        toastMessage: "Đăng ký thành công! Vui lòng đăng nhập.",
+        toastType: "success",
+      });
     } catch (err) {
       setError(err.response?.data?.message || "Lỗi kết nối máy chủ");
     } finally {

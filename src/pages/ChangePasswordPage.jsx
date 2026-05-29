@@ -1,21 +1,46 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import api from "../api/axios";
 
 export default function ChangePasswordPage() {
+  const navigate = useNavigate();
   const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
+    mat_khau_cu: "",
+    mat_khau_moi: "",
+    xac_nhan_mat_khau_moi: "",
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Khối xử lý gọi API cập nhật mật khẩu
+    setError("");
+
+    if (passwordData.mat_khau_moi !== passwordData.xac_nhan_mat_khau_moi) {
+      return setError("Mật khẩu xác nhận không khớp");
+    }
+
+    setLoading(true);
+    try {
+      await api.put("/user/change-password", passwordData);
+
+      navigate("/ho-so", {
+        state: {
+          toastMessage: "Đổi mật khẩu thành công!",
+          toastType: "success",
+        },
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || "Lỗi kết nối máy chủ");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -28,23 +53,11 @@ export default function ChangePasswordPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 md:px-10 py-8">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email (Read-only) */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">
-                  Tài khoản Email
-                </label>
-                <div className="relative text-gray-400">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <i className="fa-regular fa-envelope"></i>
-                  </div>
-                  <input
-                    type="email"
-                    value="sv@caothang.edu.vn"
-                    readOnly
-                    className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 outline-none text-sm text-gray-500 bg-gray-50 cursor-not-allowed"
-                  />
+              {error && (
+                <div className="text-red-500 text-sm text-center font-medium bg-red-50 py-2 rounded-lg">
+                  {error}
                 </div>
-              </div>
+              )}
 
               {/* Mật khẩu hiện tại */}
               <div className="space-y-1.5">
@@ -57,8 +70,8 @@ export default function ChangePasswordPage() {
                   </div>
                   <input
                     type="password"
-                    name="currentPassword"
-                    value={passwordData.currentPassword}
+                    name="mat_khau_cu"
+                    value={passwordData.mat_khau_cu}
                     onChange={handleChange}
                     placeholder="Nhập mật khẩu hiện tại"
                     className="w-full border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 outline-none text-sm text-gray-800 focus:border-[#349DFF] focus:ring-1 focus:ring-[#349DFF] transition-all bg-white"
@@ -78,8 +91,8 @@ export default function ChangePasswordPage() {
                   </div>
                   <input
                     type="password"
-                    name="newPassword"
-                    value={passwordData.newPassword}
+                    name="mat_khau_moi"
+                    value={passwordData.mat_khau_moi}
                     onChange={handleChange}
                     placeholder="Nhập mật khẩu mới"
                     className="w-full border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 outline-none text-sm text-gray-800 focus:border-[#349DFF] focus:ring-1 focus:ring-[#349DFF] transition-all bg-white"
@@ -99,8 +112,8 @@ export default function ChangePasswordPage() {
                   </div>
                   <input
                     type="password"
-                    name="confirmPassword"
-                    value={passwordData.confirmPassword}
+                    name="xac_nhan_mat_khau_moi"
+                    value={passwordData.xac_nhan_mat_khau_moi}
                     onChange={handleChange}
                     placeholder="Xác nhận mật khẩu mới"
                     className="w-full border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 outline-none text-sm text-gray-800 focus:border-[#349DFF] focus:ring-1 focus:ring-[#349DFF] transition-all bg-white"
@@ -120,10 +133,11 @@ export default function ChangePasswordPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-[#349DFF] hover:bg-blue-600 transition-colors shadow-md flex items-center gap-2"
+                  disabled={loading}
+                  className="px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-[#349DFF] hover:bg-blue-600 transition-colors shadow-md flex items-center gap-2 disabled:bg-blue-300"
                 >
-                  <i className="fa-regular fa-circle-check"></i> Cập nhật mật
-                  khẩu
+                  <i className="fa-regular fa-circle-check"></i>
+                  {loading ? "Đang xử lý..." : "Cập nhật mật khẩu"}
                 </button>
               </div>
             </form>

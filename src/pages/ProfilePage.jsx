@@ -35,7 +35,12 @@ export default function ProfilePage() {
         anh_dai_dien: res.data.avatar || null,
       });
     } catch (err) {
-      console.error("Lỗi lấy thông tin:", err);
+      navigate("/ho-so", {
+        state: {
+          toastMessage: err.response?.data?.message || "Lỗi cập nhật!",
+          toastType: "error",
+        },
+      });
     }
   };
 

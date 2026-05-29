@@ -28,9 +28,9 @@ export default function ToastMessage() {
   if (!toast.show) return null;
 
   return (
-    <div className="fixed top-12 left-0 right-0 z-[9999] flex justify-center pointer-events-none">
+    <div className="fixed top-4 right-4 z-[9999] flex justify-end pointer-events-none">
       <div
-        className={`flex items-center px-10 py-5 rounded-2xl shadow-2xl transition-all duration-300 animate-fade-in border-2 pointer-events-auto ${
+        className={`flex items-center px-10 py-5 rounded-2xl shadow-2xl transition-all duration-300 animate-slide-down border-2 pointer-events-auto ${
           toast.type === "success"
             ? "bg-[#10B981] text-white border-green-400"
             : "bg-[#EF4444] text-white border-red-400"
