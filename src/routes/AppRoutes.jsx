@@ -19,6 +19,8 @@ import ManageReviews from "../pages/owner/ManageReviews";
 import AdminLayout from "../layouts/AdminLayout";
 import ManageUsers from "../pages/admin/ManageUsers";
 import ManageAllFacilities from "../pages/admin/ManageAllFacilities";
+import OwnerRoute from "./OwnerRoute";
+import AdminRoute from "./AdminRoute";
 
 export default function AppRoutes() {
   return (
@@ -43,22 +45,26 @@ export default function AppRoutes() {
       <Route path="/xac-minh-otp" element={<VerifyOtpPage />} />
       <Route path="/dat-lai-mat-khau" element={<ResetPasswordPage />} />
 
-      <Route path="/chu-san" element={<OwnerLayout />}>
-        <Route index element={<Navigate to="tong-quan" replace />} />
-        <Route path="tong-quan" element={<OwnerDashboard />} />
-        <Route path="co-so" element={<ManageFacilities />} />
-        <Route path="san" element={<ManageCourts />} />
-        <Route path="lich-dat" element={<ManageBookings />} />
-        <Route path="khuyen-mai" element={<ManagePromotions />} />
-        <Route path="doanh-thu" element={<RevenueReport />} />
-        <Route path="bang-gia" element={<ManagePrices />} />
-        <Route path="danh-gia" element={<ManageReviews />} />
+      <Route element={<OwnerRoute />}>
+        <Route path="/chu-san" element={<OwnerLayout />}>
+          <Route index element={<Navigate to="tong-quan" replace />} />
+          <Route path="tong-quan" element={<OwnerDashboard />} />
+          <Route path="co-so" element={<ManageFacilities />} />
+          <Route path="san" element={<ManageCourts />} />
+          <Route path="lich-dat" element={<ManageBookings />} />
+          <Route path="khuyen-mai" element={<ManagePromotions />} />
+          <Route path="doanh-thu" element={<RevenueReport />} />
+          <Route path="bang-gia" element={<ManagePrices />} />
+          <Route path="danh-gia" element={<ManageReviews />} />
+        </Route>
       </Route>
 
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<Navigate to="nguoi-dung" replace />} />
-        <Route path="nguoi-dung" element={<ManageUsers />} />
-        <Route path="duyet-co-so" element={<ManageAllFacilities />} />
+      <Route element={<AdminRoute />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="nguoi-dung" replace />} />
+          <Route path="nguoi-dung" element={<ManageUsers />} />
+          <Route path="duyet-co-so" element={<ManageAllFacilities />} />
+        </Route>
       </Route>
     </Routes>
   );
