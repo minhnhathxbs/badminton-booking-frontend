@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
-import api, { getAssetUrl } from "../api/axios";
+import Header from "../../components/common/Header";
+import Footer from "../../components/common/Footer";
+import api, { getAssetUrl } from "../../api/axios";
 
 export default function ProfilePage() {
   const navigate = useNavigate();

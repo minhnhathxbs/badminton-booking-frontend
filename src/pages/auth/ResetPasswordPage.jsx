@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import api from "../api/axios";
+import api from "../../api/axios";
 
 export default function ResetPasswordPage() {
   const [passwordData, setPasswordData] = useState({

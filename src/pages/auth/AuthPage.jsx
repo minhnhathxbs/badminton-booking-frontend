@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import LoginForm from "../components/auth/LoginForm";
-import RegisterForm from "../components/auth/RegisterForm";
-import ForgotPasswordForm from "../components/auth/ForgotPasswordForm";
+import LoginForm from "../../components/auth/LoginForm";
+import RegisterForm from "../../components/auth/RegisterForm";
+import ForgotPasswordForm from "../../components/auth/ForgotPasswordForm";
 
 export default function AuthPage({ initialForm = "login" }) {
   const [activeForm, setActiveForm] = useState(initialForm);

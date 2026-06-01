@@ -35,8 +35,15 @@ export default function LoginForm({ setActiveForm }) {
       localStorage.setItem("user", JSON.stringify(data.user));
 
       // Chuyển trang ngay lập tức kèm theo dữ liệu thông báo (state)
-      if (data.user.role === 2 || data.user.role === 3) {
-        navigate("/admin/dashboard", {
+      if (data.user.role === 3) {
+        navigate("/admin", {
+          state: {
+            toastMessage: "Đăng nhập thành công!",
+            toastType: "success",
+          },
+        });
+      } else if (data.user.role === 2) {
+        navigate("/chu-san", {
           state: {
             toastMessage: "Đăng nhập thành công!",
             toastType: "success",

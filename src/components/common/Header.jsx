@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import api, { getAssetUrl } from "../api/axios";
+import api, { getAssetUrl } from "../../api/axios";
 
 export default function Header() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);

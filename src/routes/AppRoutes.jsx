@@ -1,0 +1,65 @@
+import { Navigate, Routes, Route } from "react-router-dom";
+import AuthPage from "../pages/auth/AuthPage";
+import HomePage from "../pages/user/HomePage";
+import ProfilePage from "../pages/user/ProfilePage";
+import ChangePasswordPage from "../pages/user/ChangePasswordPage";
+import VerifyOtpPage from "../pages/auth/VerifyOtpPage";
+import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
+
+import OwnerLayout from "../layouts/OwnerLayout";
+import OwnerDashboard from "../pages/owner/OwnerDashboard";
+import ManageFacilities from "../pages/owner/ManageFacilities";
+import ManageBookings from "../pages/owner/ManageBookings";
+import RevenueReport from "../pages/owner/RevenueReport";
+import ManagePrices from "../pages/owner/ManagePrices";
+import ManageCourts from "../pages/owner/ManageCourts";
+import ManagePromotions from "../pages/owner/ManagePromotions";
+import ManageReviews from "../pages/owner/ManageReviews";
+
+import AdminLayout from "../layouts/AdminLayout";
+import ManageUsers from "../pages/admin/ManageUsers";
+import ManageAllFacilities from "../pages/admin/ManageAllFacilities";
+
+export default function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/trang-chu" replace />} />
+      <Route path="/trang-chu" element={<HomePage />} />
+
+      <Route path="/login" element={<AuthPage initialForm="login" />} />
+      <Route path="/dang-nhap" element={<AuthPage initialForm="login" />} />
+
+      <Route path="/register" element={<AuthPage initialForm="register" />} />
+      <Route path="/dang-ky" element={<AuthPage initialForm="register" />} />
+
+      <Route path="/doi-mat-khau" element={<ChangePasswordPage />} />
+
+      <Route path="/forgot-password" element={<AuthPage initialForm="forgot" />} />
+      <Route path="/quen-mat-khau" element={<AuthPage initialForm="forgot" />} />
+
+      <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/ho-so" element={<ProfilePage />} />
+
+      <Route path="/xac-minh-otp" element={<VerifyOtpPage />} />
+      <Route path="/dat-lai-mat-khau" element={<ResetPasswordPage />} />
+
+      <Route path="/chu-san" element={<OwnerLayout />}>
+        <Route index element={<Navigate to="tong-quan" replace />} />
+        <Route path="tong-quan" element={<OwnerDashboard />} />
+        <Route path="co-so" element={<ManageFacilities />} />
+        <Route path="san" element={<ManageCourts />} />
+        <Route path="lich-dat" element={<ManageBookings />} />
+        <Route path="khuyen-mai" element={<ManagePromotions />} />
+        <Route path="doanh-thu" element={<RevenueReport />} />
+        <Route path="bang-gia" element={<ManagePrices />} />
+        <Route path="danh-gia" element={<ManageReviews />} />
+      </Route>
+
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="nguoi-dung" replace />} />
+        <Route path="nguoi-dung" element={<ManageUsers />} />
+        <Route path="duyet-co-so" element={<ManageAllFacilities />} />
+      </Route>
+    </Routes>
+  );
+}
