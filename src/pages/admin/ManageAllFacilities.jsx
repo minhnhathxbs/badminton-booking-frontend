@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import api, { getAssetUrl } from "../../api/axios";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { showToast } from "../../components/common/ToastMessage";
 
 const getStatusBadge = (status) => {
   switch (Number(status)) {
@@ -32,6 +34,14 @@ export default function ManageAllFacilities() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "Xác nhận",
+    danger: false,
+    action: null,
+  });
 
   const fetchFacilities = async () => {
     setIsLoading(true);
@@ -58,38 +68,53 @@ export default function ManageAllFacilities() {
   }, [facilities, statusFilter]);
 
   const handleApprove = async (facility) => {
-    if (!window.confirm(`Bạn chắc chắn muốn duyệt cơ sở "${facility.ten}"?`)) {
-      return;
-    }
+    setConfirmState({
+      open: true,
+      title: "Xác nhận duyệt cơ sở",
+      message: `Bạn chắc chắn muốn duyệt cơ sở "${facility.ten}"? Cơ sở sẽ được hiển thị cho người dùng.`,
+      confirmText: "Duyệt",
+      danger: false,
+      action: () => approveFacility(facility),
+    });
+  };
 
+  const approveFacility = async (facility) => {
     setIsLoading(true);
     try {
       const res = await api.patch(`/co-so/${facility.id}/duyet`);
-      alert(res.data.message || "Duyệt cơ sở thành công");
+      showToast(res.data.message || "Duyệt cơ sở thành công", "success");
+      setConfirmState((prev) => ({ ...prev, open: false }));
       fetchFacilities();
     } catch (err) {
-      alert(err.response?.data?.message || "Không thể duyệt cơ sở");
+      showToast(err.response?.data?.message || "Không thể duyệt cơ sở", "error");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleReject = async (facility) => {
-    if (
-      !window.confirm(
-        `Bạn chắc chắn muốn từ chối và xóa cơ sở "${facility.ten}"?`,
-      )
-    ) {
-      return;
-    }
+    setConfirmState({
+      open: true,
+      title: "Xác nhận từ chối cơ sở",
+      message: `Bạn chắc chắn muốn từ chối và xóa cơ sở "${facility.ten}"? Thao tác này sẽ xóa hẳn cơ sở đang chờ duyệt.`,
+      confirmText: "Từ chối",
+      danger: true,
+      action: () => rejectFacility(facility),
+    });
+  };
 
+  const rejectFacility = async (facility) => {
     setIsLoading(true);
     try {
       const res = await api.patch(`/co-so/${facility.id}/tu-choi`);
-      alert(res.data.message || "Từ chối cơ sở thành công");
+      showToast(res.data.message || "Từ chối cơ sở thành công", "success");
+      setConfirmState((prev) => ({ ...prev, open: false }));
       fetchFacilities();
     } catch (err) {
-      alert(err.response?.data?.message || "Không thể từ chối cơ sở");
+      showToast(
+        err.response?.data?.message || "Không thể từ chối cơ sở",
+        "error",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -219,6 +244,22 @@ export default function ManageAllFacilities() {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        danger={confirmState.danger}
+        loading={isLoading}
+        onCancel={() =>
+          setConfirmState((prev) => ({
+            ...prev,
+            open: false,
+          }))
+        }
+        onConfirm={() => confirmState.action?.()}
+      />
     </div>
   );
 }

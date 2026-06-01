@@ -11,6 +11,23 @@ export default function ToastMessage() {
   });
 
   useEffect(() => {
+    const handleToast = (event) => {
+      setToast({
+        show: true,
+        message: event.detail?.message || "",
+        type: event.detail?.type || "success",
+      });
+      setTimeout(
+        () => setToast({ show: false, message: "", type: "success" }),
+        1800,
+      );
+    };
+
+    window.addEventListener("showToast", handleToast);
+    return () => window.removeEventListener("showToast", handleToast);
+  }, []);
+
+  useEffect(() => {
     if (location.state?.toastMessage) {
       setToast({
         show: true,
@@ -46,3 +63,11 @@ export default function ToastMessage() {
     </div>
   );
 }
+
+export const showToast = (message, type = "success") => {
+  window.dispatchEvent(
+    new CustomEvent("showToast", {
+      detail: { message, type },
+    }),
+  );
+};

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api, { getAssetUrl } from "../../api/axios";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { showToast } from "../../components/common/ToastMessage";
 
 const initialForm = {
   ten: "",
@@ -38,6 +40,14 @@ export default function ManageFacilities() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "Xác nhận",
+    danger: false,
+    action: null,
+  });
 
   const fetchFacilities = async () => {
     setIsLoading(true);
@@ -119,48 +129,66 @@ export default function ManageFacilities() {
     e.preventDefault();
     setError("");
 
-    const message = editingFacility
-      ? "Bạn chắc chắn muốn sửa cơ sở này?"
-      : "Bạn chắc chắn muốn tạo cơ sở này?";
+    setConfirmState({
+      open: true,
+      title: editingFacility ? "Xác nhận sửa cơ sở" : "Xác nhận tạo cơ sở",
+      message: editingFacility
+        ? `Bạn chắc chắn muốn sửa cơ sở "${formData.ten}"?`
+        : `Bạn chắc chắn muốn tạo cơ sở "${formData.ten}"?`,
+      confirmText: editingFacility ? "Sửa cơ sở" : "Tạo cơ sở",
+      danger: false,
+      action: () => saveFacility(),
+    });
+  };
 
-    if (!window.confirm(message)) return;
-
+  const saveFacility = async () => {
     setIsLoading(true);
     try {
       if (editingFacility) {
         await api.put(`/co-so/${editingFacility.id}`, buildPayload(), {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        alert("Cập nhật cơ sở thành công");
+        showToast("Cập nhật cơ sở thành công", "success");
       } else {
         await api.post("/co-so", buildPayload(), {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        alert("Tạo cơ sở thành công, đang chờ admin duyệt");
+        showToast("Tạo cơ sở thành công, đang chờ admin duyệt", "success");
       }
 
+      setConfirmState((prev) => ({ ...prev, open: false }));
       closeModal();
       fetchFacilities();
     } catch (err) {
-      setError(err.response?.data?.message || "Không thể lưu cơ sở");
+      const message = err.response?.data?.message || "Không thể lưu cơ sở";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDelete = async (facility) => {
-    if (!window.confirm(`Bạn chắc chắn muốn xóa cơ sở "${facility.ten}"?`)) {
-      return;
-    }
+    setConfirmState({
+      open: true,
+      title: "Xác nhận xóa cơ sở",
+      message: `Bạn chắc chắn muốn xóa cơ sở "${facility.ten}"?`,
+      confirmText: "Xóa cơ sở",
+      danger: true,
+      action: () => deleteFacility(facility),
+    });
+  };
 
+  const deleteFacility = async (facility) => {
     setIsLoading(true);
     setError("");
     try {
       const res = await api.delete(`/co-so/${facility.id}`);
-      alert(res.data.message || "Xóa cơ sở thành công");
+      showToast(res.data.message || "Xóa cơ sở thành công", "success");
+      setConfirmState((prev) => ({ ...prev, open: false }));
       fetchFacilities();
     } catch (err) {
-      alert(err.response?.data?.message || "Không thể xóa cơ sở");
+      showToast(err.response?.data?.message || "Không thể xóa cơ sở", "error");
     } finally {
       setIsLoading(false);
     }
@@ -406,6 +434,22 @@ export default function ManageFacilities() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        danger={confirmState.danger}
+        loading={isLoading}
+        onCancel={() =>
+          setConfirmState((prev) => ({
+            ...prev,
+            open: false,
+          }))
+        }
+        onConfirm={() => confirmState.action?.()}
+      />
     </div>
   );
 }
