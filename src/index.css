@@ -39,8 +39,27 @@ h3,
 p,
 label,
 a,
-button {
+button,
+td,
+th {
   overflow-wrap: anywhere;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+table {
+  min-width: 720px;
+}
+
+input,
+select,
+textarea {
+  min-width: 0;
 }
 
 :root {
@@ -158,15 +177,31 @@ article p {
 
 @media (max-width: 768px) {
   h1 {
-    font-size: clamp(2rem, 9vw, 3rem) !important;
+    font-size: clamp(1.5rem, 7vw, 2.25rem) !important;
   }
 
   h2 {
-    font-size: clamp(1.75rem, 7vw, 2.25rem) !important;
+    font-size: clamp(1.25rem, 6vw, 1.75rem) !important;
   }
 
   .shadow-2xl {
     box-shadow: 0 18px 45px rgb(15 23 42 / 0.12);
+  }
+}
+
+@media (max-width: 640px) {
+  .mobile-full {
+    width: 100%;
+  }
+
+  .mobile-stack {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mobile-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 @keyframes slide-down {

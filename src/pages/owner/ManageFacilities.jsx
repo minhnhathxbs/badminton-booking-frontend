@@ -40,6 +40,7 @@ export default function ManageFacilities() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [statusFilter, setStatusFilter] = useState(1);
   const [confirmState, setConfirmState] = useState({
     open: false,
     title: "",
@@ -52,7 +53,7 @@ export default function ManageFacilities() {
   const fetchFacilities = async () => {
     setIsLoading(true);
     try {
-      const res = await api.get("/co-so/cua-toi");
+      const res = await api.get(`/co-so/cua-toi?trang_thai=${statusFilter}`);
       setFacilities(res.data);
     } catch (err) {
       setError(err.response?.data?.message || "Không thể tải danh sách cơ sở");
@@ -63,7 +64,7 @@ export default function ManageFacilities() {
 
   useEffect(() => {
     fetchFacilities();
-  }, []);
+  }, [statusFilter]);
 
   const openCreateModal = () => {
     setEditingFacility(null);
@@ -194,6 +195,35 @@ export default function ManageFacilities() {
     }
   };
 
+  const handleRestore = async (facility) => {
+    setConfirmState({
+      open: true,
+      title: "Xác nhận khôi phục cơ sở",
+      message: `Bạn chắc chắn muốn khôi phục cơ sở "${facility.ten}"?`,
+      confirmText: "Khôi phục",
+      danger: false,
+      action: () => restoreFacility(facility),
+    });
+  };
+
+  const restoreFacility = async (facility) => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const res = await api.patch(`/co-so/${facility.id}/khoi-phuc`);
+      showToast(res.data.message || "Khôi phục cơ sở thành công", "success");
+      setConfirmState((prev) => ({ ...prev, open: false }));
+      fetchFacilities();
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "Không thể khôi phục cơ sở",
+        "error",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -205,9 +235,34 @@ export default function ManageFacilities() {
         </div>
         <button
           onClick={openCreateModal}
-          className="bg-[#349DFF] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-md shadow-blue-200 flex items-center gap-2"
+          className="w-full sm:w-auto justify-center bg-[#349DFF] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-md shadow-blue-200 flex items-center gap-2"
         >
           <i className="fa-solid fa-plus"></i> Thêm cơ sở
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-2 flex sm:inline-flex gap-2 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setStatusFilter(1)}
+          className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap ${
+            statusFilter === 1
+              ? "bg-[#349DFF] text-white"
+              : "text-gray-600 hover:bg-[#eef3ff]"
+          }`}
+        >
+          Đang quản lý
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(0)}
+          className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap ${
+            statusFilter === 0
+              ? "bg-[#349DFF] text-white"
+              : "text-gray-600 hover:bg-[#eef3ff]"
+          }`}
+        >
+          Đã xóa
         </button>
       </div>
 
@@ -245,7 +300,9 @@ export default function ManageFacilities() {
               ) : facilities.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
-                    Chưa có cơ sở nào
+                    {statusFilter === 1
+                      ? "Chưa có cơ sở nào"
+                      : "Không có cơ sở đã xóa"}
                   </td>
                 </tr>
               ) : (
@@ -287,20 +344,32 @@ export default function ManageFacilities() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => openEditModal(facility)}
-                          className="text-gray-400 hover:text-[#349DFF] hover:bg-[#eef3ff] w-8 h-8 rounded-lg transition-colors mr-1"
-                          title="Chỉnh sửa"
-                        >
-                          <i className="fa-solid fa-pen text-xs"></i>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(facility)}
-                          className="text-gray-400 hover:text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg transition-colors"
-                          title="Xóa"
-                        >
-                          <i className="fa-solid fa-trash text-xs"></i>
-                        </button>
+                        {statusFilter === 1 ? (
+                          <>
+                            <button
+                              onClick={() => openEditModal(facility)}
+                              className="text-gray-400 hover:text-[#349DFF] hover:bg-[#eef3ff] w-8 h-8 rounded-lg transition-colors mr-1"
+                              title="Chỉnh sửa"
+                            >
+                              <i className="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(facility)}
+                              className="text-gray-400 hover:text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg transition-colors"
+                              title="Xóa"
+                            >
+                              <i className="fa-solid fa-trash text-xs"></i>
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleRestore(facility)}
+                            className="text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-green-200 text-xs font-medium"
+                            title="Khôi phục"
+                          >
+                            Khôi phục
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -312,8 +381,8 @@ export default function ManageFacilities() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[calc(100vh-32px)] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f8fafc]">
               <h3 className="text-lg font-bold text-[#0a192f]">
                 {editingFacility ? "Sửa cơ sở" : "Thêm cơ sở"}
@@ -414,18 +483,18 @@ export default function ManageFacilities() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200"
+                  className="w-full sm:w-auto px-5 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-[#349DFF] hover:bg-blue-600 disabled:opacity-70"
+                  className="w-full sm:w-auto px-5 py-2 rounded-xl text-sm font-medium text-white bg-[#349DFF] hover:bg-blue-600 disabled:opacity-70"
                 >
                   {isLoading ? "Đang lưu..." : "Lưu cơ sở"}
                 </button>

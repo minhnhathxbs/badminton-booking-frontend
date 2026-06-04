@@ -33,9 +33,10 @@ export default function OwnerLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-[#f4f7fb] font-sans text-[#0a192f] overflow-hidden">
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-10">
-        <div className="p-6 flex items-center gap-3 border-b border-gray-100">
+    <div className="flex min-h-screen flex-col lg:flex-row bg-[#f4f7fb] font-sans text-[#0a192f] overflow-hidden">
+      <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col shadow-sm z-10">
+        <div className="p-4 lg:p-6 flex items-center justify-between gap-3 border-b border-gray-100">
+          <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-full bg-[#eef3ff] flex items-center justify-center text-[#349DFF]">
             <svg
               width="22"
@@ -58,16 +59,24 @@ export default function OwnerLayout() {
               Portal Management
             </div>
           </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="lg:hidden w-10 h-10 rounded-xl text-red-500 hover:bg-red-50"
+            title="Đăng xuất"
+          >
+            <i className="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        <nav className="flex lg:flex-1 gap-2 lg:block px-4 py-3 lg:py-6 lg:space-y-2 overflow-x-auto lg:overflow-y-auto">
           {navItems.map((item) => {
             const isActive = location.pathname.includes(item.path);
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                className={`flex shrink-0 items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   isActive
                     ? "bg-[#349DFF] text-white shadow-md shadow-blue-200"
                     : "text-gray-600 hover:bg-[#eef3ff] hover:text-[#349DFF]"
@@ -80,7 +89,7 @@ export default function OwnerLayout() {
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
+        <div className="hidden lg:block p-4 border-t border-gray-100">
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-4 py-3 w-full text-left text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors"
@@ -91,9 +100,9 @@ export default function OwnerLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 shadow-sm z-0">
-          <h1 className="text-xl font-bold text-[#0a192f]">
+      <main className="min-w-0 flex-1 flex flex-col lg:h-screen overflow-hidden">
+        <header className="min-h-16 bg-white border-b border-gray-200 flex items-center justify-between gap-3 px-4 md:px-8 py-3 shrink-0 shadow-sm z-0">
+          <h1 className="text-base md:text-xl font-bold text-[#0a192f] leading-snug">
             {navItems.find((i) => location.pathname.includes(i.path))?.label ||
               "Quản lý"}
           </h1>
@@ -108,7 +117,7 @@ export default function OwnerLayout() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-6 md:p-8">
+        <div className="flex-1 overflow-auto p-4 md:p-8">
           <Outlet />
         </div>
       </main>
