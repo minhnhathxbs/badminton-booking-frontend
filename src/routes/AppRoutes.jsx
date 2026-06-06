@@ -21,6 +21,7 @@ import ManageUsers from "../pages/admin/ManageUsers";
 import ManageAllFacilities from "../pages/admin/ManageAllFacilities";
 import OwnerRoute from "./OwnerRoute";
 import AdminRoute from "./AdminRoute";
+import AdminDashboard from "../pages/admin/AdminDashboard";
 
 export default function AppRoutes() {
   return (
@@ -36,8 +37,14 @@ export default function AppRoutes() {
 
       <Route path="/doi-mat-khau" element={<ChangePasswordPage />} />
 
-      <Route path="/forgot-password" element={<AuthPage initialForm="forgot" />} />
-      <Route path="/quen-mat-khau" element={<AuthPage initialForm="forgot" />} />
+      <Route
+        path="/forgot-password"
+        element={<AuthPage initialForm="forgot" />}
+      />
+      <Route
+        path="/quen-mat-khau"
+        element={<AuthPage initialForm="forgot" />}
+      />
 
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/ho-so" element={<ProfilePage />} />
@@ -61,7 +68,8 @@ export default function AppRoutes() {
 
       <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="nguoi-dung" replace />} />
+          <Route index element={<Navigate to="tong-quan" replace />} />
+          <Route path="tong-quan" element={<AdminDashboard />} />
           <Route path="nguoi-dung" element={<ManageUsers />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
         </Route>

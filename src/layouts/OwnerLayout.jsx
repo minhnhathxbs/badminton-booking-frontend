@@ -1,9 +1,52 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import api, { getAssetUrl } from "../api/axios";
 
 export default function OwnerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const [user, setUser] = useState(null);
+
+  const fetchUserData = async () => {
+    try {
+      const localUser = localStorage.getItem("user");
+      if (localUser && localUser !== "undefined") {
+        try {
+          setUser(JSON.parse(localUser));
+        } catch (e) {
+          console.error("Lỗi parse localStorage", e);
+        }
+      }
+
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const res = await api.get("/user/me");
+      if (res.data) {
+        const updatedUser = {
+          ...res.data,
+          role: res.data.vai_tro_id,
+        };
+
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error("Lỗi lấy thông tin user:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserData();
+
+    const handleUpdate = () => fetchUserData();
+    window.addEventListener("userUpdated", handleUpdate);
+
+    return () => {
+      window.removeEventListener("userUpdated", handleUpdate);
+    };
+  }, []);
 
   const navItems = [
     { path: "/chu-san/tong-quan", icon: "fa-chart-simple", label: "Tổng quan" },
@@ -20,7 +63,6 @@ export default function OwnerLayout() {
       icon: "fa-ticket",
       label: "Quản lý khuyến mãi",
     },
-
     {
       path: "/chu-san/doanh-thu",
       icon: "fa-money-bill-wave",
@@ -28,7 +70,10 @@ export default function OwnerLayout() {
     },
     { path: "/chu-san/danh-gia", icon: "fa-star", label: "Quản lý đánh giá" },
   ];
+
   const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     navigate("/login");
   };
 
@@ -36,30 +81,26 @@ export default function OwnerLayout() {
     <div className="flex min-h-screen flex-col lg:flex-row bg-[#f4f7fb] font-sans text-[#0a192f] overflow-hidden">
       <aside className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col shadow-sm z-10">
         <div className="p-4 lg:p-6 flex items-center justify-between gap-3 border-b border-gray-100">
-          <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-[#eef3ff] flex items-center justify-center text-[#349DFF]">
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M8.5 2.5a15.3 15.3 0 0 1 0 19"></path>
-              <path d="M15.5 2.5a15.3 15.3 0 0 0 0 19"></path>
-            </svg>
-          </div>
-          <div className="leading-tight">
-            <div className="font-bold text-lg text-[#0a192f]">Owner</div>
-            <div className="text-[11px] text-gray-500 font-medium tracking-wide">
-              Portal Management
+          {/* ----- PHẦN LOGO VÀ TÊN BÊN SIDEBAR ----- */}
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Đã tăng w-16 h-16 để logo to hơn rõ rệt */}
+            <div className="w-16 h-16 flex items-center justify-center shrink-0">
+              <img
+                src="/logo.png"
+                alt="Logo"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="leading-tight">
+              {/* Tăng cỡ chữ lên text-xl cho cân xứng với logo to */}
+              <div className="font-bold text-xl text-[#0a192f]">Badminton</div>
+              <div className="text-xs text-gray-500 font-medium tracking-wide">
+                Quản lý chủ sân
+              </div>
             </div>
           </div>
-          </div>
+          {/* -------------------------------------- */}
+
           <button
             onClick={handleLogout}
             className="lg:hidden w-10 h-10 rounded-xl text-red-500 hover:bg-red-50"
@@ -111,9 +152,35 @@ export default function OwnerLayout() {
               <i className="fa-regular fa-bell"></i>
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
             </button>
-            <div className="w-10 h-10 rounded-full bg-[#eef3ff] text-[#349DFF] flex items-center justify-center font-bold border border-blue-100">
-              CS
+
+            {/* ----- PHẦN AVATAR + HỌ TÊN ----- */}
+            <div className="flex items-center gap-3 pl-2 border-l border-gray-200">
+              <div className="hidden md:block text-right">
+                <div className="text-sm font-bold text-[#0a192f]">
+                  {user?.ho_ten || "Chủ sân"}
+                </div>
+                <div className="text-xs text-gray-500 font-medium">Owner</div>
+              </div>
+
+              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-gray-200 overflow-hidden shrink-0 shadow-sm">
+                {user?.avatar ? (
+                  <img
+                    src={getAssetUrl(user.avatar)}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/logo.png";
+                    }}
+                  />
+                ) : (
+                  <span className="text-[#349DFF] font-bold text-lg uppercase">
+                    {user?.ho_ten ? user.ho_ten.charAt(0).toUpperCase() : "U"}
+                  </span>
+                )}
+              </div>
             </div>
+            {/* ------------------------------------------------------------- */}
           </div>
         </header>
 
