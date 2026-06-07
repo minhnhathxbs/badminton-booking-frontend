@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../api/axios";
 
@@ -8,7 +8,7 @@ export default function OwnerLayout() {
 
   const [user, setUser] = useState(null);
 
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const localUser = localStorage.getItem("user");
       if (localUser && localUser !== "undefined") {
@@ -35,9 +35,10 @@ export default function OwnerLayout() {
     } catch (error) {
       console.error("Lỗi lấy thông tin user:", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUserData();
 
     const handleUpdate = () => fetchUserData();
@@ -46,12 +47,17 @@ export default function OwnerLayout() {
     return () => {
       window.removeEventListener("userUpdated", handleUpdate);
     };
-  }, []);
+  }, [fetchUserData]);
 
   const navItems = [
     { path: "/chu-san/tong-quan", icon: "fa-chart-simple", label: "Tổng quan" },
     { path: "/chu-san/co-so", icon: "fa-building", label: "Quản lý cơ sở" },
     { path: "/chu-san/san", icon: "fa-layer-group", label: "Quản lý sân bãi" },
+    {
+      path: "/chu-san/danh-muc-san",
+      icon: "fa-list",
+      label: "Danh mục sân",
+    },
     {
       path: "/chu-san/lich-dat",
       icon: "fa-calendar-check",

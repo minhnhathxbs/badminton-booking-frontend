@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import api, { getAssetUrl } from "../../api/axios";
 
@@ -18,24 +18,47 @@ export default function Header() {
     { to: "/notifications", icon: "fa-regular fa-bell", label: "Thông báo" },
   ];
 
-  const fetchMe = async () => {
+  const getDashboardLink = () => {
+    const role = Number(user?.vai_tro_id ?? user?.role);
+
+    if (role === 2) {
+      return {
+        to: "/admin",
+        icon: "fa-solid fa-gauge-high",
+        label: "Quản lý hệ thống",
+      };
+    }
+
+    if (role === 1) {
+      return {
+        to: "/chu-san",
+        icon: "fa-solid fa-table-columns",
+        label: "Quản lý chủ sân",
+      };
+    }
+
+    return null;
+  };
+
+  const fetchMe = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (token) {
       try {
         const res = await api.get("/user/me");
         setUser(res.data);
-      } catch (err) {
+      } catch {
         localStorage.removeItem("token");
         setUser(null);
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchMe();
     window.addEventListener("userUpdated", fetchMe);
     return () => window.removeEventListener("userUpdated", fetchMe);
-  }, []);
+  }, [fetchMe]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -157,6 +180,15 @@ export default function Header() {
                       {user.email}
                     </p>
                   </div>
+                  {getDashboardLink() && (
+                    <Link
+                      to={getDashboardLink().to}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-[#eef3ff]"
+                    >
+                      <i className={`${getDashboardLink().icon} w-4`}></i>{" "}
+                      {getDashboardLink().label}
+                    </Link>
+                  )}
                   <Link
                     to="/ho-so"
                     className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-[#eef3ff]"
@@ -242,6 +274,18 @@ export default function Header() {
 
                   {isMobileProfileExpanded && (
                     <div className="mt-3 flex flex-col gap-2 px-2">
+                      {getDashboardLink() && (
+                        <Link
+                          to={getDashboardLink().to}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm bg-[#eef3ff] text-blue-700 font-medium"
+                        >
+                          <i
+                            className={`${getDashboardLink().icon} w-4 text-center`}
+                          ></i>{" "}
+                          {getDashboardLink().label}
+                        </Link>
+                      )}
                       <Link
                         to="/ho-so"
                         onClick={() => setIsMobileMenuOpen(false)}

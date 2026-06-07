@@ -13,6 +13,7 @@ import ManageBookings from "../pages/owner/ManageBookings";
 import RevenueReport from "../pages/owner/RevenueReport";
 import ManagePrices from "../pages/owner/ManagePrices";
 import ManageCourts from "../pages/owner/ManageCourts";
+import ManageCourtCategories from "../pages/owner/ManageCourtCategories";
 import ManagePromotions from "../pages/owner/ManagePromotions";
 import ManageReviews from "../pages/owner/ManageReviews";
 
@@ -58,6 +59,7 @@ export default function AppRoutes() {
           <Route path="tong-quan" element={<OwnerDashboard />} />
           <Route path="co-so" element={<ManageFacilities />} />
           <Route path="san" element={<ManageCourts />} />
+          <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="lich-dat" element={<ManageBookings />} />
           <Route path="khuyen-mai" element={<ManagePromotions />} />
           <Route path="doanh-thu" element={<RevenueReport />} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../api/axios";
 
@@ -8,7 +8,7 @@ export default function AdminLayout() {
 
   const [user, setUser] = useState(null);
 
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const localUser = localStorage.getItem("user");
       if (localUser && localUser !== "undefined") {
@@ -34,14 +34,15 @@ export default function AdminLayout() {
     } catch (error) {
       console.error("Lỗi lấy thông tin user:", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUserData();
     const handleUpdate = () => fetchUserData();
     window.addEventListener("userUpdated", handleUpdate);
     return () => window.removeEventListener("userUpdated", handleUpdate);
-  }, []);
+  }, [fetchUserData]);
 
   const navItems = [
     { path: "/admin/tong-quan", icon: "fa-chart-simple", label: "Tổng quan" },
