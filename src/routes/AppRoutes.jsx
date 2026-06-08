@@ -73,6 +73,7 @@ export default function AppRoutes() {
           <Route index element={<Navigate to="tong-quan" replace />} />
           <Route path="tong-quan" element={<AdminDashboard />} />
           <Route path="nguoi-dung" element={<ManageUsers />} />
+          <Route path="co-so" element={<ManageAllFacilities />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
         </Route>
       </Route>

@@ -52,9 +52,9 @@ export default function AdminLayout() {
       label: "Quản lý người dùng",
     },
     {
-      path: "/admin/duyet-co-so",
+      path: "/admin/co-so",
       icon: "fa-building-circle-check",
-      label: "Duyệt cơ sở",
+      label: "Quản lý cơ sở",
     },
     {
       path: "/admin/thong-ke",

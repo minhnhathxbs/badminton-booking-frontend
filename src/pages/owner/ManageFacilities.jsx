@@ -8,7 +8,6 @@ const initialForm = {
   dia_chi: "",
   phuong_xa: "",
   tinh_thanh: "",
-  phan_tram_coc: 30,
   mo_ta: "",
   hinh_anh: [],
 };
@@ -18,6 +17,40 @@ const getTrangThaiDuyet = (value) => {
     case 1:
       return {
         label: "Đã duyệt",
+        className: "bg-green-50 text-green-700 border border-green-200",
+      };
+    case 2:
+      return {
+        label: "Từ chối",
+        className: "bg-red-50 text-red-700 border border-red-200",
+      };
+    default:
+      return {
+        label: "Chờ duyệt",
+        className: "bg-yellow-50 text-yellow-700 border border-yellow-200",
+      };
+  }
+};
+
+const getTrangThaiCoSo = (trangThai, trangThaiDuyet) => {
+  if (Number(trangThai) === 0) {
+    return {
+      label: "Đã xóa",
+      className: "bg-gray-100 text-gray-600 border border-gray-200",
+    };
+  }
+
+  if (Number(trangThai) === 2) {
+    return {
+      label: "Đã khóa",
+      className: "bg-orange-50 text-orange-700 border border-orange-200",
+    };
+  }
+
+  switch (Number(trangThaiDuyet)) {
+    case 1:
+      return {
+        label: "Đang hoạt động",
         className: "bg-green-50 text-green-700 border border-green-200",
       };
     case 2:
@@ -80,7 +113,6 @@ export default function ManageFacilities() {
       dia_chi: facility.dia_chi || "",
       phuong_xa: facility.phuong_xa || "",
       tinh_thanh: facility.tinh_thanh || "",
-      phan_tram_coc: facility.phan_tram_coc || 30,
       mo_ta: facility.mo_ta || "",
       hinh_anh: [],
     });
@@ -116,7 +148,6 @@ export default function ManageFacilities() {
     payload.append("dia_chi", formData.dia_chi);
     payload.append("phuong_xa", formData.phuong_xa);
     payload.append("tinh_thanh", formData.tinh_thanh);
-    payload.append("phan_tram_coc", formData.phan_tram_coc);
     payload.append("mo_ta", formData.mo_ta);
 
     formData.hinh_anh.forEach((file) => {
@@ -307,7 +338,10 @@ export default function ManageFacilities() {
                 </tr>
               ) : (
                 facilities.map((facility) => {
-                  const badge = getTrangThaiDuyet(facility.trang_thai_duyet);
+                  const badge = getTrangThaiCoSo(
+                    facility.trang_thai,
+                    facility.trang_thai_duyet,
+                  );
                   return (
                     <tr
                       key={facility.id}
@@ -444,19 +478,6 @@ export default function ManageFacilities() {
                     onChange={handleChange}
                     className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#349DFF]"
                     required
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Phần trăm cọc</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    name="phan_tram_coc"
-                    value={formData.phan_tram_coc}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#349DFF]"
                   />
                 </div>
 
