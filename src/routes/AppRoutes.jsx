@@ -1,6 +1,7 @@
 import { Navigate, Routes, Route } from "react-router-dom";
 import AuthPage from "../pages/auth/AuthPage";
 import HomePage from "../pages/user/HomePage";
+import FacilityDetailPage from "../pages/user/FacilityDetailPage";
 import ProfilePage from "../pages/user/ProfilePage";
 import ChangePasswordPage from "../pages/user/ChangePasswordPage";
 import VerifyOtpPage from "../pages/auth/VerifyOtpPage";
@@ -29,6 +30,7 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to="/trang-chu" replace />} />
       <Route path="/trang-chu" element={<HomePage />} />
+      <Route path="/co-so/:id" element={<FacilityDetailPage />} />
 
       <Route path="/login" element={<AuthPage initialForm="login" />} />
       <Route path="/dang-nhap" element={<AuthPage initialForm="login" />} />
