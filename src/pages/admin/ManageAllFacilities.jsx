@@ -3,7 +3,7 @@ import api, { getAssetUrl } from "../../api/axios";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { showToast } from "../../components/common/ToastMessage";
 
-const LIMIT = 20;
+const LIMIT = 10;
 
 const getApprovalBadge = (status) => {
   switch (Number(status)) {
@@ -248,6 +248,7 @@ export default function ManageAllFacilities() {
           <table className="w-full text-sm text-left">
             <thead className="bg-[#f8fafc] text-gray-600 font-medium border-b border-gray-200">
               <tr>
+                                <th className="px-5 py-4 whitespace-nowrap">STT</th>
                 <th className="px-5 py-4 whitespace-nowrap">Ảnh</th>
                 <th className="px-5 py-4 whitespace-nowrap">Cơ sở</th>
                 <th className="px-5 py-4 whitespace-nowrap">Chủ sân</th>
@@ -263,19 +264,22 @@ export default function ManageAllFacilities() {
             <tbody className="divide-y divide-gray-100">
               {isLoading && facilities.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
                     Đang tải dữ liệu...
                   </td>
                 </tr>
               ) : facilities.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
                     Không có cơ sở phù hợp
                   </td>
                 </tr>
               ) : (
-                facilities.map((facility) => (
+                facilities.map((facility, index) => (
                   <tr key={facility.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-5 py-4 font-medium text-gray-500">
+                      {(page - 1) * LIMIT + index + 1}
+                    </td>
                     <td className="px-5 py-4">
                       <div className="w-16 h-12 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
                         {facility.anh_chinh ? (
@@ -289,9 +293,6 @@ export default function ManageAllFacilities() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="font-bold text-[#0a192f]">{facility.ten}</div>
-                      <div className="text-xs text-[#349DFF] font-semibold">
-                        #{facility.id}
-                      </div>
                     </td>
                     <td className="px-5 py-4 text-gray-800 font-medium">
                       <div>{facility.ten_chu_so}</div>
@@ -375,29 +376,66 @@ export default function ManageAllFacilities() {
             </tbody>
           </table>
         </div>
+        {!isLoading && totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+            <span>
+              Trang {page}/{totalPages} · {total} cơ sở
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 hover:border-[#349DFF] hover:text-[#349DFF] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                ← Trước
+              </button>
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-gray-100 bg-[#f8fafc]">
-          <div className="text-sm text-gray-500">
-            Tổng {total} cơ sở, trang {page}/{totalPages}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(
+                  (p) =>
+                    p === 1 || p === totalPages || Math.abs(p - page) <= 1,
+                )
+                .reduce((acc, p, idx, arr) => {
+                  if (idx > 0 && p - arr[idx - 1] > 1) {
+                    acc.push("...");
+                  }
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((item, idx) =>
+                  item === "..." ? (
+                    <span
+                      key={`ellipsis-${idx}`}
+                      className="px-1 text-gray-400"
+                    >
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => setPage(item)}
+                      className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                        page === item
+                          ? "bg-[#349DFF] text-white"
+                          : "border border-gray-200 hover:border-[#349DFF] hover:text-[#349DFF]"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
+
+              <button
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 hover:border-[#349DFF] hover:text-[#349DFF] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Tiếp →
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={page <= 1 || isLoading}
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-            >
-              Trước
-            </button>
-            <button
-              disabled={page >= totalPages || isLoading}
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-            >
-              Sau
-            </button>
-          </div>
+        )}
         </div>
-      </div>
 
       {selectedFacility && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-4">

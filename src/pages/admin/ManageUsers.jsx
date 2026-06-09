@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { showToast } from "../../components/common/ToastMessage";
 
 // ─── Đổi thành URL backend của mày ──────────────────────────────
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -20,6 +21,14 @@ export default function ManageUsers() {
   const [tongSo, setTongSo] = useState(0);
   const [tongSoTrang, setTongSoTrang] = useState(1);
   const [lockingIds, setLockingIds] = useState(new Set());
+  const [isCreateOwnerOpen, setIsCreateOwnerOpen] = useState(false);
+  const [creatingOwner, setCreatingOwner] = useState(false);
+  const [ownerForm, setOwnerForm] = useState({
+    ho_ten: "",
+    email: "",
+    so_dien_thoai: "",
+    mat_khau: "",
+  });
 
   const searchTimer = useRef(null);
 
@@ -51,32 +60,16 @@ export default function ManageUsers() {
       }).toString();
 
       if (vaiTro === "all") {
-        // Gọi cả 2 endpoint song song
-        const [resChu, resNguoi] = await Promise.all([
-          fetch(`${API_BASE}/admin/tai-khoan/chu-san?${params}`, { headers }),
-          fetch(`${API_BASE}/admin/tai-khoan/nguoi-choi?${params}`, {
-            headers,
-          }),
-        ]);
+        const res = await fetch(`${API_BASE}/admin/tai-khoan?${params}`, {
+          headers,
+        });
+        const data = await res.json();
 
-        if (!resChu.ok || !resNguoi.ok) {
-          throw new Error("Không thể tải danh sách người dùng");
-        }
+        if (!res.ok) throw new Error(data.message ?? "Lỗi tải dữ liệu");
 
-        const [dataChu, dataNguoi] = await Promise.all([
-          resChu.json(),
-          resNguoi.json(),
-        ]);
-
-        const combined = [
-          ...(dataChu.danh_sach ?? []),
-          ...(dataNguoi.danh_sach ?? []),
-        ].sort((a, b) => new Date(b.ngay_tao) - new Date(a.ngay_tao));
-
-        const tong = (dataChu.tong ?? 0) + (dataNguoi.tong ?? 0);
-        setUsers(combined);
-        setTongSo(tong);
-        setTongSoTrang(Math.max(1, Math.ceil(tong / GIOI_HAN)));
+        setUsers(data.danh_sach ?? []);
+        setTongSo(data.tong ?? 0);
+        setTongSoTrang(Math.max(1, Math.ceil((data.tong ?? 0) / GIOI_HAN)));
       } else {
         const endpoint =
           vaiTro === "owner"
@@ -130,7 +123,7 @@ export default function ManageUsers() {
         ),
       );
     } catch (err) {
-      alert(`❌ ${err.message}`);
+      showToast(err.message, "error");
     } finally {
       setLockingIds((prev) => {
         const next = new Set(prev);
@@ -144,6 +137,55 @@ export default function ManageUsers() {
   const handleVaiTroChange = (e) => {
     setVaiTro(e.target.value);
     setTrang(1);
+  };
+
+  const handleOwnerFormChange = (e) => {
+    const { name, value } = e.target;
+    setOwnerForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const closeCreateOwnerModal = () => {
+    setIsCreateOwnerOpen(false);
+    setOwnerForm({
+      ho_ten: "",
+      email: "",
+      so_dien_thoai: "",
+      mat_khau: "",
+    });
+  };
+
+  const handleCreateOwner = async (e) => {
+    e.preventDefault();
+    setCreatingOwner(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/tai-khoan/chu-san`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(ownerForm),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Không thể tạo chủ sân");
+
+      closeCreateOwnerModal();
+      setVaiTro("owner");
+      setTrang(1);
+      await fetchUsers();
+      showToast(data.message || "Tạo tài khoản chủ sân thành công", "success");
+    } catch (err) {
+      setError(err.message);
+      showToast(err.message, "error");
+    } finally {
+      setCreatingOwner(false);
+    }
   };
 
   return (
@@ -164,7 +206,14 @@ export default function ManageUsers() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">          <button
+            onClick={() => setIsCreateOwnerOpen(true)}
+            className="bg-[#349DFF] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm flex items-center gap-2"
+          >
+            <i className="fa-solid fa-plus text-xs"></i>
+            Thêm chủ sân
+          </button>
+
           {/* Lọc vai trò */}
           <select
             value={vaiTro}
@@ -210,7 +259,7 @@ export default function ManageUsers() {
           <table className="w-full text-sm text-left">
             <thead className="bg-[#f8fafc] text-gray-600 font-medium border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 whitespace-nowrap">ID</th>
+                <th className="px-6 py-4 whitespace-nowrap">STT</th>
                 <th className="px-6 py-4 whitespace-nowrap">Người dùng</th>
                 <th className="px-6 py-4 whitespace-nowrap">Vai trò</th>
                 <th className="px-6 py-4 whitespace-nowrap">Trạng thái</th>
@@ -259,7 +308,7 @@ export default function ManageUsers() {
 
               {/* Dữ liệu thật */}
               {!loading &&
-                users.map((user) => {
+                users.map((user, index) => {
                   const isActive = user.trang_thai === 1;
                   const isLocking = lockingIds.has(user.id);
                   const vaiTroLabel = getVaiTroLabel(user.vai_tro_id);
@@ -270,7 +319,7 @@ export default function ManageUsers() {
                       className="hover:bg-gray-50 transition-colors group"
                     >
                       <td className="px-6 py-4 font-medium text-gray-500">
-                        #{user.id}
+                        {(trang - 1) * GIOI_HAN + index + 1}
                       </td>
 
                       <td className="px-6 py-4">
@@ -402,6 +451,96 @@ export default function ManageUsers() {
           </div>
         )}
       </div>
+
+      {isCreateOwnerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f8fafc]">
+              <div>
+                <h3 className="text-lg font-bold text-[#0a192f]">
+                  Thêm chủ sân
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Tạo tài khoản chủ sân mới trên hệ thống
+                </p>
+              </div>
+              <button
+                onClick={closeCreateOwnerModal}
+                className="text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateOwner} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Họ tên *</label>
+                <input
+                  name="ho_ten"
+                  value={ownerForm.ho_ten}
+                  onChange={handleOwnerFormChange}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#349DFF]"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Email *</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={ownerForm.email}
+                  onChange={handleOwnerFormChange}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#349DFF]"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Số điện thoại *</label>
+                <input
+                  name="so_dien_thoai"
+                  value={ownerForm.so_dien_thoai}
+                  onChange={handleOwnerFormChange}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#349DFF]"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Mật khẩu *</label>
+                <input
+                  type="password"
+                  name="mat_khau"
+                  value={ownerForm.mat_khau}
+                  onChange={handleOwnerFormChange}
+                  minLength={6}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#349DFF]"
+                  required
+                />
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={closeCreateOwnerModal}
+                  disabled={creatingOwner}
+                  className="w-full sm:w-auto px-5 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-70"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingOwner}
+                  className="w-full sm:w-auto px-5 py-2 rounded-xl text-sm font-medium text-white bg-[#349DFF] hover:bg-blue-600 disabled:opacity-70"
+                >
+                  {creatingOwner ? "Đang tạo..." : "Tạo chủ sân"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
