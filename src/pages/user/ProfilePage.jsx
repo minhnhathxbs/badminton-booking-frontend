@@ -101,7 +101,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="bg-[#f4f7fb] min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100">
       <Header />
 
       <main className="max-w-[900px] mx-auto mt-10 px-4 flex-1 w-full mb-12">

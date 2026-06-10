@@ -44,7 +44,7 @@ export default function ChangePasswordPage() {
   };
 
   return (
-    <div className="bg-[#f4f7fb] min-h-screen text-[#0a192f] font-sans flex flex-col">
+    <div className="min-h-screen text-[#0a192f] font-sans flex flex-col bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100">
       <Header />
 
       <main className="max-w-[600px] mx-auto mt-10 px-4 flex-1 w-full mb-12">

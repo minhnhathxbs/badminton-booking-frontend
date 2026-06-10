@@ -57,6 +57,11 @@ export default function AdminLayout() {
       label: "Quản lý cơ sở",
     },
     {
+      path: "/admin/danh-muc-san",
+      icon: "fa-list",
+      label: "Danh mục sân",
+    },
+    {
       path: "/admin/thong-ke",
       icon: "fa-chart-pie",
       label: "Thống kê hệ thống",

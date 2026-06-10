@@ -54,11 +54,6 @@ export default function OwnerLayout() {
     { path: "/chu-san/co-so", icon: "fa-building", label: "Quản lý cơ sở" },
     { path: "/chu-san/san", icon: "fa-layer-group", label: "Quản lý sân bãi" },
     {
-      path: "/chu-san/danh-muc-san",
-      icon: "fa-list",
-      label: "Danh mục sân",
-    },
-    {
       path: "/chu-san/lich-dat",
       icon: "fa-calendar-check",
       label: "Quản lý lịch đặt",

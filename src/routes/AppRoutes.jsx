@@ -1,7 +1,7 @@
-import { Navigate, Routes, Route } from "react-router-dom";
+import { Navigate, Routes, Route, useParams } from "react-router-dom";
 import AuthPage from "../pages/auth/AuthPage";
 import HomePage from "../pages/user/HomePage";
-import FacilityDetailPage from "../pages/user/FacilityDetailPage";
+import BookingPage from "../pages/user/BookingPage";
 import ProfilePage from "../pages/user/ProfilePage";
 import ChangePasswordPage from "../pages/user/ChangePasswordPage";
 import VerifyOtpPage from "../pages/auth/VerifyOtpPage";
@@ -25,12 +25,18 @@ import OwnerRoute from "./OwnerRoute";
 import AdminRoute from "./AdminRoute";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 
+function RedirectFacilityToBooking() {
+  const { id } = useParams();
+  return <Navigate to={`/dat-san/${id}`} replace />;
+}
+
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/trang-chu" replace />} />
       <Route path="/trang-chu" element={<HomePage />} />
-      <Route path="/co-so/:id" element={<FacilityDetailPage />} />
+      <Route path="/dat-san/:id" element={<BookingPage />} />
+      <Route path="/co-so/:id" element={<RedirectFacilityToBooking />} />
 
       <Route path="/login" element={<AuthPage initialForm="login" />} />
       <Route path="/dang-nhap" element={<AuthPage initialForm="login" />} />
@@ -61,7 +67,6 @@ export default function AppRoutes() {
           <Route path="tong-quan" element={<OwnerDashboard />} />
           <Route path="co-so" element={<ManageFacilities />} />
           <Route path="san" element={<ManageCourts />} />
-          <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="lich-dat" element={<ManageBookings />} />
           <Route path="khuyen-mai" element={<ManagePromotions />} />
           <Route path="doanh-thu" element={<RevenueReport />} />
@@ -76,6 +81,7 @@ export default function AppRoutes() {
           <Route path="tong-quan" element={<AdminDashboard />} />
           <Route path="nguoi-dung" element={<ManageUsers />} />
           <Route path="co-so" element={<ManageAllFacilities />} />
+          <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
         </Route>
       </Route>
