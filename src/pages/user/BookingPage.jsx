@@ -1,13 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
+import { showToast } from "../../components/common/ToastMessage";
 
-const HOURS = Array.from({ length: 15 }, (_, index) => 8 + index);
-
-const formatHour = (hour) => `${String(hour).padStart(2, "0")}:00`;
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString("vi-VN")}đ`;
-const getSlotPrice = (hour) => (hour >= 17 ? 120000 : 80000);
 const getPriceRange = (row) => {
   if (Number(row.gia_thap_nhat) === Number(row.gia_cao_nhat)) {
     return formatCurrency(row.gia_thap_nhat);
@@ -46,23 +43,12 @@ const CalendarIcon = ({ className = "" }) => (
   </svg>
 );
 
-const isMockBooked = (courtIndex, hour) => {
-  const patterns = [
-    [18, 19, 20],
-    [16, 17],
-    [19, 20],
-    [13, 14, 15],
-    [10, 11],
-    [21],
-  ];
-  return patterns[courtIndex % patterns.length]?.includes(hour);
-};
-
 export default function FacilityDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [facility, setFacility] = useState(null);
   const [courts, setCourts] = useState([]);
+  const [timeSlots, setTimeSlots] = useState([]);
   const [priceSummary, setPriceSummary] = useState([]);
   const [selectedDate, setSelectedDate] = useState(getTodayInputValue());
   const [selectedSlots, setSelectedSlots] = useState(new Set());
@@ -70,6 +56,11 @@ export default function FacilityDetailPage() {
   const [bookingStep, setBookingStep] = useState("select");
   const [showQrPayment, setShowQrPayment] = useState(false);
   const [paymentType, setPaymentType] = useState("deposit");
+  const [holdInfo, setHoldInfo] = useState(null);
+  const [isHolding, setIsHolding] = useState(false);
+  const [isCancelingHold, setIsCancelingHold] = useState(false);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -80,20 +71,25 @@ export default function FacilityDetailPage() {
       setSelectedSlots(new Set());
       setBookingStep("select");
       setShowQrPayment(false);
+      setHoldInfo(null);
 
       try {
-        const [facilityRes, courtRes, priceRes] = await Promise.all([
+        const [facilityRes, scheduleRes, priceRes] = await Promise.all([
           api.get(`/co-so/${id}`),
-          api.get("/san", { params: { co_so_id: id } }),
+          api.get("/dat-san/lich", {
+            params: { co_so_id: id, ngay: selectedDate },
+          }),
           api.get("/bang-gia/cong-khai", { params: { co_so_id: id } }),
         ]);
 
         setFacility(facilityRes.data);
-        setCourts(courtRes.data || []);
+        setCourts(scheduleRes.data?.san || []);
+        setTimeSlots(scheduleRes.data?.khung_gio || []);
         setPriceSummary(priceRes.data?.bang_gia || []);
       } catch (err) {
         setFacility(null);
         setCourts([]);
+        setTimeSlots([]);
         setPriceSummary([]);
         setError(
           err.response?.data?.message || "Không thể tải thông tin cơ sở",
@@ -104,25 +100,32 @@ export default function FacilityDetailPage() {
     };
 
     fetchDetail();
-  }, [id]);
+  }, [id, selectedDate, refreshKey]);
 
   const selectedItems = useMemo(() => {
     return Array.from(selectedSlots)
       .map((slotKey) => {
-        const [courtId, hour] = slotKey.split("-").map(Number);
+        const [courtId, khungGioMauId] = slotKey.split("-").map(Number);
         const court = courts.find((item) => Number(item.id) === courtId);
+        const slot = court?.slots?.find(
+          (item) => Number(item.khung_gio_mau_id) === khungGioMauId,
+        );
 
         return {
           key: slotKey,
+          courtId,
           courtName: court?.ten || "",
-          hour,
-          price: getSlotPrice(hour),
+          khungGioMauId,
+          gio_bat_dau: slot?.gio_bat_dau || "",
+          gio_ket_thuc: slot?.gio_ket_thuc || "",
+          price: Number(slot?.gia || 0),
         };
       })
-      .filter((item) => item.courtName)
+      .filter((item) => item.courtName && item.gio_bat_dau)
       .sort(
         (a, b) =>
-          a.courtName.localeCompare(b.courtName, "vi") || a.hour - b.hour,
+          a.courtName.localeCompare(b.courtName, "vi") ||
+          a.gio_bat_dau.localeCompare(b.gio_bat_dau),
       );
   }, [courts, selectedSlots]);
 
@@ -149,12 +152,10 @@ export default function FacilityDetailPage() {
     [courts],
   );
 
-  const isClosedSlot = (hour) => hour < 9;
+  const toggleSlot = (court, slot) => {
+    if (slot.trang_thai !== "trong") return;
 
-  const toggleSlot = (court, hour, courtIndex) => {
-    if (isClosedSlot(hour) || isMockBooked(courtIndex, hour)) return;
-
-    const slotKey = `${court.id}-${hour}`;
+    const slotKey = `${court.id}-${slot.khung_gio_mau_id}`;
     setSelectedSlots((prev) => {
       const next = new Set(prev);
       if (next.has(slotKey)) {
@@ -166,15 +167,18 @@ export default function FacilityDetailPage() {
     });
   };
 
-  const getSlotClass = (court, hour, courtIndex) => {
-    const slotKey = `${court.id}-${hour}`;
+  const getSlotClass = (court, slot) => {
+    const slotKey = `${court.id}-${slot.khung_gio_mau_id}`;
 
-    if (isClosedSlot(hour)) {
-      return "bg-[#ff0000] cursor-not-allowed";
+    if (
+      slot.trang_thai === "khong_co_gia" ||
+      slot.trang_thai === "qua_gio"
+    ) {
+      return "bg-[#b9b9b9] cursor-not-allowed";
     }
 
-    if (isMockBooked(courtIndex, hour)) {
-      return "bg-[#b9b9b9] cursor-not-allowed";
+    if (slot.trang_thai === "da_dat" || slot.trang_thai === "giu_cho") {
+      return "bg-[#ff0000] cursor-not-allowed";
     }
 
     if (selectedSlots.has(slotKey)) {
@@ -184,12 +188,96 @@ export default function FacilityDetailPage() {
     return "bg-white hover:bg-blue-50 cursor-pointer";
   };
 
-  const goToConfirm = () => {
+  const goToConfirm = async () => {
     if (selectedItems.length === 0) return;
-    setBookingStep("confirm");
-    setShowQrPayment(false);
-    setPaymentType("deposit");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    setIsHolding(true);
+    try {
+      const res = await api.post("/dat-san/giu-cho", {
+        co_so_id: Number(id),
+        ngay: selectedDate,
+        slots: selectedItems.map((item) => ({
+          san_id: item.courtId,
+          khung_gio_mau_id: item.khungGioMauId,
+        })),
+      });
+
+      setHoldInfo(res.data);
+      setBookingStep("confirm");
+      setShowQrPayment(false);
+      setPaymentType("deposit");
+      showToast(res.data?.message || "Giữ chỗ thành công", "success");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      const message =
+        err.response?.data?.message || "Không thể giữ chỗ, vui lòng thử lại";
+      showToast(message, "error");
+
+      if (err.response?.status === 409) {
+        setSelectedSlots(new Set());
+      }
+    } finally {
+      setIsHolding(false);
+    }
+  };
+
+  const cancelHoldAndBack = async () => {
+    if (!holdInfo?.dat_san_id) {
+      setBookingStep("select");
+      setShowQrPayment(false);
+      setHoldInfo(null);
+      return;
+    }
+
+    setIsCancelingHold(true);
+    try {
+      const res = await api.patch(
+        `/dat-san/${holdInfo.dat_san_id}/huy-giu-cho`,
+      );
+      showToast(res.data?.message || "Da huy giu cho", "success");
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "Khong the huy giu cho",
+        "error",
+      );
+    } finally {
+      setIsCancelingHold(false);
+      setBookingStep("select");
+      setShowQrPayment(false);
+      setHoldInfo(null);
+      setSelectedSlots(new Set());
+      setRefreshKey((value) => value + 1);
+    }
+  };
+
+  const createVnpayPayment = async () => {
+    if (!holdInfo?.dat_san_id) {
+      showToast("Khong tim thay don giu cho", "error");
+      return;
+    }
+
+    setIsCreatingPayment(true);
+    try {
+      const res = await api.post("/thanh-toan/vnpay/tao-url", {
+        dat_san_id: holdInfo.dat_san_id,
+        loai_thanh_toan: paymentType,
+      });
+
+      if (!res.data?.payment_url) {
+        throw new Error("Khong nhan duoc URL thanh toan");
+      }
+
+      window.location.href = res.data.payment_url;
+    } catch (err) {
+      showToast(
+        err.response?.data?.message ||
+          err.message ||
+          "Khong the tao thanh toan VNPay",
+        "error",
+      );
+    } finally {
+      setIsCreatingPayment(false);
+    }
   };
 
   if (isLoading) {
@@ -233,13 +321,14 @@ export default function FacilityDetailPage() {
           <div className="mx-auto flex max-w-3xl items-center justify-between">
             <button
               type="button"
-              onClick={() => {
-                setBookingStep("select");
-                setShowQrPayment(false);
-              }}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
+              onClick={cancelHoldAndBack}
+              disabled={isCancelingHold}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+              title="Huy thanh toan"
             >
-              <i className="fa-solid fa-chevron-left"></i>
+              <i
+                className={`fa-solid ${isCancelingHold ? "fa-circle-notch fa-spin" : "fa-chevron-left"}`}
+              ></i>
             </button>
             <h1 className="text-lg font-bold text-slate-900">
               Xác nhận đặt sân
@@ -282,6 +371,23 @@ export default function FacilityDetailPage() {
                 {new Date(selectedDate).toLocaleDateString("vi-VN")}
               </span>
             </div>
+            {holdInfo && (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="font-bold">
+                    Ma giu cho: #{holdInfo.dat_san_id}
+                  </span>
+                  <span className="font-medium">
+                    Het han: {" "}
+                    {holdInfo.thoi_gian_het_han
+                      ? new Date(holdInfo.thoi_gian_het_han).toLocaleString(
+                          "vi-VN",
+                        )
+                      : "Sau 10 phut"}
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3 mb-5">
               {selectedItems.map((item) => (
@@ -295,7 +401,7 @@ export default function FacilityDetailPage() {
                       {item.courtName}
                     </span>
                     <span className="text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md text-xs font-medium">
-                      {formatHour(item.hour)} - {formatHour(item.hour + 1)}
+                      {item.gio_bat_dau} - {item.gio_ket_thuc}
                     </span>
                   </div>
                   <span className="font-semibold text-slate-900">
@@ -464,7 +570,7 @@ export default function FacilityDetailPage() {
                 <p className="text-sm font-medium text-slate-700">
                   Nội dung chuyển khoản:{" "}
                   <span className="font-bold text-indigo-700 select-all">
-                    DAT SAN {facility.id}
+                    DAT SAN {holdInfo?.dat_san_id || facility.id}
                   </span>
                 </p>
                 <p className="text-sm font-medium text-slate-700">
@@ -484,16 +590,44 @@ export default function FacilityDetailPage() {
 
         {/* Thanh Xác nhận cố định */}
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto flex max-w-3xl gap-3">
             <button
               type="button"
-              onClick={() => setShowQrPayment(true)}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-4 text-sm font-bold text-white transition hover:bg-indigo-700 shadow-md shadow-indigo-200"
+              onClick={cancelHoldAndBack}
+              disabled={isCancelingHold}
+              className="flex min-w-[140px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <i className="fa-solid fa-qrcode"></i>
-              {paymentType === "full"
-                ? "Thanh toán toàn bộ"
-                : "Thanh toán tiền cọc"}
+              {isCancelingHold ? (
+                <>
+                  <i className="fa-solid fa-circle-notch fa-spin"></i>
+                  Dang huy
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-xmark"></i>
+                  Huy thanh toan
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={createVnpayPayment}
+              disabled={isCancelingHold || isCreatingPayment}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-4 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300 shadow-md shadow-indigo-200"
+            >
+              {isCreatingPayment ? (
+                <>
+                  <i className="fa-solid fa-circle-notch fa-spin"></i>
+                  Dang tao thanh toan
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-credit-card"></i>
+                  {paymentType === "full"
+                    ? "Thanh toan toan bo"
+                    : "Thanh toan tien coc"}
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -561,11 +695,11 @@ export default function FacilityDetailPage() {
                 Đang chọn
               </span>
               <span className="flex items-center gap-2">
-                <span className="h-3 w-4 rounded-sm border border-[#8f8f8f] bg-[#b9b9b9]"></span>{" "}
+                <span className="h-3 w-4 rounded-sm border border-[#d40000] bg-[#ff0000]"></span>{" "}
                 Đã đặt
               </span>
               <span className="flex items-center gap-2">
-                <span className="h-3 w-4 rounded-sm border border-[#d40000] bg-[#ff0000]"></span>{" "}
+                <span className="h-3 w-4 rounded-sm border border-[#8f8f8f] bg-[#b9b9b9]"></span>{" "}
                 Khóa
               </span>
             </div>
@@ -594,27 +728,22 @@ export default function FacilityDetailPage() {
                   <div
                     className="grid min-w-[1000px]"
                     style={{
-                      gridTemplateColumns: `120px repeat(${HOURS.length}, minmax(56px, 1fr))`,
+                      gridTemplateColumns: `120px repeat(${timeSlots.length}, minmax(56px, 1fr))`,
                     }}
                   >
                     <div className="sticky left-0 z-20 flex items-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-2 text-xs font-semibold text-emerald-900">
                       Sân
                     </div>
-                    {HOURS.map((hour) => (
+                    {timeSlots.map((slot) => (
                       <div
-                        key={hour}
+                        key={slot.id}
                         className="border-b border-r border-[#9a9a9a] bg-white px-1 py-2 text-center text-xs font-semibold text-slate-700"
                       >
-                        {formatHour(hour)}
+                        {slot.gio_bat_dau}
                       </div>
                     ))}
 
-                    {section.courts.map((court) => {
-                      const courtIndex = courts.findIndex(
-                        (item) => Number(item.id) === Number(court.id),
-                      );
-
-                      return (
+                    {section.courts.map((court) => (
                         <React.Fragment key={court.id}>
                           <div className="sticky left-0 z-10 flex min-h-[44px] flex-col justify-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-1">
                             <div
@@ -625,80 +754,37 @@ export default function FacilityDetailPage() {
                             </div>
                           </div>
 
-                          {HOURS.map((hour) => (
-                            <button
-                              key={`${court.id}-${hour}`}
-                              type="button"
-                              onClick={() => toggleSlot(court, hour, courtIndex)}
-                              className={`h-full min-h-[44px] border-b border-r border-[#9a9a9a] text-xs transition-colors ${getSlotClass(court, hour, courtIndex)}`}
-                              title={`${court.ten} | ${formatHour(hour)} - ${formatHour(hour + 1)}`}
-                            ></button>
-                          ))}
+                          {timeSlots.map((timeSlot) => {
+                            const slot = court.slots?.find(
+                              (item) =>
+                                Number(item.khung_gio_mau_id) ===
+                                Number(timeSlot.id),
+                            );
+
+                            return (
+                              <button
+                                key={`${court.id}-${timeSlot.id}`}
+                                type="button"
+                                onClick={() => slot && toggleSlot(court, slot)}
+                                className={`h-full min-h-[44px] border-b border-r border-[#9a9a9a] text-xs transition-colors ${
+                                  slot
+                                    ? getSlotClass(court, slot)
+                                    : "bg-[#b9b9b9] cursor-not-allowed"
+                                }`}
+                                title={`${court.ten} | ${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}${
+                                  slot?.gia ? ` | ${formatCurrency(slot.gia)}` : ""
+                                }`}
+                              ></button>
+                            );
+                          })}
                         </React.Fragment>
-                      );
-                    })}
+                    ))}
                   </div>
                 </div>
               )}
             </section>
           ))}
 
-          <div className="hidden">
-            {courts.length === 0 ? (
-              <div className="m-4 rounded-xl border-2 border-dashed border-slate-200 py-12 text-center text-slate-500">
-                <i className="fa-regular fa-folder-open text-3xl mb-3 text-slate-300"></i>
-                <p className="text-sm font-medium">
-                  Cơ sở này hiện chưa có dữ liệu sân.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto custom-scrollbar">
-                <div
-                  className="grid min-w-[1000px]"
-                  style={{
-                    gridTemplateColumns: `120px repeat(${HOURS.length}, minmax(56px, 1fr))`,
-                  }}
-                >
-                  {/* Header Row */}
-                  <div className="sticky left-0 z-20 flex items-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-2 text-xs font-semibold text-emerald-900">
-                    Sân
-                  </div>
-                  {HOURS.map((hour) => (
-                    <div
-                      key={hour}
-                      className="border-b border-r border-[#9a9a9a] bg-white px-1 py-2 text-center text-xs font-semibold text-slate-700"
-                    >
-                      {formatHour(hour)}
-                    </div>
-                  ))}
-
-                  {/* Body Rows */}
-                  {courts.map((court, courtIndex) => (
-                    <React.Fragment key={court.id}>
-                      <div className="sticky left-0 z-10 flex min-h-[44px] flex-col justify-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-1">
-                        <div
-                          className="truncate text-xs font-semibold text-emerald-900"
-                          title={court.ten}
-                        >
-                          {court.ten}
-                        </div>
-                      </div>
-
-                      {HOURS.map((hour) => (
-                        <button
-                          key={`${court.id}-${hour}`}
-                          type="button"
-                          onClick={() => toggleSlot(court, hour, courtIndex)}
-                          className={`h-full min-h-[44px] border-b border-r border-[#9a9a9a] text-xs transition-colors ${getSlotClass(court, hour, courtIndex)}`}
-                          title={`${court.ten} | ${formatHour(hour)} - ${formatHour(hour + 1)}`}
-                        ></button>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </main>
 
@@ -724,10 +810,19 @@ export default function FacilityDetailPage() {
           <button
             type="button"
             onClick={goToConfirm}
-            disabled={selectedItems.length === 0}
+            disabled={selectedItems.length === 0 || isHolding}
             className="flex min-w-[140px] items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
           >
-            Tiếp tục <i className="fa-solid fa-arrow-right"></i>
+            {isHolding ? (
+              <>
+                <i className="fa-solid fa-circle-notch fa-spin"></i>
+                Dang giu cho
+              </>
+            ) : (
+              <>
+                Tiep tuc <i className="fa-solid fa-arrow-right"></i>
+              </>
+            )}
           </button>
         </div>
       </div>
