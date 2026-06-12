@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import api, { getAssetUrl } from "../../api/axios";
 
@@ -14,7 +14,7 @@ export default function Header() {
   const navLinks = [
     { to: "/trang-chu", icon: "fa-solid fa-house", label: "Trang chủ" },
     { to: "/map", icon: "fa-solid fa-location-dot", label: "Bản đồ" },
-    { to: "/favorites", icon: "fa-regular fa-heart", label: "Yêu thích" },
+    { to: "/yeu-thich", icon: "fa-regular fa-heart", label: "Yêu thích" },
     { to: "/notifications", icon: "fa-regular fa-bell", label: "Thông báo" },
   ];
 
@@ -195,6 +195,12 @@ export default function Header() {
                   >
                     <i className="fa-regular fa-user w-4"></i> Thông tin cá nhân
                   </Link>
+                  <Link
+                    to="/lich-su-dat-san"
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-[#eef3ff]"
+                  >
+                    <i className="fa-regular fa-calendar-check w-4"></i> Lịch sử đặt sân
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -293,6 +299,14 @@ export default function Header() {
                       >
                         <i className="fa-regular fa-user w-4 text-center"></i>{" "}
                         Thông tin cá nhân
+                      </Link>
+                      <Link
+                        to="/lich-su-dat-san"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm bg-[#eef3ff] text-blue-700 font-medium"
+                      >
+                        <i className="fa-regular fa-calendar-check w-4 text-center"></i>{" "}
+                        Lịch sử đặt sân
                       </Link>
                       <button
                         onClick={handleLogout}

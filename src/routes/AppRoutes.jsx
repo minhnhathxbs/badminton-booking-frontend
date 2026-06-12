@@ -2,6 +2,8 @@ import { Navigate, Routes, Route, useParams } from "react-router-dom";
 import AuthPage from "../pages/auth/AuthPage";
 import HomePage from "../pages/user/HomePage";
 import BookingPage from "../pages/user/BookingPage";
+import BookingHistoryPage from "../pages/user/BookingHistoryPage";
+import FavoritesPage from "../pages/user/FavoritesPage";
 import PaymentResultPage from "../pages/user/PaymentResultPage";
 import ProfilePage from "../pages/user/ProfilePage";
 import ChangePasswordPage from "../pages/user/ChangePasswordPage";
@@ -37,6 +39,9 @@ export default function AppRoutes() {
       <Route path="/" element={<Navigate to="/trang-chu" replace />} />
       <Route path="/trang-chu" element={<HomePage />} />
       <Route path="/dat-san/:id" element={<BookingPage />} />
+      <Route path="/lich-su-dat-san" element={<BookingHistoryPage />} />
+      <Route path="/favorites" element={<FavoritesPage />} />
+      <Route path="/yeu-thich" element={<FavoritesPage />} />
       <Route path="/thanh-toan/ket-qua" element={<PaymentResultPage />} />
       <Route path="/co-so/:id" element={<RedirectFacilityToBooking />} />
 

@@ -1,16 +1,26 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+﻿import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Header from "../../components/common/Header";
 import Footer from "../../components/common/Footer";
 import api, { getAssetUrl } from "../../api/axios";
+import { showToast } from "../../components/common/ToastMessage";
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [facilities, setFacilities] = useState([]);
+  const [allFacilities, setAllFacilities] = useState([]);
   const [keyword, setKeyword] = useState("");
   const [selectedProvince, setSelectedProvince] = useState("");
-  const [selectedWard, setSelectedWard] = useState("");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [activePopup, setActivePopup] = useState(null);
+  const [selectedCourtType, setSelectedCourtType] = useState("");
+  const [priceFrom, setPriceFrom] = useState("");
+  const [priceTo, setPriceTo] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [selectedSort, setSelectedSort] = useState("pho_bien");
+  const [showAllFacilities, setShowAllFacilities] = useState(false);
   const [selectedFacility, setSelectedFacility] = useState(null);
+  const [favoriteLoadingIds, setFavoriteLoadingIds] = useState(new Set());
   const [favoriteFacilityIds, setFavoriteFacilityIds] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false);
 
@@ -18,63 +28,103 @@ export default function HomePage() {
     const fetchFacilities = async () => {
       setIsLoading(true);
       try {
-        const res = await api.get("/co-so");
+        const params = {
+          tu_khoa: keyword.trim() || undefined,
+          tinh_thanh: selectedProvince || undefined,
+          loai_san: selectedCourtType || undefined,
+          gia_tu: priceFrom || undefined,
+          gia_den: priceTo || undefined,
+          ngay: selectedDate || undefined,
+          gio: selectedTime ? `${selectedTime}:00` : undefined,
+          sap_xep: selectedSort || undefined,
+        };
+        const res = await api.get("/co-so", { params });
         setFacilities(res.data);
-      } catch (error) {
+      } catch {
         setFacilities([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchFacilities();
+    const timeoutId = setTimeout(fetchFacilities, 250);
+    return () => clearTimeout(timeoutId);
+  }, [
+    keyword,
+    selectedProvince,
+    selectedCourtType,
+    priceFrom,
+    priceTo,
+    selectedDate,
+    selectedTime,
+    selectedSort,
+  ]);
+
+  useEffect(() => {
+    const fetchAllFacilities = async () => {
+      try {
+        const res = await api.get("/co-so");
+        setAllFacilities(res.data || []);
+      } catch {
+        setAllFacilities([]);
+      }
+    };
+
+    fetchAllFacilities();
+  }, []);
+
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!localStorage.getItem("token")) {
+        setFavoriteFacilityIds(new Set());
+        return;
+      }
+
+      try {
+        const res = await api.get("/yeu-thich");
+        const favoriteIds = (res.data?.data || [])
+          .map((item) => Number(item.co_so_id || item.id))
+          .filter(Boolean);
+        setFavoriteFacilityIds(new Set(favoriteIds));
+      } catch {
+        setFavoriteFacilityIds(new Set());
+      }
+    };
+
+    fetchFavorites();
   }, []);
 
   const provinces = useMemo(() => {
     return Array.from(
-      new Set(facilities.map((facility) => facility.tinh_thanh).filter(Boolean)),
+      new Set(allFacilities.map((facility) => facility.tinh_thanh).filter(Boolean)),
     ).sort((a, b) => a.localeCompare(b, "vi"));
-  }, [facilities]);
-
-  const wards = useMemo(() => {
-    const source = selectedProvince
-      ? facilities.filter((facility) => facility.tinh_thanh === selectedProvince)
-      : facilities;
-
-    return Array.from(
-      new Set(source.map((facility) => facility.phuong_xa).filter(Boolean)),
-    ).sort((a, b) => a.localeCompare(b, "vi"));
-  }, [facilities, selectedProvince]);
-
-  useEffect(() => {
-    if (selectedWard && !wards.includes(selectedWard)) {
-      setSelectedWard("");
-    }
-  }, [selectedWard, wards]);
+  }, [allFacilities]);
 
   const filteredFacilities = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLowerCase();
+    return facilities;
+  }, [facilities]);
 
-    return facilities.filter((facility) => {
-      const text = [
-        facility.ten,
-        facility.dia_chi,
-        facility.phuong_xa,
-        facility.tinh_thanh,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+  const hasAdvancedFilter =
+    selectedCourtType || priceFrom || priceTo || selectedDate || selectedTime;
+  const hasListFilter = Boolean(
+    keyword.trim() ||
+      selectedProvince ||
+      selectedCourtType ||
+      priceFrom ||
+      priceTo ||
+      selectedDate ||
+      selectedTime ||
+      selectedSort !== "pho_bien",
+  );
+  const visibleFacilities =
+    showAllFacilities || hasListFilter
+      ? filteredFacilities
+      : filteredFacilities.slice(0, 3);
 
-      const matchedKeyword =
-        !normalizedKeyword || text.includes(normalizedKeyword);
-      const matchedProvince =
-        !selectedProvince || facility.tinh_thanh === selectedProvince;
-      const matchedWard = !selectedWard || facility.phuong_xa === selectedWard;
-
-      return matchedKeyword && matchedProvince && matchedWard;
-    });
-  }, [facilities, keyword, selectedProvince, selectedWard]);
+  const timeOptions = Array.from({ length: 18 }, (_, index) => {
+    const hour = 5 + index;
+    return `${String(hour).padStart(2, "0")}:00`;
+  });
 
   const today = new Intl.DateTimeFormat("vi-VN", {
     weekday: "long",
@@ -88,61 +138,121 @@ export default function HomePage() {
       .filter(Boolean)
       .join(", ");
 
-  const toggleFavorite = (facilityId) => {
+  const toggleFavorite = async (facilityId) => {
+    const normalizedId = Number(facilityId);
+    if (!localStorage.getItem("token")) {
+      showToast("Vui lòng đăng nhập để yêu thích cơ sở", "error");
+      navigate("/dang-nhap");
+      return;
+    }
+
+    if (favoriteLoadingIds.has(normalizedId)) return;
+
+    const wasFavorite = favoriteFacilityIds.has(normalizedId);
+    setFavoriteLoadingIds((prev) => new Set(prev).add(normalizedId));
     setFavoriteFacilityIds((prev) => {
       const next = new Set(prev);
-      if (next.has(facilityId)) {
-        next.delete(facilityId);
-      } else {
-        next.add(facilityId);
-      }
+      if (wasFavorite) next.delete(normalizedId);
+      else next.add(normalizedId);
       return next;
     });
+
+    try {
+      if (wasFavorite) {
+        await api.delete(`/yeu-thich/${normalizedId}`);
+        showToast("Đã bỏ yêu thích cơ sở");
+      } else {
+        await api.post(`/yeu-thich/${normalizedId}`);
+        showToast("Đã thêm vào yêu thích");
+      }
+    } catch (error) {
+      setFavoriteFacilityIds((prev) => {
+        const next = new Set(prev);
+        if (wasFavorite) next.add(normalizedId);
+        else next.delete(normalizedId);
+        return next;
+      });
+      showToast(error.response?.data?.message || "Không thể cập nhật yêu thích", "error");
+    } finally {
+      setFavoriteLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(normalizedId);
+        return next;
+      });
+    }
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 font-sans text-gray-800">
       <Header />
 
-      <main className="mx-auto mt-2 w-full max-w-[1200px] flex-1 px-3 lg:mt-6 lg:px-4">
+      <main className="mx-auto mt-2 w-full max-w-[1600px] flex-1 px-4 lg:mt-6 lg:px-8 xl:px-10">
         <div className="mb-4 flex items-center justify-end px-1 lg:hidden">
           <div className="text-xs font-medium text-blue-500">{today}</div>
         </div>
 
-        <div className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-center lg:mb-6">
-          <div className="flex w-full items-center rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm sm:px-6 lg:rounded-full lg:border-gray-200 md:flex-1">
-            <i className="fa-solid fa-magnifying-glass mr-3 text-gray-400"></i>
-            <input
-              type="text"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Tìm sân cầu lông"
-              className="w-full flex-1 bg-transparent text-sm text-gray-700 outline-none"
-            />
+        <div className="mb-4 flex flex-col gap-3 lg:mb-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="flex min-h-[52px] flex-1 items-center rounded-2xl border border-gray-200 bg-white px-4 shadow-sm lg:rounded-full">
+              <i className="fa-solid fa-magnifying-glass mr-3 text-gray-400"></i>
+              <input
+                type="text"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="Tìm sân cầu lông"
+                className="w-full flex-1 bg-transparent text-sm text-gray-700 outline-none"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setActivePopup(activePopup === "province" ? null : "province")
+              }
+              className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#eef4ff] px-4 text-sm font-bold text-slate-900 shadow-sm hover:bg-blue-100"
+            >
+              <i className="fa-solid fa-location-dot text-blue-600"></i>
+              {selectedProvince || "Tỉnh / thành"}
+              <i className="fa-solid fa-chevron-down text-xs text-slate-500"></i>
+            </button>
+            <div className="hidden whitespace-nowrap px-2 text-sm text-gray-500 lg:block">
+              {today}
+            </div>
           </div>
-          <div className="hidden whitespace-nowrap px-2 text-sm text-gray-500 lg:block">
-            {today}
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "filter", icon: "fa-sliders", label: "Lọc" },
+                { key: "date", icon: "fa-calendar-days", label: "Ngày" },
+                { key: "time", icon: "fa-clock", label: "Giờ" },
+                { key: "sort", icon: "fa-arrow-down-wide-short", label: "Sắp xếp" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() =>
+                    setActivePopup(activePopup === item.key ? null : item.key)
+                  }
+                  className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50"
+                >
+                  <i className={`fa-solid ${item.icon}`}></i>
+                  {item.label}
+                  {((item.key === "filter" && hasAdvancedFilter) ||
+                    (item.key === "date" && selectedDate) ||
+                    (item.key === "time" && selectedTime) ||
+                    (item.key === "sort" && selectedSort !== "pho_bien")) && (
+                    <span className="h-2 w-2 rounded-full bg-blue-600"></span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="rounded-xl bg-[#eef3ff] px-4 py-2.5 text-sm font-bold text-blue-700">
+              {filteredFacilities.length} cơ sở
+            </div>
           </div>
         </div>
 
-        <div className="mb-5 flex items-center justify-between gap-3 lg:mb-8">
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen(true)}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50"
-          >
-            <i className="fa-solid fa-sliders"></i>
-            Lọc
-            {(selectedProvince || selectedWard) && (
-              <span className="h-2 w-2 rounded-full bg-blue-600"></span>
-            )}
-          </button>
-          <div className="rounded-xl bg-[#eef3ff] px-4 py-2.5 text-sm font-bold text-blue-700">
-            {filteredFacilities.length} cơ sở
-          </div>
-        </div>
-
-        <div className="mb-10 flex flex-col gap-6 lg:flex-row">
+        <div className="mb-10 flex flex-col gap-6 xl:flex-row">
           <div className="flex-1">
             <div className="mb-6 block w-full lg:hidden">
               <div className="relative flex items-center justify-between overflow-hidden rounded-2xl bg-gradient-to-r from-[#eef4ff] to-[#d6e5ff] p-4 shadow-sm">
@@ -178,9 +288,19 @@ export default function HomePage() {
               <h2 className="text-base font-bold text-gray-800 lg:text-lg">
                 Gợi ý cho bạn
               </h2>
-              <span className="text-sm font-medium text-gray-500 lg:hidden">
-                {filteredFacilities.length} kết quả
-              </span>
+              {filteredFacilities.length > 3 && !hasListFilter ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAllFacilities((prev) => !prev)}
+                  className="text-sm font-bold text-blue-600 hover:text-blue-700"
+                >
+                  {showAllFacilities ? "Thu gọn" : "Xem tất cả"}
+                </button>
+              ) : (
+                <span className="text-sm font-medium text-gray-500 lg:hidden">
+                  {filteredFacilities.length} kết quả
+                </span>
+              )}
             </div>
 
             <div className="space-y-3 lg:space-y-4">
@@ -193,7 +313,7 @@ export default function HomePage() {
                   Không có cơ sở phù hợp với bộ lọc
                 </div>
               ) : (
-                filteredFacilities.map((facility) => (
+                visibleFacilities.map((facility) => (
                   <article
                     key={facility.id}
                     className="flex flex-row gap-3 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm lg:gap-4 lg:border-gray-200 lg:p-4"
@@ -222,11 +342,12 @@ export default function HomePage() {
                       <button
                         type="button"
                         onClick={() => toggleFavorite(facility.id)}
-                        className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-500 shadow-sm transition hover:bg-white hover:text-rose-500"
+                        disabled={favoriteLoadingIds.has(Number(facility.id))}
+                        className={`absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-500 shadow-sm transition hover:bg-white hover:text-rose-500 ${favoriteLoadingIds.has(Number(facility.id)) ? "cursor-not-allowed opacity-60" : ""}`}
                         aria-label="Yêu thích"
                       >
                         <i
-                          className={`${favoriteFacilityIds.has(facility.id) ? "fa-solid text-rose-500" : "fa-regular"} fa-heart`}
+                          className={`${favoriteFacilityIds.has(Number(facility.id)) ? "fa-solid text-rose-500" : "fa-regular"} fa-heart`}
                         ></i>
                       </button>
                     </div>
@@ -264,13 +385,19 @@ export default function HomePage() {
                         </span>
                         <div className="text-right">
                           <div className="mb-0.5 text-[9px] font-medium text-gray-800 lg:text-xs">
-                            Giá từ{" "}
-                            <span className="text-[11px] font-bold text-blue-600 lg:text-sm">
-                              60.000đ
-                              <span className="font-normal text-gray-800">
-                                /giờ
-                              </span>
-                            </span>
+                            {facility.gia_thap_nhat ? (
+                              <>
+                                Giá từ{" "}
+                                <span className="text-[11px] font-bold text-blue-600 lg:text-sm">
+                                  {Number(facility.gia_thap_nhat).toLocaleString("vi-VN")}đ
+                                  <span className="font-normal text-gray-800">
+                                    /giờ
+                                  </span>
+                                </span>
+                              </>
+                            ) : (
+                              <span className="font-bold text-gray-500">Chưa có giá</span>
+                            )}
                           </div>
                           <Link
                             to={`/dat-san/${facility.id}`}
@@ -287,7 +414,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="hidden w-[320px] flex-shrink-0 lg:block">
+          <div className="hidden w-full max-w-[360px] flex-shrink-0 xl:block">
             <div className="relative overflow-hidden rounded-2xl border border-[#dce6fa] bg-[#eef3ff] p-6 text-center shadow-sm">
               <div className="mb-6 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide text-blue-600">
                 <i className="fa-solid fa-user-group"></i>
@@ -344,11 +471,12 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => toggleFavorite(selectedFacility.id)}
-                className="absolute right-32 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-600 shadow-md transition hover:bg-gray-100 hover:text-rose-500"
+                disabled={favoriteLoadingIds.has(Number(selectedFacility.id))}
+                className={`absolute right-32 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-600 shadow-md transition hover:bg-gray-100 hover:text-rose-500 ${favoriteLoadingIds.has(Number(selectedFacility.id)) ? "cursor-not-allowed opacity-60" : ""}`}
                 aria-label="Yêu thích"
               >
                 <i
-                  className={`${favoriteFacilityIds.has(selectedFacility.id) ? "fa-solid text-rose-500" : "fa-regular"} fa-heart`}
+                  className={`${favoriteFacilityIds.has(Number(selectedFacility.id)) ? "fa-solid text-rose-500" : "fa-regular"} fa-heart`}
                 ></i>
               </button>
 
@@ -473,14 +601,20 @@ export default function HomePage() {
         </div>
       )}
 
-      {isFilterOpen && (
+      {activePopup && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h3 className="text-lg font-bold text-[#0a192f]">Bộ lọc</h3>
+              <h3 className="text-lg font-bold text-[#0a192f]">
+                {activePopup === "province" && "Chọn tỉnh / thành"}
+                {activePopup === "filter" && "Bộ lọc"}
+                {activePopup === "date" && "Chọn ngày"}
+                {activePopup === "time" && "Chọn giờ"}
+                {activePopup === "sort" && "Sắp xếp"}
+              </h3>
               <button
                 type="button"
-                onClick={() => setIsFilterOpen(false)}
+                onClick={() => setActivePopup(null)}
                 className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
               >
                 <i className="fa-solid fa-xmark"></i>
@@ -488,62 +622,95 @@ export default function HomePage() {
             </div>
 
             <div className="space-y-4 p-5">
-              <label className="block space-y-1.5">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                  Tỉnh / thành phố
-                </span>
-                <select
-                  value={selectedProvince}
-                  onChange={(e) => setSelectedProvince(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">Tất cả tỉnh/thành</option>
+              {activePopup === "province" && (
+                <div className="grid gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedProvince(""); setActivePopup(null); }}
+                    className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${!selectedProvince ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}
+                  >
+                    Tất cả tỉnh / thành
+                  </button>
                   {provinces.map((province) => (
-                    <option key={province} value={province}>
+                    <button
+                      key={province}
+                      type="button"
+                      onClick={() => { setSelectedProvince(province); setActivePopup(null); }}
+                      className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${selectedProvince === province ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}
+                    >
                       {province}
-                    </option>
+                    </button>
                   ))}
-                </select>
-              </label>
+                </div>
+              )}
 
-              <label className="block space-y-1.5">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                  Phường / xã
-                </span>
-                <select
-                  value={selectedWard}
-                  onChange={(e) => setSelectedWard(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">Tất cả phường/xã</option>
-                  {wards.map((ward) => (
-                    <option key={ward} value={ward}>
-                      {ward}
-                    </option>
+              {activePopup === "filter" && (
+                <>
+                  <div>
+                    <div className="mb-2 text-xs font-bold uppercase text-gray-500">Loại sân</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: "", label: "Tất cả" },
+                        { value: "thuong", label: "Sân thường" },
+                        { value: "vip", label: "Sân VIP" },
+                      ].map((item) => (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => setSelectedCourtType(item.value)}
+                          className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${selectedCourtType === item.value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block space-y-1.5">
+                      <span className="text-xs font-bold uppercase text-gray-500">Giá từ</span>
+                      <input value={priceFrom} onChange={(e) => setPriceFrom(e.target.value)} type="number" min="0" placeholder="0" className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500" />
+                    </label>
+                    <label className="block space-y-1.5">
+                      <span className="text-xs font-bold uppercase text-gray-500">Giá đến</span>
+                      <input value={priceTo} onChange={(e) => setPriceTo(e.target.value)} type="number" min="0" placeholder="200000" className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500" />
+                    </label>
+                  </div>
+                </>
+              )}
+
+              {activePopup === "date" && (
+                <input value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} type="date" className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm font-bold text-gray-700 outline-none focus:border-blue-500" />
+              )}
+
+              {activePopup === "time" && (
+                <div className="grid max-h-[360px] grid-cols-3 gap-2 overflow-y-auto">
+                  <button type="button" onClick={() => setSelectedTime("")} className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${!selectedTime ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}>Tất cả</button>
+                  {timeOptions.map((time) => (
+                    <button key={time} type="button" onClick={() => setSelectedTime(time)} className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${selectedTime === time ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}>{time}</button>
                   ))}
-                </select>
-              </label>
+                </div>
+              )}
+
+              {activePopup === "sort" && (
+                <div className="grid gap-2">
+                  {[
+                    { value: "pho_bien", label: "Phổ biến nhất" },
+                    { value: "gan_ban", label: "Gần bạn nhất" },
+                    { value: "gia_thap", label: "Giá thấp đến cao" },
+                    { value: "gia_cao", label: "Giá cao đến thấp" },
+                  ].map((item) => (
+                    <button key={item.value} type="button" onClick={() => { setSelectedSort(item.value); setActivePopup(null); }} className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${selectedSort === item.value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}>{item.label}</button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="flex gap-3 border-t border-gray-100 px-5 py-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedProvince("");
-                  setSelectedWard("");
-                }}
-                className="flex-1 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-200"
-              >
-                Xóa lọc
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsFilterOpen(false)}
-                className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
-              >
-                Áp dụng
-              </button>
-            </div>
+            {activePopup !== "province" && activePopup !== "sort" && (
+              <div className="flex gap-3 border-t border-gray-100 px-5 py-4">
+                <button type="button" onClick={() => { if (activePopup === "filter") { setSelectedCourtType(""); setPriceFrom(""); setPriceTo(""); } if (activePopup === "date") setSelectedDate(""); if (activePopup === "time") setSelectedTime(""); }} className="flex-1 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-200">Xóa lọc</button>
+                <button type="button" onClick={() => setActivePopup(null)} className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700">Áp dụng</button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -552,3 +719,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+
