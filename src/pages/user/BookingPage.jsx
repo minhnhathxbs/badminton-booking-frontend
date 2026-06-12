@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
 
 const formatCurrency = (value) =>
-  `${Number(value || 0).toLocaleString("vi-VN")}đ`;
+  `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
 const getPriceRange = (row) => {
   if (Number(row.gia_thap_nhat) === Number(row.gia_cao_nhat)) {
     return formatCurrency(row.gia_thap_nhat);
@@ -18,6 +18,20 @@ const getTodayInputValue = () => {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const formatDateInputValue = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getMaxBookingDateValue = () => {
+  const now = new Date();
+  return formatDateInputValue(
+    new Date(now.getFullYear(), now.getMonth() + 2, 0),
+  );
 };
 
 const isVipCourt = (court) => {
@@ -51,10 +65,11 @@ export default function FacilityDetailPage() {
   const [timeSlots, setTimeSlots] = useState([]);
   const [priceSummary, setPriceSummary] = useState([]);
   const [selectedDate, setSelectedDate] = useState(getTodayInputValue());
+  const [draftDate, setDraftDate] = useState(getTodayInputValue());
   const [selectedSlots, setSelectedSlots] = useState(new Set());
   const [showPriceModal, setShowPriceModal] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
   const [bookingStep, setBookingStep] = useState("select");
-  const [showQrPayment, setShowQrPayment] = useState(false);
   const [paymentType, setPaymentType] = useState("deposit");
   const [holdInfo, setHoldInfo] = useState(null);
   const [isHolding, setIsHolding] = useState(false);
@@ -63,6 +78,36 @@ export default function FacilityDetailPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [contactInfo, setContactInfo] = useState({
+    ho_ten: "",
+    so_dien_thoai: "",
+  });
+  const [bookingNote, setBookingNote] = useState("");
+  const minBookingDate = getTodayInputValue();
+  const maxBookingDate = getMaxBookingDateValue();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchProfile = async () => {
+      try {
+        const res = await api.get("/user/me");
+        if (!isMounted) return;
+
+        setContactInfo({
+          ho_ten: res.data?.ho_ten || "",
+          so_dien_thoai: res.data?.so_dien_thoai || "",
+        });
+      } catch {
+        // Người dùng chưa đăng nhập sẽ bị chặn khi gọi API giữ chỗ/thanh toán.
+      }
+    };
+
+    fetchProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -70,7 +115,6 @@ export default function FacilityDetailPage() {
       setError("");
       setSelectedSlots(new Set());
       setBookingStep("select");
-      setShowQrPayment(false);
       setHoldInfo(null);
 
       try {
@@ -92,7 +136,8 @@ export default function FacilityDetailPage() {
         setTimeSlots([]);
         setPriceSummary([]);
         setError(
-          err.response?.data?.message || "Không thể tải thông tin cơ sở",
+          err.response?.data?.message ||
+            "Kh\u00f4ng th\u1ec3 t\u1ea3i th\u00f4ng tin c\u01a1 s\u1edf",
         );
       } finally {
         setIsLoading(false);
@@ -141,11 +186,11 @@ export default function FacilityDetailPage() {
   const courtSections = useMemo(
     () => [
       {
-        title: "Sân thường",
+        title: "S\u00e2n th\u01b0\u1eddng",
         courts: courts.filter((court) => !isVipCourt(court)),
       },
       {
-        title: "Sân VIP",
+        title: "S\u00e2n VIP",
         courts: courts.filter(isVipCourt),
       },
     ],
@@ -167,14 +212,47 @@ export default function FacilityDetailPage() {
     });
   };
 
+  const handleDateChange = (value) => {
+    if (value < minBookingDate) {
+      setSelectedDate(minBookingDate);
+      showToast(
+        "Ch\u1ec9 \u0111\u01b0\u1ee3c xem l\u1ecbch t\u1eeb h\u00f4m nay",
+        "error",
+      );
+      return;
+    }
+
+    if (value > maxBookingDate) {
+      setSelectedDate(maxBookingDate);
+      showToast(
+        "Ch\u1ec9 \u0111\u01b0\u1ee3c \u0111\u1eb7t s\u00e2n \u0111\u1ebfn cu\u1ed1i th\u00e1ng sau",
+        "error",
+      );
+      return;
+    }
+
+    setSelectedDate(value);
+  };
+
+  const openDateModal = () => {
+    setDraftDate(selectedDate);
+    setShowDateModal(true);
+  };
+
+  const applyDraftDate = () => {
+    handleDateChange(draftDate);
+    setShowDateModal(false);
+  };
+
   const getSlotClass = (court, slot) => {
     const slotKey = `${court.id}-${slot.khung_gio_mau_id}`;
 
-    if (
-      slot.trang_thai === "khong_co_gia" ||
-      slot.trang_thai === "qua_gio"
-    ) {
+    if (slot.trang_thai === "khong_co_gia" || slot.trang_thai === "qua_gio") {
       return "bg-[#b9b9b9] cursor-not-allowed";
+    }
+
+    if (slot.trang_thai === "da_dat_qua_gio") {
+      return "bg-[#ff4d4d] cursor-not-allowed";
     }
 
     if (slot.trang_thai === "da_dat" || slot.trang_thai === "giu_cho") {
@@ -196,6 +274,7 @@ export default function FacilityDetailPage() {
       const res = await api.post("/dat-san/giu-cho", {
         co_so_id: Number(id),
         ngay: selectedDate,
+        ghi_chu: bookingNote,
         slots: selectedItems.map((item) => ({
           san_id: item.courtId,
           khung_gio_mau_id: item.khungGioMauId,
@@ -204,13 +283,16 @@ export default function FacilityDetailPage() {
 
       setHoldInfo(res.data);
       setBookingStep("confirm");
-      setShowQrPayment(false);
       setPaymentType("deposit");
-      showToast(res.data?.message || "Giữ chỗ thành công", "success");
+      showToast(
+        res.data?.message || "Gi\u1eef ch\u1ed7 th\u00e0nh c\u00f4ng",
+        "success",
+      );
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       const message =
-        err.response?.data?.message || "Không thể giữ chỗ, vui lòng thử lại";
+        err.response?.data?.message ||
+        "Kh\u00f4ng th\u1ec3 gi\u1eef ch\u1ed7, vui l\u00f2ng th\u1eed l\u1ea1i";
       showToast(message, "error");
 
       if (err.response?.status === 409) {
@@ -224,7 +306,6 @@ export default function FacilityDetailPage() {
   const cancelHoldAndBack = async () => {
     if (!holdInfo?.dat_san_id) {
       setBookingStep("select");
-      setShowQrPayment(false);
       setHoldInfo(null);
       return;
     }
@@ -234,16 +315,19 @@ export default function FacilityDetailPage() {
       const res = await api.patch(
         `/dat-san/${holdInfo.dat_san_id}/huy-giu-cho`,
       );
-      showToast(res.data?.message || "Da huy giu cho", "success");
+      showToast(
+        res.data?.message || "\u0110\u00e3 h\u1ee7y gi\u1eef ch\u1ed7",
+        "success",
+      );
     } catch (err) {
       showToast(
-        err.response?.data?.message || "Khong the huy giu cho",
+        err.response?.data?.message ||
+          "Kh\u00f4ng th\u1ec3 h\u1ee7y gi\u1eef ch\u1ed7",
         "error",
       );
     } finally {
       setIsCancelingHold(false);
       setBookingStep("select");
-      setShowQrPayment(false);
       setHoldInfo(null);
       setSelectedSlots(new Set());
       setRefreshKey((value) => value + 1);
@@ -252,7 +336,10 @@ export default function FacilityDetailPage() {
 
   const createVnpayPayment = async () => {
     if (!holdInfo?.dat_san_id) {
-      showToast("Khong tim thay don giu cho", "error");
+      showToast(
+        "Kh\u00f4ng t\u00ecm th\u1ea5y \u0111\u01a1n gi\u1eef ch\u1ed7",
+        "error",
+      );
       return;
     }
 
@@ -264,7 +351,9 @@ export default function FacilityDetailPage() {
       });
 
       if (!res.data?.payment_url) {
-        throw new Error("Khong nhan duoc URL thanh toan");
+        throw new Error(
+          "Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c URL thanh to\u00e1n",
+        );
       }
 
       window.location.href = res.data.payment_url;
@@ -272,7 +361,7 @@ export default function FacilityDetailPage() {
       showToast(
         err.response?.data?.message ||
           err.message ||
-          "Khong the tao thanh toan VNPay",
+          "Kh\u00f4ng th\u1ec3 t\u1ea1o thanh to\u00e1n VNPay",
         "error",
       );
     } finally {
@@ -285,7 +374,7 @@ export default function FacilityDetailPage() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 font-sans text-slate-800">
         <div className="flex flex-col items-center gap-3 text-sm font-medium text-slate-500">
           <i className="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-600"></i>
-          Đang tải dữ liệu...
+          {"\u0110ang t\u1ea3i d\u1eef li\u1ec7u..."}
         </div>
       </div>
     );
@@ -299,14 +388,14 @@ export default function FacilityDetailPage() {
             <i className="fa-regular fa-circle-xmark"></i>
           </div>
           <h1 className="text-xl font-bold text-slate-900">
-            Không tìm thấy cơ sở
+            {"Kh\u00f4ng t\u00ecm th\u1ea5y c\u01a1 s\u1edf"}
           </h1>
           <p className="mt-2 text-sm text-slate-500">{error}</p>
           <Link
             to="/trang-chu"
             className="mt-6 inline-flex w-full justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-indigo-700"
           >
-            Về trang chủ
+            {"V\u1ec1 trang ch\u1ee7"}
           </Link>
         </div>
       </div>
@@ -316,7 +405,7 @@ export default function FacilityDetailPage() {
   if (bookingStep === "confirm") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 font-sans text-slate-800 pb-24">
-        {/* Header xác nhận */}
+        {/* Header xac nhan */}
         <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 px-4 py-4 backdrop-blur-md">
           <div className="mx-auto flex max-w-3xl items-center justify-between">
             <button
@@ -324,49 +413,51 @@ export default function FacilityDetailPage() {
               onClick={cancelHoldAndBack}
               disabled={isCancelingHold}
               className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-              title="Huy thanh toan"
+              title="H\u1ee7y thanh to\u00e1n"
             >
               <i
                 className={`fa-solid ${isCancelingHold ? "fa-circle-notch fa-spin" : "fa-chevron-left"}`}
               ></i>
             </button>
             <h1 className="text-lg font-bold text-slate-900">
-              Xác nhận đặt sân
+              {"X\u00e1c nh\u1eadn \u0111\u1eb7t s\u00e2n"}
             </h1>
             <div className="w-10"></div>
           </div>
         </div>
 
         <main className="mx-auto max-w-3xl p-4 space-y-6 mt-4">
-          {/* Thông tin cơ sở */}
+          {/* Thong tin co so */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               <i className="fa-solid fa-location-dot text-indigo-600"></i>
-              Thông tin cơ sở
+              {"Th\u00f4ng tin c\u01a1 s\u1edf"}
             </h2>
             <div className="space-y-2 text-sm">
               <p className="flex justify-between">
-                <span className="text-slate-500">Tên CLB</span>
+                <span className="text-slate-500">{"T\u00ean CLB"}</span>
                 <span className="font-bold text-slate-900">{facility.ten}</span>
               </p>
               <p className="flex justify-between text-right">
-                <span className="text-slate-500">Địa chỉ</span>
+                <span className="text-slate-500">
+                  {"\u0110\u1ecba ch\u1ec9"}
+                </span>
                 <span className="font-medium text-slate-800 max-w-[60%] leading-relaxed">
-                  {address || "Chưa cập nhật"}
+                  {address || "Ch\u01b0a c\u1eadp nh\u1eadt"}
                 </span>
               </p>
             </div>
           </section>
 
-          {/* Chi tiết lịch đặt */}
+          {/* Chi tiet lich dat */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               <CalendarIcon className="h-5 w-5 text-indigo-600" />
-              Chi tiết lịch đặt
+              {"Chi ti\u1ebft l\u1ecbch \u0111\u1eb7t"}
             </h2>
 
             <div className="mb-4 text-sm font-medium text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-100">
-              Ngày đặt:{" "}
+              {"Ng\u00e0y \u0111\u1eb7t"}:{" "}
               <span className="font-bold text-indigo-700">
                 {new Date(selectedDate).toLocaleDateString("vi-VN")}
               </span>
@@ -375,15 +466,15 @@ export default function FacilityDetailPage() {
               <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="font-bold">
-                    Ma giu cho: #{holdInfo.dat_san_id}
+                    {"M\u00e3 gi\u1eef ch\u1ed7"}: #{holdInfo.dat_san_id}
                   </span>
                   <span className="font-medium">
-                    Het han: {" "}
+                    {"H\u1ebft h\u1ea1n sau"}:{" "}
                     {holdInfo.thoi_gian_het_han
                       ? new Date(holdInfo.thoi_gian_het_han).toLocaleString(
                           "vi-VN",
                         )
-                      : "Sau 10 phut"}
+                      : "Sau 10 phút"}
                   </span>
                 </div>
               </div>
@@ -413,13 +504,13 @@ export default function FacilityDetailPage() {
 
             <div className="space-y-3 border-t border-slate-100 pt-4 text-sm">
               <div className="flex justify-between text-slate-500">
-                <span>Tổng thời gian</span>
+                <span>{"T\u1ed5ng th\u1eddi gian"}</span>
                 <span className="font-semibold text-slate-800">
-                  {totalHours} giờ
+                  {totalHours} {"gi\u1edd"}
                 </span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>Tổng tiền sân</span>
+                <span>{"T\u1ed5ng ti\u1ec1n s\u00e2n"}</span>
                 <span className="font-semibold text-slate-800">
                   {formatCurrency(totalPrice)}
                 </span>
@@ -427,26 +518,32 @@ export default function FacilityDetailPage() {
             </div>
           </section>
 
-          {/* Form thông tin người đặt */}
+          {/* Form thong tin nguoi dat */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               <i className="fa-regular fa-user text-indigo-600"></i>
-              Thông tin liên hệ
+              {"Th\u00f4ng tin li\u00ean h\u1ec7"}
             </h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">
-                  Tên người đặt
+                  {"T\u00ean ng\u01b0\u1eddi \u0111\u1eb7t"}
                 </label>
                 <input
                   type="text"
-                  defaultValue="Quách Minh Nhật"
+                  value={contactInfo.ho_ten}
+                  onChange={(event) =>
+                    setContactInfo((prev) => ({
+                      ...prev,
+                      ho_ten: event.target.value,
+                    }))
+                  }
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all"
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">
-                  Số điện thoại
+                  {"S\u1ed1 \u0111i\u1ec7n tho\u1ea1i"}
                 </label>
                 <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus-within:border-indigo-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100 transition-all">
                   <span className="mr-3 font-semibold text-slate-400">
@@ -454,28 +551,36 @@ export default function FacilityDetailPage() {
                   </span>
                   <input
                     type="tel"
-                    defaultValue="0987654321"
+                    value={contactInfo.so_dien_thoai}
+                    onChange={(event) =>
+                      setContactInfo((prev) => ({
+                        ...prev,
+                        so_dien_thoai: event.target.value,
+                      }))
+                    }
                     className="w-full bg-transparent outline-none text-slate-900 font-medium"
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">
-                  Ghi chú cho chủ sân
+                  {"Ghi chú cho chủ sân"}
                 </label>
                 <textarea
-                  placeholder="Yêu cầu thêm..."
+                  placeholder="Ghi chú cho chủ sân"
+                  value={bookingNote}
+                  onChange={(event) => setBookingNote(event.target.value)}
                   className="h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all"
                 ></textarea>
               </div>
             </div>
           </section>
 
-          {/* Phương thức thanh toán */}
+          {/* Phuong thuc thanh toan */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               <i className="fa-solid fa-wallet text-indigo-600"></i>
-              Phương thức thanh toán
+              {"Ph\u01b0\u01a1ng th\u1ee9c thanh to\u00e1n"}
             </h2>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-5">
@@ -487,12 +592,11 @@ export default function FacilityDetailPage() {
                 }`}
                 onClick={() => {
                   setPaymentType("deposit");
-                  setShowQrPayment(false);
                 }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-bold text-slate-900">
-                    Thanh toán cọc ({depositRate}%)
+                    {"Thanh to\u00e1n c\u1ecdc"} ({depositRate}%)
                   </span>
                   <div
                     className={`h-4 w-4 rounded-full border-[5px] ${paymentType === "deposit" ? "border-indigo-600 bg-white" : "border-slate-200 bg-transparent"}`}
@@ -511,12 +615,11 @@ export default function FacilityDetailPage() {
                 }`}
                 onClick={() => {
                   setPaymentType("full");
-                  setShowQrPayment(false);
                 }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-bold text-slate-900">
-                    Thanh toán toàn bộ
+                    {"Thanh to\u00e1n to\u00e0n b\u1ed9"}
                   </span>
                   <div
                     className={`h-4 w-4 rounded-full border-[5px] ${paymentType === "full" ? "border-indigo-600 bg-white" : "border-slate-200 bg-transparent"}`}
@@ -530,65 +633,22 @@ export default function FacilityDetailPage() {
 
             <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 text-sm">
               <div className="flex justify-between font-semibold text-slate-700 mb-2">
-                <span>Số tiền cần thanh toán ngay</span>
+                <span>{"S\u1ed1 ti\u1ec1n c\u1ea7n thanh to\u00e1n ngay"}</span>
                 <span className="text-indigo-700 text-base">
                   {formatCurrency(paymentAmount)}
                 </span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>Số tiền còn lại thu tại sân</span>
+                <span>{"S\u1ed1 ti\u1ec1n c\u00f2n l\u1ea1i"}</span>
                 <span className="font-medium text-slate-800">
                   {formatCurrency(remainingAmount)}
                 </span>
               </div>
             </div>
           </section>
-
-          {/* Mock QR Code */}
-          {showQrPayment && (
-            <section className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-6 text-center">
-              <h2 className="text-base font-bold text-indigo-900">
-                Quét mã QR để thanh toán
-              </h2>
-              <div className="mx-auto mt-5 grid h-48 w-48 grid-cols-6 grid-rows-6 gap-1 rounded-xl bg-white p-3 shadow-sm border border-slate-200">
-                {Array.from({ length: 36 }, (_, index) => (
-                  <div
-                    key={index}
-                    className={`rounded-sm ${
-                      [0, 1, 2, 6, 12, 30, 31, 35, 20, 21, 27, 28].includes(
-                        index,
-                      )
-                        ? "bg-indigo-900"
-                        : index % 3 === 0
-                          ? "bg-indigo-600"
-                          : "bg-indigo-100"
-                    }`}
-                  ></div>
-                ))}
-              </div>
-              <div className="mt-5 space-y-1">
-                <p className="text-sm font-medium text-slate-700">
-                  Nội dung chuyển khoản:{" "}
-                  <span className="font-bold text-indigo-700 select-all">
-                    DAT SAN {holdInfo?.dat_san_id || facility.id}
-                  </span>
-                </p>
-                <p className="text-sm font-medium text-slate-700">
-                  Số tiền:{" "}
-                  <span className="font-bold text-rose-600">
-                    {formatCurrency(paymentAmount)}
-                  </span>
-                </p>
-              </div>
-              <p className="mt-4 text-xs text-slate-500">
-                <i className="fa-solid fa-circle-info mr-1"></i> QR hiển thị mục
-                đích mô phỏng cổng thanh toán.
-              </p>
-            </section>
-          )}
         </main>
 
-        {/* Thanh Xác nhận cố định */}
+        {/* Thanh xac nhan co dinh */}
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
           <div className="mx-auto flex max-w-3xl gap-3">
             <button
@@ -600,12 +660,12 @@ export default function FacilityDetailPage() {
               {isCancelingHold ? (
                 <>
                   <i className="fa-solid fa-circle-notch fa-spin"></i>
-                  Dang huy
+                  {"\u0110ang h\u1ee7y"}
                 </>
               ) : (
                 <>
                   <i className="fa-solid fa-xmark"></i>
-                  Huy thanh toan
+                  {"H\u1ee7y thanh to\u00e1n"}
                 </>
               )}
             </button>
@@ -618,14 +678,14 @@ export default function FacilityDetailPage() {
               {isCreatingPayment ? (
                 <>
                   <i className="fa-solid fa-circle-notch fa-spin"></i>
-                  Dang tao thanh toan
+                  {"\u0110ang t\u1ea1o thanh to\u00e1n"}
                 </>
               ) : (
                 <>
                   <i className="fa-solid fa-credit-card"></i>
                   {paymentType === "full"
-                    ? "Thanh toan toan bo"
-                    : "Thanh toan tien coc"}
+                    ? "Thanh to\u00e1n to\u00e0n b\u1ed9"
+                    : "Thanh to\u00e1n ti\u1ec1n c\u1ecdc"}
                 </>
               )}
             </button>
@@ -635,11 +695,11 @@ export default function FacilityDetailPage() {
     );
   }
 
-  // --- TRANG CHỌN LỊCH SÂN ---
+  // --- TRANG CHON LICH SAN ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 font-sans text-slate-800 selection:bg-indigo-100 selection:text-indigo-900">
       <main className="w-full px-3 pb-36 pt-4 lg:px-8 lg:pb-40 lg:pt-8">
-        {/* Header Chọn sân */}
+        {/* Header chon san */}
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -647,7 +707,7 @@ export default function FacilityDetailPage() {
                 type="button"
                 onClick={() => navigate(-1)}
                 className="mb-4 flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100"
-                aria-label="Quay lại"
+                aria-label="Quay lai"
               >
                 <i className="fa-solid fa-chevron-left"></i>
               </button>
@@ -656,7 +716,7 @@ export default function FacilityDetailPage() {
               </h1>
               <p className="mt-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-500">
                 <i className="fa-solid fa-location-dot"></i>
-                {address || "Chưa có địa chỉ"}
+                {address || "Ch\u01b0a c\u00f3 \u0111\u1ecba ch\u1ec9"}
               </p>
             </div>
 
@@ -667,40 +727,44 @@ export default function FacilityDetailPage() {
                 className="flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-bold text-indigo-700 transition hover:bg-indigo-100 hover:border-indigo-300"
               >
                 <i className="fa-solid fa-tags"></i>
-                Bảng giá
+                {"B\u1ea3ng gi\u00e1"}
               </button>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 sm:w-auto"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={openDateModal}
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              >
+                <CalendarIcon className="h-4 w-4 text-indigo-600" />
+                {new Date(selectedDate).toLocaleDateString("vi-VN")}
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Khung đặt sân */}
+        {/* Khung dat san */}
         <div className="space-y-5">
-          {/* Chú giải trạng thái */}
+          {/* Chu giai trang thai */}
           <div className="rounded-xl border border-[#9a9a9a] bg-white px-4 py-3">
             <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600">
               <span className="flex items-center gap-2">
                 <span className="h-3 w-4 border border-[#9a9a9a] bg-white"></span>{" "}
-                Trống
+                {"Tr\u1ed1ng"}
               </span>
               <span className="flex items-center gap-2">
                 <span className="h-3 w-4 rounded-sm border border-[#2447c6] bg-[#2f57e8]"></span>{" "}
-                Đang chọn
+                {"\u0110ang ch\u1ecdn"}
               </span>
               <span className="flex items-center gap-2">
                 <span className="h-3 w-4 rounded-sm border border-[#d40000] bg-[#ff0000]"></span>{" "}
-                Đã đặt
+                {"\u0110\u00e3 \u0111\u1eb7t"}
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="h-3 w-4 rounded-sm border border-[#e03131] bg-[#ff4d4d]"></span>{" "}
+                {"\u0110\u00e3 qua gi\u1edd"}
               </span>
               <span className="flex items-center gap-2">
                 <span className="h-3 w-4 rounded-sm border border-[#8f8f8f] bg-[#b9b9b9]"></span>{" "}
-                Khóa
+                {"Kh\u00f3a"}
               </span>
             </div>
           </div>
@@ -720,7 +784,8 @@ export default function FacilityDetailPage() {
                 <div className="m-4 rounded-xl border-2 border-dashed border-slate-200 py-10 text-center text-slate-500">
                   <i className="fa-regular fa-folder-open text-3xl mb-3 text-slate-300"></i>
                   <p className="text-sm font-medium">
-                    Chưa có dữ liệu {section.title.toLowerCase()}.
+                    {"Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u"}{" "}
+                    {section.title.toLowerCase()}.
                   </p>
                 </div>
               ) : (
@@ -732,7 +797,7 @@ export default function FacilityDetailPage() {
                     }}
                   >
                     <div className="sticky left-0 z-20 flex items-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-2 text-xs font-semibold text-emerald-900">
-                      Sân
+                      {"S\u00e2n"}
                     </div>
                     {timeSlots.map((slot) => (
                       <div
@@ -744,47 +809,48 @@ export default function FacilityDetailPage() {
                     ))}
 
                     {section.courts.map((court) => (
-                        <React.Fragment key={court.id}>
-                          <div className="sticky left-0 z-10 flex min-h-[44px] flex-col justify-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-1">
-                            <div
-                              className="truncate text-xs font-semibold text-emerald-900"
-                              title={court.ten}
-                            >
-                              {court.ten}
-                            </div>
+                      <React.Fragment key={court.id}>
+                        <div className="sticky left-0 z-10 flex min-h-[44px] flex-col justify-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-1">
+                          <div
+                            className="truncate text-xs font-semibold text-emerald-900"
+                            title={court.ten}
+                          >
+                            {court.ten}
                           </div>
+                        </div>
 
-                          {timeSlots.map((timeSlot) => {
-                            const slot = court.slots?.find(
-                              (item) =>
-                                Number(item.khung_gio_mau_id) ===
-                                Number(timeSlot.id),
-                            );
+                        {timeSlots.map((timeSlot) => {
+                          const slot = court.slots?.find(
+                            (item) =>
+                              Number(item.khung_gio_mau_id) ===
+                              Number(timeSlot.id),
+                          );
 
-                            return (
-                              <button
-                                key={`${court.id}-${timeSlot.id}`}
-                                type="button"
-                                onClick={() => slot && toggleSlot(court, slot)}
-                                className={`h-full min-h-[44px] border-b border-r border-[#9a9a9a] text-xs transition-colors ${
-                                  slot
-                                    ? getSlotClass(court, slot)
-                                    : "bg-[#b9b9b9] cursor-not-allowed"
-                                }`}
-                                title={`${court.ten} | ${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}${
-                                  slot?.gia ? ` | ${formatCurrency(slot.gia)}` : ""
-                                }`}
-                              ></button>
-                            );
-                          })}
-                        </React.Fragment>
+                          return (
+                            <button
+                              key={`${court.id}-${timeSlot.id}`}
+                              type="button"
+                              onClick={() => slot && toggleSlot(court, slot)}
+                              className={`h-full min-h-[44px] border-b border-r border-[#9a9a9a] text-xs transition-colors ${
+                                slot
+                                  ? getSlotClass(court, slot)
+                                  : "bg-[#b9b9b9] cursor-not-allowed"
+                              }`}
+                              title={`${court.ten} | ${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}${
+                                slot?.gia
+                                  ? ` | ${formatCurrency(slot.gia)}`
+                                  : ""
+                              }`}
+                            ></button>
+                          );
+                        })}
+                      </React.Fragment>
                     ))}
                   </div>
                 </div>
               )}
             </section>
           ))}
-
         </div>
       </main>
 
@@ -793,15 +859,15 @@ export default function FacilityDetailPage() {
         <div className="flex w-full items-center justify-between gap-4">
           <div className="hidden sm:block">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Đã chọn
+              {"\u0110\u00e3 ch\u1ecdn"}
             </p>
             <p className="text-sm font-bold text-slate-900">
-              {totalHours} khung giờ
+              {totalHours} {"khung gi\u1edd"}
             </p>
           </div>
           <div className="flex-1 sm:text-right">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Tổng tạm tính
+              {"T\u1ed5ng t\u1ea1m t\u00ednh"}
             </p>
             <p className="text-lg font-black text-blue-600">
               {formatCurrency(totalPrice)}
@@ -816,28 +882,84 @@ export default function FacilityDetailPage() {
             {isHolding ? (
               <>
                 <i className="fa-solid fa-circle-notch fa-spin"></i>
-                Dang giu cho
+                {"\u0110ang gi\u1eef ch\u1ed7"}
               </>
             ) : (
               <>
-                Tiep tuc <i className="fa-solid fa-arrow-right"></i>
+                {"Ti\u1ebfp t\u1ee5c"}{" "}
+                <i className="fa-solid fa-arrow-right"></i>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Modal Bảng giá */}
+      {showDateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-slate-200">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">
+                  {"Ch\u1ecdn ng\u00e0y \u0111\u1eb7t s\u00e2n"}
+                </h2>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  {
+                    "Ch\u1ec9 xem \u0111\u01b0\u1ee3c t\u1eeb h\u00f4m nay \u0111\u1ebfn cu\u1ed1i th\u00e1ng sau."
+                  }
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDateModal(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+                aria-label="Dong"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <input
+              type="date"
+              value={draftDate}
+              min={minBookingDate}
+              max={maxBookingDate}
+              onChange={(e) => setDraftDate(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDateModal(false)}
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+              >
+                {"H\u1ee7y"}
+              </button>
+              <button
+                type="button"
+                onClick={applyDraftDate}
+                className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-700"
+              >
+                {"\u00c1p d\u1ee5ng"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal bang gia */}
       {showPriceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm transition-all">
           <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-6 py-4">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-900">
-                  Bảng giá dịch vụ
+                  {"B\u1ea3ng gi\u00e1 d\u1ecbch v\u1ee5"}
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
-                  Tham khảo mức giá theo loại ngày và khung giờ.
+                  {
+                    "Tham kh\u1ea3o m\u1ee9c gi\u00e1 theo lo\u1ea1i ng\u00e0y v\u00e0 khung gi\u1edd."
+                  }
                 </p>
               </div>
               <button
@@ -854,13 +976,13 @@ export default function FacilityDetailPage() {
                 <thead>
                   <tr>
                     <th className="border-b-2 border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-700">
-                      Loại ngày
+                      {"Lo\u1ea1i ng\u00e0y"}
                     </th>
                     <th className="border-b-2 border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-700">
-                      Khung giờ
+                      {"Khung gi\u1edd"}
                     </th>
                     <th className="border-b-2 border-slate-200 bg-slate-50 px-4 py-3 font-bold text-right text-slate-700">
-                      Mức giá
+                      {"M\u1ee9c gi\u00e1"}
                     </th>
                   </tr>
                 </thead>
@@ -871,7 +993,9 @@ export default function FacilityDetailPage() {
                         colSpan="3"
                         className="px-4 py-10 text-center text-slate-500 font-medium"
                       >
-                        Cơ sở này hiện chưa thiết lập bảng giá.
+                        {
+                          "C\u01a1 s\u1edf n\u00e0y hi\u1ec7n ch\u01b0a thi\u1ebft l\u1eadp b\u1ea3ng gi\u00e1."
+                        }
                       </td>
                     </tr>
                   ) : (
@@ -903,7 +1027,7 @@ export default function FacilityDetailPage() {
         </div>
       )}
 
-      {/* Hỗ trợ scrollbar đẹp cho table */}
+      {/* Ho tro scrollbar dep cho table */}
       <style
         dangerouslySetInnerHTML={{
           __html: `
