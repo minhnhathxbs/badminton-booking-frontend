@@ -36,7 +36,7 @@ function RedirectFacilityToBooking() {
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/trang-chu" replace />} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/trang-chu" element={<HomePage />} />
       <Route path="/dat-san/:id" element={<BookingPage />} />
       <Route path="/lich-su-dat-san" element={<BookingHistoryPage />} />
@@ -44,15 +44,11 @@ export default function AppRoutes() {
       <Route path="/yeu-thich" element={<FavoritesPage />} />
       <Route path="/thanh-toan/ket-qua" element={<PaymentResultPage />} />
       <Route path="/co-so/:id" element={<RedirectFacilityToBooking />} />
-
       <Route path="/login" element={<AuthPage initialForm="login" />} />
       <Route path="/dang-nhap" element={<AuthPage initialForm="login" />} />
-
       <Route path="/register" element={<AuthPage initialForm="register" />} />
       <Route path="/dang-ky" element={<AuthPage initialForm="register" />} />
-
       <Route path="/doi-mat-khau" element={<ChangePasswordPage />} />
-
       <Route
         path="/forgot-password"
         element={<AuthPage initialForm="forgot" />}
@@ -61,13 +57,10 @@ export default function AppRoutes() {
         path="/quen-mat-khau"
         element={<AuthPage initialForm="forgot" />}
       />
-
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/ho-so" element={<ProfilePage />} />
-
       <Route path="/xac-minh-otp" element={<VerifyOtpPage />} />
       <Route path="/dat-lai-mat-khau" element={<ResetPasswordPage />} />
-
       <Route element={<OwnerRoute />}>
         <Route path="/chu-san" element={<OwnerLayout />}>
           <Route index element={<Navigate to="tong-quan" replace />} />
@@ -81,7 +74,6 @@ export default function AppRoutes() {
           <Route path="danh-gia" element={<ManageReviews />} />
         </Route>
       </Route>
-
       <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="tong-quan" replace />} />
