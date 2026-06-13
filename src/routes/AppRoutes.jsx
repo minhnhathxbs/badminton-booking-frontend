@@ -24,6 +24,7 @@ import ManageReviews from "../pages/owner/ManageReviews";
 import AdminLayout from "../layouts/AdminLayout";
 import ManageUsers from "../pages/admin/ManageUsers";
 import ManageAllFacilities from "../pages/admin/ManageAllFacilities";
+import ManageAllPromotions from "../pages/admin/ManageAllPromotions";
 import OwnerRoute from "./OwnerRoute";
 import AdminRoute from "./AdminRoute";
 import AdminDashboard from "../pages/admin/AdminDashboard";
@@ -80,6 +81,7 @@ export default function AppRoutes() {
           <Route path="tong-quan" element={<AdminDashboard />} />
           <Route path="nguoi-dung" element={<ManageUsers />} />
           <Route path="co-so" element={<ManageAllFacilities />} />
+          <Route path="khuyen-mai" element={<ManageAllPromotions />} />
           <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
         </Route>
