@@ -116,8 +116,7 @@ const isHoldExpired = (order) =>
   new Date(order.thoi_gian_het_han) < new Date();
 
 const isCancelledLike = (order) => {
-  const paid = Number(order.da_thanh_toan || 0);
-  return Number(order.trang_thai) === 2 || (isHoldExpired(order) && paid <= 0);
+  return Number(order.trang_thai) === 2;
 };
 
 const getPaymentKind = (order) => {
