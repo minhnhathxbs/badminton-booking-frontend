@@ -62,6 +62,16 @@ export default function AdminLayout() {
       label: "Danh mục sân",
     },
     {
+      path: "/admin/cau-hinh",
+      icon: "fa-gear",
+      label: "Cấu hình hệ thống",
+    },
+    {
+      path: "/admin/nhat-ky",
+      icon: "fa-clipboard-list",
+      label: "Nhật ký hệ thống",
+    },
+    {
       path: "/admin/thong-ke",
       icon: "fa-chart-pie",
       label: "Thống kê hệ thống",
