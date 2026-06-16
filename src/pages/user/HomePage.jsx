@@ -4,6 +4,46 @@ import Header from "../../components/common/Header";
 import Footer from "../../components/common/Footer";
 import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
+import {
+  loadCachedUserLocation,
+  saveCachedUserLocation,
+} from "../../utils/userLocation";
+
+const EARTH_RADIUS_KM = 6371;
+
+const getFacilityPosition = (facility) => {
+  const lat = Number(facility?.vi_do);
+  const lng = Number(facility?.kinh_do);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  if (lat === 0 && lng === 0) return null;
+
+  return { lat, lng };
+};
+
+const getDistanceKm = (from, to) => {
+  if (!from || !to) return null;
+
+  const toRad = (value) => (value * Math.PI) / 180;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(to.lat);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return EARTH_RADIUS_KM * c;
+};
+
+const formatDistance = (distanceKm) => {
+  if (!Number.isFinite(distanceKm)) return "";
+  if (distanceKm < 1) return `${Math.round(distanceKm * 1000)} m`;
+  return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km`;
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -23,6 +63,12 @@ export default function HomePage() {
   const [favoriteLoadingIds, setFavoriteLoadingIds] = useState(new Set());
   const [favoriteFacilityIds, setFavoriteFacilityIds] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false);
+  const [userLocation, setUserLocation] = useState(() =>
+    loadCachedUserLocation(),
+  );
+  const [locationStatus, setLocationStatus] = useState(() =>
+    loadCachedUserLocation() ? "cached" : "idle",
+  );
 
   useEffect(() => {
     const fetchFacilities = async () => {
@@ -36,7 +82,8 @@ export default function HomePage() {
           gia_den: priceTo || undefined,
           ngay: selectedDate || undefined,
           gio: selectedTime ? `${selectedTime}:00` : undefined,
-          sap_xep: selectedSort || undefined,
+          sap_xep:
+            selectedSort && selectedSort !== "gan_ban" ? selectedSort : undefined,
         };
         const res = await api.get("/co-so", { params });
         setFacilities(res.data);
@@ -73,6 +120,43 @@ export default function HomePage() {
     fetchAllFacilities();
   }, []);
 
+  const requestCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus("unsupported");
+      showToast("Trình duyệt không hỗ trợ lấy vị trí hiện tại", "error");
+      return;
+    }
+
+    setLocationStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = saveCachedUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
+        setUserLocation(location);
+        setLocationStatus("granted");
+        showToast("Đã lấy vị trí hiện tại");
+      },
+      (error) => {
+        setUserLocation(null);
+        setLocationStatus(error.code === error.PERMISSION_DENIED ? "denied" : "error");
+        showToast(
+          error.code === error.PERMISSION_DENIED
+            ? "Bạn cần cho phép truy cập vị trí để lọc gần bạn"
+            : "Không thể lấy vị trí hiện tại",
+          "error",
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5 * 60 * 1000,
+        timeout: 10000,
+      },
+    );
+  };
+
   useEffect(() => {
     const fetchFavorites = async () => {
       if (!localStorage.getItem("token")) {
@@ -101,8 +185,28 @@ export default function HomePage() {
   }, [allFacilities]);
 
   const filteredFacilities = useMemo(() => {
-    return facilities;
-  }, [facilities]);
+    const withDistance = facilities.map((facility) => {
+      const position = getFacilityPosition(facility);
+      const distanceKm = getDistanceKm(userLocation, position);
+
+      return {
+        ...facility,
+        distanceKm,
+      };
+    });
+
+    if (selectedSort !== "gan_ban" || !userLocation) {
+      return withDistance;
+    }
+
+    return [...withDistance].sort((a, b) => {
+      const distanceA = Number.isFinite(a.distanceKm) ? a.distanceKm : Infinity;
+      const distanceB = Number.isFinite(b.distanceKm) ? b.distanceKm : Infinity;
+
+      if (distanceA !== distanceB) return distanceA - distanceB;
+      return String(a.ten || "").localeCompare(String(b.ten || ""), "vi");
+    });
+  }, [facilities, selectedSort, userLocation]);
 
   const hasAdvancedFilter =
     selectedCourtType || priceFrom || priceTo || selectedDate || selectedTime;
@@ -245,6 +349,23 @@ export default function HomePage() {
                   )}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={requestCurrentLocation}
+                disabled={locationStatus === "loading"}
+                className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold shadow-sm ${
+                  userLocation
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                } ${locationStatus === "loading" ? "cursor-not-allowed opacity-70" : ""}`}
+              >
+                <i className="fa-solid fa-location-crosshairs"></i>
+                {locationStatus === "loading"
+                  ? "Đang lấy vị trí"
+                  : userLocation
+                    ? "Đã có vị trí"
+                    : "Vị trí của tôi"}
+              </button>
             </div>
             <div className="rounded-xl bg-[#eef3ff] px-4 py-2.5 text-sm font-bold text-blue-700">
               {filteredFacilities.length} cơ sở
@@ -371,6 +492,16 @@ export default function HomePage() {
                             {[facility.phuong_xa, facility.tinh_thanh]
                               .filter(Boolean)
                               .join(", ") || facility.dia_chi}
+                          </span>
+                        </div>
+                        <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold text-blue-600 lg:text-sm">
+                          <i className="fa-solid fa-route w-3 text-center"></i>
+                          <span>
+                            {Number.isFinite(facility.distanceKm)
+                              ? `Cách bạn ${formatDistance(facility.distanceKm)}`
+                              : userLocation
+                                ? "Chưa có tọa độ để tính khoảng cách"
+                                : "Bật vị trí để xem khoảng cách"}
                           </span>
                         </div>
                         <div className="mb-2 flex items-center gap-1.5 text-[10px] text-gray-500 lg:text-sm">
@@ -515,6 +646,16 @@ export default function HomePage() {
                   <p className="flex gap-3">
                     <i className="fa-solid fa-location-dot mt-0.5 w-4 text-blue-600"></i>
                     <span>{getFacilityAddress(selectedFacility) || "Chưa cập nhật địa chỉ"}</span>
+                  </p>
+                  <p className="flex gap-3">
+                    <i className="fa-solid fa-route mt-0.5 w-4 text-blue-600"></i>
+                    <span>
+                      {Number.isFinite(selectedFacility.distanceKm)
+                        ? `Cách bạn ${formatDistance(selectedFacility.distanceKm)}`
+                        : userLocation
+                          ? "Cơ sở chưa có tọa độ để tính khoảng cách"
+                          : "Bật vị trí để xem khoảng cách"}
+                    </span>
                   </p>
                   <p className="flex gap-3">
                     <i className="fa-regular fa-clock mt-0.5 w-4 text-blue-600"></i>
@@ -692,16 +833,48 @@ export default function HomePage() {
               )}
 
               {activePopup === "sort" && (
-                <div className="grid gap-2">
-                  {[
-                    { value: "pho_bien", label: "Phổ biến nhất" },
-                    { value: "gan_ban", label: "Gần bạn nhất" },
-                    { value: "gia_thap", label: "Giá thấp đến cao" },
-                    { value: "gia_cao", label: "Giá cao đến thấp" },
-                  ].map((item) => (
-                    <button key={item.value} type="button" onClick={() => { setSelectedSort(item.value); setActivePopup(null); }} className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${selectedSort === item.value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}>{item.label}</button>
-                  ))}
-                </div>
+                <>
+                  <div className="rounded-xl bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-700">
+                    {userLocation
+                      ? "Đã có vị trí hiện tại, có thể sắp xếp theo khoảng cách."
+                      : "Chọn gần bạn nhất sẽ cần quyền truy cập vị trí hiện tại."}
+                  </div>
+                  <div className="grid gap-2">
+                    {[
+                      { value: "pho_bien", label: "Phổ biến nhất" },
+                      { value: "gan_ban", label: "Gần bạn nhất" },
+                      { value: "gia_thap", label: "Giá thấp đến cao" },
+                      { value: "gia_cao", label: "Giá cao đến thấp" },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => {
+                          if (item.value === "gan_ban" && !userLocation) {
+                            requestCurrentLocation();
+                          }
+                          setSelectedSort(item.value);
+                          setActivePopup(null);
+                        }}
+                        className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${selectedSort === item.value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                  {!userLocation && (
+                    <button
+                      type="button"
+                      onClick={requestCurrentLocation}
+                      disabled={locationStatus === "loading"}
+                      className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                    >
+                      {locationStatus === "loading"
+                        ? "Đang lấy vị trí..."
+                        : "Lấy vị trí hiện tại"}
+                    </button>
+                  )}
+                </>
               )}
             </div>
 

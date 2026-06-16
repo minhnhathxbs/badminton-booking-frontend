@@ -8,6 +8,8 @@ const initialForm = {
   dia_chi: "",
   phuong_xa: "",
   tinh_thanh: "",
+  vi_do: "",
+  kinh_do: "",
   mo_ta: "",
   hinh_anh: [],
 };
@@ -113,6 +115,8 @@ export default function ManageFacilities() {
       dia_chi: facility.dia_chi || "",
       phuong_xa: facility.phuong_xa || "",
       tinh_thanh: facility.tinh_thanh || "",
+      vi_do: facility.vi_do ?? "",
+      kinh_do: facility.kinh_do ?? "",
       mo_ta: facility.mo_ta || "",
       hinh_anh: [],
     });
@@ -148,6 +152,8 @@ export default function ManageFacilities() {
     payload.append("dia_chi", formData.dia_chi);
     payload.append("phuong_xa", formData.phuong_xa);
     payload.append("tinh_thanh", formData.tinh_thanh);
+    if (formData.vi_do !== "") payload.append("vi_do", formData.vi_do);
+    if (formData.kinh_do !== "") payload.append("kinh_do", formData.kinh_do);
     payload.append("mo_ta", formData.mo_ta);
 
     formData.hinh_anh.forEach((file) => {
@@ -480,6 +486,41 @@ export default function ManageFacilities() {
                     required
                   />
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Vĩ độ</label>
+                  <input
+                    name="vi_do"
+                    value={formData.vi_do}
+                    onChange={handleChange}
+                    type="number"
+                    step="any"
+                    min="-90"
+                    max="90"
+                    placeholder="Ví dụ: 13.7666"
+                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#349DFF]"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Kinh độ</label>
+                  <input
+                    name="kinh_do"
+                    value={formData.kinh_do}
+                    onChange={handleChange}
+                    type="number"
+                    step="any"
+                    min="-180"
+                    max="180"
+                    placeholder="Ví dụ: 109.2237"
+                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#349DFF]"
+                  />
+                </div>
+
+                <p className="md:col-span-2 text-xs font-medium text-gray-500">
+                  Bỏ trống tọa độ để hệ thống tự lấy theo địa chỉ. Nếu bản đồ
+                  lệch, bạn có thể nhập tọa độ thủ công từ Google Maps.
+                </p>
 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Ảnh cơ sở</label>

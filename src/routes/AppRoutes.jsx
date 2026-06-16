@@ -9,6 +9,7 @@ import ProfilePage from "../pages/user/ProfilePage";
 import ChangePasswordPage from "../pages/user/ChangePasswordPage";
 import VerifyOtpPage from "../pages/auth/VerifyOtpPage";
 import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
+import MapPage from "../pages/user/MapPage";
 
 import OwnerLayout from "../layouts/OwnerLayout";
 import OwnerDashboard from "../pages/owner/OwnerDashboard";
@@ -39,6 +40,7 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/trang-chu" element={<HomePage />} />
+      <Route path="/ban-do" element={<MapPage />} />
       <Route path="/dat-san/:id" element={<BookingPage />} />
       <Route path="/lich-su-dat-san" element={<BookingHistoryPage />} />
       <Route path="/favorites" element={<FavoritesPage />} />

@@ -13,7 +13,7 @@ export default function Header() {
 
   const navLinks = [
     { to: "/trang-chu", icon: "fa-solid fa-house", label: "Trang chủ" },
-    { to: "/map", icon: "fa-solid fa-location-dot", label: "Bản đồ" },
+    { to: "/ban-do", icon: "fa-solid fa-location-dot", label: "Bản đồ" },
     { to: "/yeu-thich", icon: "fa-regular fa-heart", label: "Yêu thích" },
     { to: "/notifications", icon: "fa-regular fa-bell", label: "Thông báo" },
   ];
@@ -199,7 +199,8 @@ export default function Header() {
                     to="/lich-su-dat-san"
                     className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-[#eef3ff]"
                   >
-                    <i className="fa-regular fa-calendar-check w-4"></i> Lịch sử đặt sân
+                    <i className="fa-regular fa-calendar-check w-4"></i> Lịch sử
+                    đặt sân
                   </Link>
                   <button
                     onClick={handleLogout}

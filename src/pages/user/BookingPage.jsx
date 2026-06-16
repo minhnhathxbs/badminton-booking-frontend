@@ -1,6 +1,7 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
+import { getSocket } from "../../api/socket";
 import { showToast } from "../../components/common/ToastMessage";
 
 const formatCurrency = (value) =>
@@ -83,6 +84,7 @@ export default function FacilityDetailPage() {
     so_dien_thoai: "",
   });
   const [bookingNote, setBookingNote] = useState("");
+  const lastScheduleQueryRef = useRef({ id: null, selectedDate: null });
   const minBookingDate = getTodayInputValue();
   const maxBookingDate = getMaxBookingDateValue();
 
@@ -111,11 +113,17 @@ export default function FacilityDetailPage() {
 
   useEffect(() => {
     const fetchDetail = async () => {
-      setIsLoading(true);
-      setError("");
-      setSelectedSlots(new Set());
-      setBookingStep("select");
-      setHoldInfo(null);
+      const lastQuery = lastScheduleQueryRef.current;
+      const shouldResetPage =
+        lastQuery.id !== id || lastQuery.selectedDate !== selectedDate;
+
+      if (shouldResetPage) {
+        setIsLoading(true);
+        setError("");
+        setSelectedSlots(new Set());
+        setBookingStep("select");
+        setHoldInfo(null);
+      }
 
       try {
         const [facilityRes, scheduleRes, priceRes] = await Promise.all([
@@ -130,22 +138,50 @@ export default function FacilityDetailPage() {
         setCourts(scheduleRes.data?.san || []);
         setTimeSlots(scheduleRes.data?.khung_gio || []);
         setPriceSummary(priceRes.data?.bang_gia || []);
+        lastScheduleQueryRef.current = { id, selectedDate };
       } catch (err) {
-        setFacility(null);
-        setCourts([]);
-        setTimeSlots([]);
-        setPriceSummary([]);
-        setError(
-          err.response?.data?.message ||
-            "Kh\u00f4ng th\u1ec3 t\u1ea3i th\u00f4ng tin c\u01a1 s\u1edf",
-        );
+        if (shouldResetPage) {
+          setFacility(null);
+          setCourts([]);
+          setTimeSlots([]);
+          setPriceSummary([]);
+          setError(
+            err.response?.data?.message ||
+              "Kh\u00f4ng th\u1ec3 t\u1ea3i th\u00f4ng tin c\u01a1 s\u1edf",
+          );
+        }
       } finally {
-        setIsLoading(false);
+        if (shouldResetPage) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchDetail();
   }, [id, selectedDate, refreshKey]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return undefined;
+
+    const payload = { co_so_id: Number(id), ngay: selectedDate };
+    const handleScheduleUpdated = (event) => {
+      if (
+        Number(event?.co_so_id) === Number(id) &&
+        String(event?.ngay || "").slice(0, 10) === selectedDate
+      ) {
+        setRefreshKey((value) => value + 1);
+      }
+    };
+
+    socket.emit("booking:schedule-join", payload);
+    socket.on("booking:schedule-updated", handleScheduleUpdated);
+
+    return () => {
+      socket.emit("booking:schedule-leave", payload);
+      socket.off("booking:schedule-updated", handleScheduleUpdated);
+    };
+  }, [id, selectedDate]);
 
   const selectedItems = useMemo(() => {
     return Array.from(selectedSlots)
