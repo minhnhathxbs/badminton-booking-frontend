@@ -4,7 +4,9 @@ import { ASSET_BASE_URL } from "./axios";
 let socket;
 
 export const getSocket = () => {
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || ASSET_BASE_URL;
+  const socketUrl =
+    import.meta.env.VITE_SOCKET_URL ||
+    ASSET_BASE_URL;
 
   if (!socketUrl) {
     return null;

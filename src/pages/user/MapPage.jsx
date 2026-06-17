@@ -19,7 +19,7 @@ import Footer from "../../components/common/Footer";
 import Header from "../../components/common/Header";
 import {
   loadCachedUserLocation,
-  saveCachedUserLocation,
+  requestBrowserLocation,
 } from "../../utils/userLocation";
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -156,40 +156,20 @@ export default function MapPage() {
     fetchFacilities();
   }, []);
 
-  const requestCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationStatus("unsupported");
-      setLocationMessage("Trình duyệt không hỗ trợ lấy vị trí hiện tại.");
-      return;
-    }
-
+  const requestCurrentLocation = async () => {
     setLocationStatus("loading");
     setLocationMessage("");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const location = saveCachedUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-        });
-        setUserLocation(toMapLocation(location));
-        setLocationStatus("granted");
-      },
-      (error) => {
-        setUserLocation(null);
-        setLocationStatus(error.code === error.PERMISSION_DENIED ? "denied" : "error");
-        setLocationMessage(
-          error.code === error.PERMISSION_DENIED
-            ? "Bạn cần cho phép truy cập vị trí để hiển thị trên bản đồ."
-            : "Không thể lấy vị trí hiện tại. Vui lòng thử lại.",
-        );
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 5 * 60 * 1000,
-        timeout: 10000,
-      },
-    );
+    try {
+      const location = await requestBrowserLocation();
+      setUserLocation(toMapLocation(location));
+      setLocationStatus("granted");
+    } catch (error) {
+      setUserLocation(null);
+      setLocationStatus("error");
+      setLocationMessage(
+        error.message || "Không thể lấy vị trí hiện tại. Vui lòng thử lại.",
+      );
+    }
   };
 
   const facilitiesWithPosition = useMemo(

@@ -6,7 +6,7 @@ import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
 import {
   loadCachedUserLocation,
-  saveCachedUserLocation,
+  requestBrowserLocation,
 } from "../../utils/userLocation";
 
 const EARTH_RADIUS_KM = 6371;
@@ -120,41 +120,18 @@ export default function HomePage() {
     fetchAllFacilities();
   }, []);
 
-  const requestCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationStatus("unsupported");
-      showToast("Trình duyệt không hỗ trợ lấy vị trí hiện tại", "error");
-      return;
-    }
-
+  const requestCurrentLocation = async () => {
     setLocationStatus("loading");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const location = saveCachedUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-        });
-        setUserLocation(location);
-        setLocationStatus("granted");
-        showToast("Đã lấy vị trí hiện tại");
-      },
-      (error) => {
-        setUserLocation(null);
-        setLocationStatus(error.code === error.PERMISSION_DENIED ? "denied" : "error");
-        showToast(
-          error.code === error.PERMISSION_DENIED
-            ? "Bạn cần cho phép truy cập vị trí để lọc gần bạn"
-            : "Không thể lấy vị trí hiện tại",
-          "error",
-        );
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 5 * 60 * 1000,
-        timeout: 10000,
-      },
-    );
+    try {
+      const location = await requestBrowserLocation();
+      setUserLocation(location);
+      setLocationStatus("granted");
+      showToast("Đã lấy vị trí hiện tại");
+    } catch (error) {
+      setUserLocation(null);
+      setLocationStatus("error");
+      showToast(error.message || "Không thể lấy vị trí hiện tại", "error");
+    }
   };
 
   useEffect(() => {
