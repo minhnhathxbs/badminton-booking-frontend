@@ -24,6 +24,9 @@ const TXT = {
   playDate: "Ng\u00e0y ch\u01a1i",
   timeSlot: "Khung gi\u1edd",
   total: "T\u1ed5ng ti\u1ec1n",
+  originalTotal: "Tổng tiền sân",
+  discount: "Khuyến mãi",
+  promoCode: "Mã giảm giá",
   paid: "\u0110\u00e3 thanh to\u00e1n",
   status: "Tr\u1ea1ng th\u00e1i",
   createdAt: "Ng\u00e0y t\u1ea1o \u0111\u01a1n",
@@ -32,6 +35,7 @@ const TXT = {
   remain: "C\u00f2n l\u1ea1i",
   method: "Ph\u01b0\u01a1ng th\u1ee9c",
   detailTitle: "Chi ti\u1ebft \u0111\u01a1n \u0111\u1eb7t s\u00e2n",
+  note: "Ghi chú",
   payDeposit: "Thanh to\u00e1n",
   payDepositOnly: "Thanh to\u00e1n c\u1ecdc",
   payAll: "Thanh to\u00e1n to\u00e0n b\u1ed9",
@@ -494,11 +498,28 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
           </section>
 
           <section className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
+            {Number(order.tien_giam || 0) > 0 && (
+              <>
+                <InfoLine
+                  label={TXT.originalTotal}
+                  value={formatCurrency(order.tong_tien)}
+                />
+                <InfoLine
+                  label={TXT.discount}
+                  value={`-${formatCurrency(order.tien_giam)}`}
+                />
+                <InfoLine
+                  label={TXT.promoCode}
+                  value={order.khuyen_mai?.ma_khuyen_mai || TXT.noData}
+                />
+              </>
+            )}
             <InfoLine label={TXT.total} value={formatCurrency(order.thanh_tien)} />
             <InfoLine label={TXT.deposit} value={formatCurrency(order.tien_coc)} />
             <InfoLine label={TXT.paid} value={formatCurrency(order.da_thanh_toan)} />
             <InfoLine label={TXT.remain} value={formatCurrency(order.con_lai)} />
             <InfoLine label={TXT.method} value={order.phuong_thuc || "VNPay"} />
+            <InfoLine label={TXT.note} value={order.ghi_chu || TXT.noData} />
             <div>
               <div className="text-xs font-bold uppercase text-slate-500">
                 {TXT.status}

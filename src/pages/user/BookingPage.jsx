@@ -70,6 +70,7 @@ export default function FacilityDetailPage() {
   const [selectedSlots, setSelectedSlots] = useState(new Set());
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
+  const [showPromoModal, setShowPromoModal] = useState(false);
   const [bookingStep, setBookingStep] = useState("select");
   const [paymentType, setPaymentType] = useState("deposit");
   const [holdInfo, setHoldInfo] = useState(null);
@@ -84,6 +85,9 @@ export default function FacilityDetailPage() {
     so_dien_thoai: "",
   });
   const [bookingNote, setBookingNote] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [promoOptions, setPromoOptions] = useState([]);
+  const [isLoadingPromos, setIsLoadingPromos] = useState(false);
   const lastScheduleQueryRef = useRef({ id: null, selectedDate: null });
   const minBookingDate = getTodayInputValue();
   const maxBookingDate = getMaxBookingDateValue();
@@ -123,6 +127,8 @@ export default function FacilityDetailPage() {
         setSelectedSlots(new Set());
         setBookingStep("select");
         setHoldInfo(null);
+        setPromoCode("");
+        setPromoOptions([]);
       }
 
       try {
@@ -212,9 +218,20 @@ export default function FacilityDetailPage() {
 
   const totalPrice = selectedItems.reduce((sum, item) => sum + item.price, 0);
   const depositRate = Number(facility?.phan_tram_coc ?? 30);
-  const deposit = Math.round((totalPrice * depositRate) / 100);
-  const paymentAmount = paymentType === "full" ? totalPrice : deposit;
-  const remainingAmount = totalPrice - paymentAmount;
+  const selectedPromo = promoOptions.find(
+    (item) => item.ma_khuyen_mai === promoCode,
+  );
+  const estimatedDiscount = Number(selectedPromo?.tien_giam_du_kien || 0);
+  const bookingTotal = Number(holdInfo?.tong_tien ?? totalPrice);
+  const discountAmount = Number(holdInfo?.tien_giam ?? estimatedDiscount);
+  const payableTotal = Number(
+    holdInfo?.thanh_tien ?? Math.max(totalPrice - estimatedDiscount, 0),
+  );
+  const deposit = Number(
+    holdInfo?.tien_coc ?? Math.round((payableTotal * depositRate) / 100),
+  );
+  const paymentAmount = paymentType === "full" ? payableTotal : deposit;
+  const remainingAmount = Math.max(payableTotal - paymentAmount, 0);
   const totalHours = selectedItems.length;
   const address = [facility?.dia_chi, facility?.phuong_xa, facility?.tinh_thanh]
     .filter(Boolean)
@@ -232,6 +249,49 @@ export default function FacilityDetailPage() {
     ],
     [courts],
   );
+
+  useEffect(() => {
+    const promoBaseTotal = Number(holdInfo?.tong_tien ?? 0);
+    if (!id || promoBaseTotal <= 0 || bookingStep !== "confirm") {
+      setPromoOptions([]);
+      if (bookingStep === "confirm") {
+        setPromoCode("");
+      }
+      return undefined;
+    }
+
+    let isMounted = true;
+    setIsLoadingPromos(true);
+
+    api
+      .get("/khuyen-mai/cong-khai", {
+        params: { co_so_id: id, tong_tien: promoBaseTotal },
+      })
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res.data?.danh_sach || [];
+        setPromoOptions(list);
+        setPromoCode((current) =>
+          current && !list.some((item) => item.ma_khuyen_mai === current)
+            ? ""
+            : current,
+        );
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setPromoOptions([]);
+        setPromoCode("");
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingPromos(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, holdInfo?.tong_tien, bookingStep]);
 
   const toggleSlot = (court, slot) => {
     if (slot.trang_thai !== "trong") return;
@@ -318,6 +378,7 @@ export default function FacilityDetailPage() {
       });
 
       setHoldInfo(res.data);
+      setPromoCode(res.data?.khuyen_mai?.ma_khuyen_mai || "");
       setBookingStep("confirm");
       setPaymentType("deposit");
       showToast(
@@ -370,6 +431,51 @@ export default function FacilityDetailPage() {
     }
   };
 
+  const applyPromoCode = async (nextCode) => {
+    if (!holdInfo?.dat_san_id) return;
+
+    setPromoCode(nextCode);
+    try {
+      const res = await api.patch(
+        `/dat-san/${holdInfo.dat_san_id}/khuyen-mai`,
+        {
+          ma_khuyen_mai: nextCode || undefined,
+        },
+      );
+      setHoldInfo((prev) => ({
+        ...prev,
+        ...res.data,
+      }));
+      showToast(res.data?.message || "Đã cập nhật mã khuyến mãi", "success");
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "Không thể áp mã khuyến mãi",
+        "error",
+      );
+      setPromoCode(holdInfo?.khuyen_mai?.ma_khuyen_mai || "");
+    }
+  };
+
+  const saveBookingNote = async ({ showSuccess = false } = {}) => {
+    if (!holdInfo?.dat_san_id) return true;
+
+    try {
+      await api.patch(`/dat-san/${holdInfo.dat_san_id}/ghi-chu`, {
+        ghi_chu: bookingNote,
+      });
+      if (showSuccess) {
+        showToast("Đã lưu ghi chú", "success");
+      }
+      return true;
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "Không thể lưu ghi chú",
+        "error",
+      );
+      return false;
+    }
+  };
+
   const createVnpayPayment = async () => {
     if (!holdInfo?.dat_san_id) {
       showToast(
@@ -381,6 +487,9 @@ export default function FacilityDetailPage() {
 
     setIsCreatingPayment(true);
     try {
+      const isNoteSaved = await saveBookingNote();
+      if (!isNoteSaved) return;
+
       const res = await api.post("/thanh-toan/vnpay/tao-url", {
         dat_san_id: holdInfo.dat_san_id,
         loai_thanh_toan: paymentType,
@@ -548,9 +657,69 @@ export default function FacilityDetailPage() {
               <div className="flex justify-between text-slate-500">
                 <span>{"T\u1ed5ng ti\u1ec1n s\u00e2n"}</span>
                 <span className="font-semibold text-slate-800">
-                  {formatCurrency(totalPrice)}
+                  {formatCurrency(bookingTotal)}
                 </span>
               </div>
+              {discountAmount > 0 && (
+                <>
+                  <div className="flex justify-between text-emerald-600">
+                    <span>{"Khuyến mãi"}</span>
+                    <span className="font-semibold">
+                      -{formatCurrency(discountAmount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-700">
+                    <span>{"Thành tiền"}</span>
+                    <span className="font-bold text-slate-900">
+                      {formatCurrency(payableTotal)}
+                    </span>
+                  </div>
+                </>
+              )}
+              {holdInfo?.khuyen_mai && (
+                <div className="flex justify-between text-xs text-emerald-700">
+                  <span>{"Mã đã áp dụng"}</span>
+                  <span className="font-bold">
+                    {holdInfo.khuyen_mai.ma_khuyen_mai}
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-bold text-slate-900">
+              <i className="fa-solid fa-ticket text-indigo-600"></i>
+              {"Khuyến mãi"}
+            </h2>
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowPromoModal(true)}
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50/40"
+              >
+                <div>
+                  <p className="text-sm font-bold text-slate-900">
+                    {holdInfo?.khuyen_mai
+                      ? holdInfo.khuyen_mai.ma_khuyen_mai
+                      : "Chọn mã khuyến mãi"}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-slate-500">
+                    {holdInfo?.khuyen_mai
+                      ? holdInfo.khuyen_mai.ten
+                      : "Xem các mã phù hợp với đơn giữ chỗ này"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {discountAmount > 0 && (
+                    <span className="text-sm font-extrabold text-emerald-600">
+                      -{formatCurrency(discountAmount)}
+                    </span>
+                  )}
+                  <i className="fa-solid fa-chevron-right text-slate-400"></i>
+                </div>
+              </button>
             </div>
           </section>
 
@@ -606,6 +775,7 @@ export default function FacilityDetailPage() {
                   placeholder="Ghi chú cho chủ sân"
                   value={bookingNote}
                   onChange={(event) => setBookingNote(event.target.value)}
+                  onBlur={() => saveBookingNote()}
                   className="h-24 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all"
                 ></textarea>
               </div>
@@ -662,7 +832,7 @@ export default function FacilityDetailPage() {
                   ></div>
                 </div>
                 <span className="text-lg font-bold text-indigo-700">
-                  {formatCurrency(totalPrice)}
+                  {formatCurrency(payableTotal)}
                 </span>
               </label>
             </div>
@@ -683,6 +853,132 @@ export default function FacilityDetailPage() {
             </div>
           </section>
         </main>
+
+        {showPromoModal && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/45 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+            <div className="max-h-[82vh] w-full overflow-hidden rounded-t-3xl bg-white shadow-2xl ring-1 ring-slate-200 sm:max-w-lg sm:rounded-2xl">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-900">
+                    {"Chọn mã khuyến mãi"}
+                  </h2>
+                  <p className="mt-1 text-xs font-medium text-slate-500">
+                    {"Các mã phù hợp với đơn giữ chỗ hiện tại."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPromoModal(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+                  aria-label="Dong"
+                >
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+
+              <div className="max-h-[62vh] space-y-3 overflow-y-auto p-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    applyPromoCode("");
+                    setShowPromoModal(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+                    !promoCode
+                      ? "border-indigo-500 bg-indigo-50"
+                      : "border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">
+                      {"Không dùng mã"}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-slate-500">
+                      {"Giữ nguyên tổng tiền hiện tại."}
+                    </p>
+                  </div>
+                  {!promoCode && (
+                    <i className="fa-solid fa-check text-indigo-600"></i>
+                  )}
+                </button>
+
+                {isLoadingPromos ? (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
+                    <i className="fa-solid fa-circle-notch fa-spin mr-2"></i>
+                    {"Đang tải mã khuyến mãi"}
+                  </div>
+                ) : promoOptions.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
+                    {"Không có mã phù hợp với đơn này."}
+                  </div>
+                ) : (
+                  promoOptions.map((promo) => {
+                    const isSelected = promoCode === promo.ma_khuyen_mai;
+                    return (
+                      <button
+                        key={promo.id}
+                        type="button"
+                        onClick={() => {
+                          applyPromoCode(promo.ma_khuyen_mai);
+                          setShowPromoModal(false);
+                        }}
+                        className={`w-full rounded-xl border p-4 text-left transition ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-50"
+                            : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-black text-slate-900">
+                              {promo.ma_khuyen_mai}
+                            </p>
+                            <p className="mt-1 text-sm font-bold text-slate-700">
+                              {promo.ten}
+                            </p>
+                            {promo.mo_ta && (
+                              <p className="mt-1 text-xs font-medium text-slate-500">
+                                {promo.mo_ta}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-extrabold text-emerald-600">
+                              -{formatCurrency(promo.tien_giam_du_kien)}
+                            </p>
+                            {isSelected && (
+                              <p className="mt-1 text-xs font-bold text-emerald-700">
+                                {"Đang áp dụng"}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold text-slate-500">
+                          {Number(promo.don_toi_thieu || 0) > 0 && (
+                            <span className="rounded-full bg-white px-2 py-1 ring-1 ring-slate-200">
+                              Đơn từ {formatCurrency(promo.don_toi_thieu)}
+                            </span>
+                          )}
+                          {Number(promo.so_luong || 0) > 0 && (
+                            <span className="rounded-full bg-white px-2 py-1 ring-1 ring-slate-200">
+                              Còn{" "}
+                              {Math.max(
+                                Number(promo.so_luong || 0) -
+                                  Number(promo.da_su_dung || 0),
+                                0,
+                              )}{" "}
+                              lượt
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Thanh xac nhan co dinh */}
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
@@ -892,7 +1188,7 @@ export default function FacilityDetailPage() {
 
       {/* Floating Bottom Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/80 p-3 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl">
-        <div className="flex w-full items-center justify-between gap-4">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div className="hidden sm:block">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
               {"\u0110\u00e3 ch\u1ecdn"}
@@ -905,8 +1201,13 @@ export default function FacilityDetailPage() {
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
               {"T\u1ed5ng t\u1ea1m t\u00ednh"}
             </p>
+            {estimatedDiscount > 0 && (
+              <p className="text-xs font-bold text-emerald-600">
+                -{formatCurrency(estimatedDiscount)}
+              </p>
+            )}
             <p className="text-lg font-black text-blue-600">
-              {formatCurrency(totalPrice)}
+              {formatCurrency(payableTotal)}
             </p>
           </div>
           <button
