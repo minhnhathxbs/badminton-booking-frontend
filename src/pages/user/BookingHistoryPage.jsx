@@ -36,6 +36,7 @@ const TXT = {
   method: "Ph\u01b0\u01a1ng th\u1ee9c",
   detailTitle: "Chi ti\u1ebft \u0111\u01a1n \u0111\u1eb7t s\u00e2n",
   note: "Ghi chú",
+  cancelReason: "Lý do hủy",
   payDeposit: "Thanh to\u00e1n",
   payDepositOnly: "Thanh to\u00e1n c\u1ecdc",
   payAll: "Thanh to\u00e1n to\u00e0n b\u1ed9",
@@ -520,6 +521,12 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
             <InfoLine label={TXT.remain} value={formatCurrency(order.con_lai)} />
             <InfoLine label={TXT.method} value={order.phuong_thuc || "VNPay"} />
             <InfoLine label={TXT.note} value={order.ghi_chu || TXT.noData} />
+            {isCancelledLike(order) && (
+              <InfoLine
+                label={TXT.cancelReason}
+                value={order.ly_do_huy || TXT.noData}
+              />
+            )}
             <div>
               <div className="text-xs font-bold uppercase text-slate-500">
                 {TXT.status}
