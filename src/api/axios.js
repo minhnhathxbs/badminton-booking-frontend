@@ -5,6 +5,9 @@ export const ASSET_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  headers: {
+    "ngrok-skip-browser-warning": "true",
+  },
 });
 
 export const getAssetUrl = (path) => {
