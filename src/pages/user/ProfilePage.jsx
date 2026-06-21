@@ -4,6 +4,19 @@ import Header from "../../components/common/Header";
 import Footer from "../../components/common/Footer";
 import api, { getAssetUrl } from "../../api/axios";
 
+const normalizeGender = (value) => {
+  const map = {
+    1: "male",
+    2: "female",
+    3: "other",
+    male: "male",
+    female: "female",
+    other: "other",
+  };
+
+  return map[value] || "male";
+};
+
 export default function ProfilePage() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -31,7 +44,7 @@ export default function ProfilePage() {
         email: res.data.email || "",
         so_dien_thoai: res.data.so_dien_thoai || "",
         ngay_sinh: res.data.ngay_sinh ? res.data.ngay_sinh.split("T")[0] : "",
-        gioi_tinh: res.data.gioi_tinh || "male",
+        gioi_tinh: normalizeGender(res.data.gioi_tinh),
         anh_dai_dien: res.data.avatar || null,
       });
     } catch (err) {
