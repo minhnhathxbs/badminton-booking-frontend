@@ -43,13 +43,25 @@ const TXT = {
   payRemaining: "Thanh to\u00e1n ph\u1ea7n c\u00f2n l\u1ea1i",
   paying: "\u0110ang t\u1ea1o thanh to\u00e1n",
   cancel: "H\u1ee7y s\u00e2n",
-  cancelLater: "Ch\u1ee9c n\u0103ng h\u1ee7y s\u00e2n s\u1ebd l\u00e0m sau",
+  cancelTitle: "H\u1ee7y \u0111\u1eb7t s\u00e2n",
+  cancelDesc: "Nh\u1eadp l\u00fd do h\u1ee7y \u0111\u1ec3 ch\u1ee7 s\u00e2n xem x\u00e9t ho\u00e0n ti\u1ec1n n\u1ebfu \u0111\u01a1n \u0111\u00e3 thanh to\u00e1n.",
+  cancelPlaceholder: "VD: B\u1eadn vi\u1ec7c \u0111\u1ed9t xu\u1ea5t, kh\u00f4ng th\u1ec3 \u0111\u1ebfn s\u00e2n...",
+  cancelReasonRequired: "Vui l\u00f2ng nh\u1eadp l\u00fd do h\u1ee7y",
+  cancelSuccess: "H\u1ee7y \u0111\u1eb7t s\u00e2n th\u00e0nh c\u00f4ng",
+  cancelFail: "Kh\u00f4ng th\u1ec3 h\u1ee7y \u0111\u1eb7t s\u00e2n",
+  cancelling: "\u0110ang h\u1ee7y",
+  confirmCancel: "X\u00e1c nh\u1eadn h\u1ee7y",
   paymentUrlFail: "Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c \u0111\u01b0\u1eddng d\u1eabn thanh to\u00e1n",
   paymentCreateFail: "Kh\u00f4ng th\u1ec3 t\u1ea1o thanh to\u00e1n",
   hold: "\u0110ang ch\u1edd thanh to\u00e1n",
   confirmed: "\u0110\u00e3 c\u1ecdc",
   paidFull: "\u0110\u00e3 thanh to\u00e1n",
   cancelled: "\u0110\u00e3 h\u1ee7y",
+  refundPending: "Ho\u00e0n ti\u1ec1n ch\u1edd x\u1eed l\u00fd",
+  refundApproved: "\u0110\u00e3 ho\u00e0n ti\u1ec1n",
+  refundRejected: "T\u1eeb ch\u1ed1i ho\u00e0n ti\u1ec1n",
+  refundAmount: "S\u1ed1 ti\u1ec1n ho\u00e0n",
+  refundNote: "Ghi ch\u00fa ho\u00e0n ti\u1ec1n",
   expired: "H\u1ebft h\u1ea1n",
   completed: "Ho\u00e0n th\u00e0nh",
   unknown: "Kh\u00f4ng x\u00e1c \u0111\u1ecbnh",
@@ -72,7 +84,36 @@ const formatDateTime = (value) => {
 
 const formatTime = (value) => String(value || "").slice(0, 5);
 
-const getDatePart = (value) => String(value || "").slice(0, 10);
+const formatLocalDateKey = (value) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0"),
+    ].join("-");
+  }
+
+  return String(value).slice(0, 10);
+};
+
+const getEarliestStartDate = (order) => {
+  const starts = (order.chi_tiet || [])
+    .map((item) => {
+      const datePart = formatLocalDateKey(item.ngay);
+      const startTime = formatTime(item.gio_bat_dau);
+      if (!datePart || !startTime) return null;
+
+      const startDate = new Date(`${datePart}T${startTime}:00`);
+      return Number.isNaN(startDate.getTime()) ? null : startDate;
+    })
+    .filter(Boolean);
+
+  if (!starts.length) return null;
+  return starts.reduce((earliest, date) => (date < earliest ? date : earliest));
+};
 
 const unique = (items) => Array.from(new Set(items.filter(Boolean)));
 
@@ -103,7 +144,7 @@ const isOrderPast = (order) => {
   if (!detail.length) return false;
 
   const latestEnd = detail.reduce((latest, item) => {
-    const datePart = getDatePart(item.ngay);
+    const datePart = formatLocalDateKey(item.ngay);
     const endTime = formatTime(item.gio_ket_thuc);
     if (!datePart || !endTime) return latest;
 
@@ -122,6 +163,16 @@ const isHoldExpired = (order) =>
 
 const isCancelledLike = (order) => {
   return Number(order.trang_thai) === 2;
+};
+
+const canCancelOrder = (order) => {
+  if (![0, 1].includes(Number(order.trang_thai))) return false;
+
+  const earliestStart = getEarliestStartDate(order);
+  if (!earliestStart) return false;
+
+  const cancelDeadline = new Date(earliestStart.getTime() - 2 * 60 * 60 * 1000);
+  return new Date() < cancelDeadline;
 };
 
 const getPaymentKind = (order) => {
@@ -165,6 +216,33 @@ const getStatusInfo = (order) => {
   }
 };
 
+const getRefundStatusInfo = (refund) => {
+  if (!refund) return null;
+
+  switch (Number(refund.trang_thai)) {
+    case 0:
+      return {
+        label: TXT.refundPending,
+        className: "bg-amber-50 text-amber-700 border-amber-200",
+      };
+    case 1:
+      return {
+        label: TXT.refundApproved,
+        className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      };
+    case 2:
+      return {
+        label: TXT.refundRejected,
+        className: "bg-rose-50 text-rose-700 border-rose-200",
+      };
+    default:
+      return {
+        label: TXT.unknown,
+        className: "bg-slate-100 text-slate-600 border-slate-200",
+      };
+  }
+};
+
 const getPrimaryAction = (order) => {
   const kind = getPaymentKind(order);
   if (kind === "waiting") {
@@ -183,6 +261,9 @@ export default function BookingHistoryPage() {
   const [payingId, setPayingId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [paymentChoiceOrder, setPaymentChoiceOrder] = useState(null);
+  const [cancelOrder, setCancelOrder] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancellingId, setCancellingId] = useState(null);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -235,8 +316,45 @@ export default function BookingHistoryPage() {
     }
   };
 
-  const handleCancel = () => {
-    showToast(TXT.cancelLater, "error");
+  const handleOpenCancel = (order) => {
+    setCancelOrder(order);
+    setCancelReason("");
+  };
+
+  const handleConfirmCancel = async () => {
+    const reason = cancelReason.trim();
+    if (!reason) {
+      showToast(TXT.cancelReasonRequired, "error");
+      return;
+    }
+
+    setCancellingId(cancelOrder.id);
+    try {
+      const res = await api.patch(`/huy-dat-san/${cancelOrder.id}`, {
+        ly_do_huy: reason,
+      });
+
+      const updated = {
+        ...cancelOrder,
+        trang_thai: res.data?.trang_thai ?? 2,
+        ly_do_huy: res.data?.ly_do_huy || reason,
+        hoan_tien: res.data?.yeu_cau_hoan_tien || cancelOrder.hoan_tien,
+      };
+
+      setOrders((prev) =>
+        prev.map((order) => (order.id === cancelOrder.id ? updated : order)),
+      );
+      setSelectedOrder((prev) =>
+        prev?.id === cancelOrder.id ? { ...updated, stt: prev.stt } : prev,
+      );
+      setCancelOrder(null);
+      setCancelReason("");
+      showToast(res.data?.message || TXT.cancelSuccess);
+    } catch (err) {
+      showToast(err.response?.data?.message || TXT.cancelFail, "error");
+    } finally {
+      setCancellingId(null);
+    }
   };
 
   return (
@@ -299,6 +417,7 @@ export default function BookingHistoryPage() {
                 <tbody className="divide-y divide-slate-100">
                   {sortedOrders.map((order, index) => {
                     const status = getStatusInfo(order);
+                    const refundStatus = getRefundStatusInfo(order.hoan_tien);
                     const courtNames = getCourtNames(order);
                     const timeSlots = getTimeSlots(order);
                     const playDates = getPlayDates(order);
@@ -313,15 +432,24 @@ export default function BookingHistoryPage() {
                         <Td strong>{formatCurrency(order.thanh_tien)}</Td>
                         <Td>{formatCurrency(order.da_thanh_toan)}</Td>
                         <Td>
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}
-                          >
-                            {status.label}
-                          </span>
+                          <div className="flex flex-col items-start gap-1.5">
+                            <span
+                              className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}
+                            >
+                              {status.label}
+                            </span>
+                            {refundStatus && (
+                              <span
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${refundStatus.className}`}
+                              >
+                                {refundStatus.label}
+                              </span>
+                            )}
+                          </div>
                         </Td>
                         <Td>{formatDateTime(order.ngay_tao)}</Td>
                         <Td>
-                          <div className="flex min-w-[48px] justify-center">
+                          <div className="flex min-w-[92px] justify-center gap-2">
                             <button
                               type="button"
                               onClick={() => setSelectedOrder({ ...order, stt: index + 1 })}
@@ -330,6 +458,16 @@ export default function BookingHistoryPage() {
                             >
                               <i className="fa-regular fa-eye"></i>
                             </button>
+                            {canCancelOrder(order) && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCancel({ ...order, stt: index + 1 })}
+                                title={TXT.cancel}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 text-sm text-rose-600 hover:bg-rose-50"
+                              >
+                                <i className="fa-solid fa-ban"></i>
+                              </button>
+                            )}
                           </div>
                         </Td>
                       </tr>
@@ -348,7 +486,7 @@ export default function BookingHistoryPage() {
           payingId={payingId}
           onClose={() => setSelectedOrder(null)}
           onPay={handlePay}
-          onCancel={handleCancel}
+          onCancel={handleOpenCancel}
         />
       )}
 
@@ -358,6 +496,17 @@ export default function BookingHistoryPage() {
           payingId={payingId}
           onClose={() => setPaymentChoiceOrder(null)}
           onPay={handlePay}
+        />
+      )}
+
+      {cancelOrder && (
+        <CancelBookingModal
+          order={cancelOrder}
+          reason={cancelReason}
+          loading={cancellingId === cancelOrder.id}
+          onReasonChange={setCancelReason}
+          onClose={() => setCancelOrder(null)}
+          onConfirm={handleConfirmCancel}
         />
       )}
     </div>
@@ -420,11 +569,12 @@ function PaymentChoiceModal({ order, payingId, onClose, onPay }) {
 function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
   const action = getPrimaryAction(order);
   const status = getStatusInfo(order);
+  const refundStatus = getRefundStatusInfo(order.hoan_tien);
   const courtNames = getCourtNames(order);
   const timeSlots = getTimeSlots(order);
   const playDates = getPlayDates(order);
   const address = getAddress(order);
-  const canShowCancel = !isOrderPast(order) && !isCancelledLike(order);
+  const canShowCancel = canCancelOrder(order);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4">
@@ -527,15 +677,36 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
                 value={order.ly_do_huy || TXT.noData}
               />
             )}
+            {order.hoan_tien && (
+              <>
+                <InfoLine
+                  label={TXT.refundAmount}
+                  value={formatCurrency(order.hoan_tien.so_tien_hoan)}
+                />
+                <InfoLine
+                  label={TXT.refundNote}
+                  value={order.hoan_tien.ghi_chu_admin || TXT.noData}
+                />
+              </>
+            )}
             <div>
               <div className="text-xs font-bold uppercase text-slate-500">
                 {TXT.status}
               </div>
-              <span
-                className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}
-              >
-                {status.label}
-              </span>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <span
+                  className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}
+                >
+                  {status.label}
+                </span>
+                {refundStatus && (
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${refundStatus.className}`}
+                  >
+                    {refundStatus.label}
+                  </span>
+                )}
+              </div>
             </div>
           </section>
 
@@ -564,7 +735,7 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
             {canShowCancel && (
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={() => onCancel(order)}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 px-4 py-3 text-sm font-bold text-rose-600 hover:bg-rose-50"
               >
                 <i className="fa-solid fa-ban"></i>
@@ -578,6 +749,83 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
               className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
             >
               {TXT.close}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CancelBookingModal({
+  order,
+  reason,
+  loading,
+  onReasonChange,
+  onClose,
+  onConfirm,
+}) {
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/50 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900">
+              {TXT.cancelTitle}
+            </h2>
+            <p className="mt-1 text-sm font-medium text-slate-500">
+              {order.co_so?.ten || TXT.unknownFacility}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-60"
+            aria-label={TXT.close}
+          >
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <p className="text-sm font-medium leading-6 text-slate-600">
+            {TXT.cancelDesc}
+          </p>
+          <textarea
+            value={reason}
+            onChange={(event) => onReasonChange(event.target.value)}
+            placeholder={TXT.cancelPlaceholder}
+            disabled={loading}
+            className="h-32 w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:border-rose-400 disabled:bg-slate-50"
+          />
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {TXT.close}
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-sm font-bold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {loading ? (
+                <>
+                  <i className="fa-solid fa-circle-notch fa-spin"></i>
+                  {TXT.cancelling}
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-ban"></i>
+                  {TXT.confirmCancel}
+                </>
+              )}
             </button>
           </div>
         </div>
