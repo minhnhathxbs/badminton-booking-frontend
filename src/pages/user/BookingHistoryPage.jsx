@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Header from "../../components/common/Header";
 import api from "../../api/axios";
+import UserHeader from "../../components/common/UserHeader";
 import { showToast } from "../../components/common/ToastMessage";
 
 const TXT = {
@@ -138,23 +138,6 @@ const getAddress = (order) =>
   ]
     .filter(Boolean)
     .join(", ");
-
-const isOrderPast = (order) => {
-  const detail = order.chi_tiet || [];
-  if (!detail.length) return false;
-
-  const latestEnd = detail.reduce((latest, item) => {
-    const datePart = formatLocalDateKey(item.ngay);
-    const endTime = formatTime(item.gio_ket_thuc);
-    if (!datePart || !endTime) return latest;
-
-    const endDate = new Date(`${datePart}T${endTime}:00`);
-    if (Number.isNaN(endDate.getTime())) return latest;
-    return !latest || endDate > latest ? endDate : latest;
-  }, null);
-
-  return latestEnd ? latestEnd < new Date() : false;
-};
 
 const isHoldExpired = (order) =>
   Number(order.trang_thai) === 0 &&
@@ -358,8 +341,8 @@ export default function BookingHistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f7fb] text-slate-800">
-      <Header />
+    <div className="min-h-screen bg-[#f4f8ff] text-slate-800">
+      <UserHeader />
       <main className="mx-auto w-full max-w-[1500px] px-4 py-6 lg:px-8">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>

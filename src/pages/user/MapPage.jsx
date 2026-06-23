@@ -15,8 +15,7 @@ import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import "leaflet/dist/leaflet.css";
 
 import api, { getAssetUrl } from "../../api/axios";
-import Footer from "../../components/common/Footer";
-import Header from "../../components/common/Header";
+import UserHeader from "../../components/common/UserHeader";
 import {
   loadCachedUserLocation,
   requestBrowserLocation,
@@ -203,9 +202,9 @@ export default function MapPage() {
 
   return (
     <>
-      <Header />
+      <UserHeader />
 
-      <main className="min-h-screen bg-[#f4f7fb] text-slate-800">
+      <main className="min-h-screen bg-[#f4f8ff] text-slate-800">
         <section className="mx-auto w-full max-w-7xl px-4 py-6 md:px-8">
           <div className="mb-5">
             <h1 className="text-2xl font-extrabold text-slate-900">
@@ -348,7 +347,6 @@ export default function MapPage() {
         </section>
       </main>
 
-      <Footer />
     </>
   );
 }

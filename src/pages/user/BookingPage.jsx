@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { getSocket } from "../../api/socket";
 import { showToast } from "../../components/common/ToastMessage";
+import UserHeader from "../../components/common/UserHeader";
 
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
@@ -253,42 +254,47 @@ export default function FacilityDetailPage() {
   useEffect(() => {
     const promoBaseTotal = Number(holdInfo?.tong_tien ?? 0);
     if (!id || promoBaseTotal <= 0 || bookingStep !== "confirm") {
-      setPromoOptions([]);
-      if (bookingStep === "confirm") {
-        setPromoCode("");
-      }
-      return undefined;
+      const timeoutId = window.setTimeout(() => {
+        setPromoOptions([]);
+        if (bookingStep === "confirm") {
+          setPromoCode("");
+        }
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
     let isMounted = true;
-    setIsLoadingPromos(true);
+    const timeoutId = window.setTimeout(() => {
+      setIsLoadingPromos(true);
 
-    api
-      .get("/khuyen-mai/cong-khai", {
-        params: { co_so_id: id, tong_tien: promoBaseTotal },
-      })
-      .then((res) => {
-        if (!isMounted) return;
-        const list = res.data?.danh_sach || [];
-        setPromoOptions(list);
-        setPromoCode((current) =>
-          current && !list.some((item) => item.ma_khuyen_mai === current)
-            ? ""
-            : current,
-        );
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setPromoOptions([]);
-        setPromoCode("");
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoadingPromos(false);
-        }
-      });
+      api
+        .get("/khuyen-mai/cong-khai", {
+          params: { co_so_id: id, tong_tien: promoBaseTotal },
+        })
+        .then((res) => {
+          if (!isMounted) return;
+          const list = res.data?.danh_sach || [];
+          setPromoOptions(list);
+          setPromoCode((current) =>
+            current && !list.some((item) => item.ma_khuyen_mai === current)
+              ? ""
+              : current,
+          );
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          setPromoOptions([]);
+          setPromoCode("");
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsLoadingPromos(false);
+          }
+        });
+    }, 0);
 
     return () => {
+      window.clearTimeout(timeoutId);
       isMounted = false;
     };
   }, [id, holdInfo?.tong_tien, bookingStep]);
@@ -1029,7 +1035,8 @@ export default function FacilityDetailPage() {
 
   // --- TRANG CHON LICH SAN ---
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 font-sans text-slate-800 selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="min-h-screen bg-[#f4f8ff] font-sans text-slate-800 selection:bg-indigo-100 selection:text-indigo-900">
+      <UserHeader />
       <main className="w-full px-3 pb-36 pt-4 lg:px-8 lg:pb-40 lg:pt-8">
         {/* Header chon san */}
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">

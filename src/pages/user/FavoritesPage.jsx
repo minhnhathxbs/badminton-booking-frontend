@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../../api/axios";
-import Header from "../../components/common/Header";
-import Footer from "../../components/common/Footer";
+import UserHeader from "../../components/common/UserHeader";
 import { showToast } from "../../components/common/ToastMessage";
 
 export default function FavoritesPage() {
@@ -54,20 +53,20 @@ export default function FavoritesPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 text-gray-800">
-      <Header />
+    <div className="min-h-screen bg-[#f4f8ff] font-sans text-gray-800">
+      <UserHeader />
 
-      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-[1600px] px-4 pb-10 pt-7 lg:px-8 xl:px-10">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">Cơ sở yêu thích</h1>
+            <h1 className="text-2xl font-semibold text-slate-900">Cơ sở yêu thích</h1>
             <p className="mt-1 text-sm text-gray-500">
               Danh sách cơ sở bạn đã lưu để đặt sân nhanh hơn.
             </p>
           </div>
           <Link
             to="/trang-chu"
-            className="inline-flex w-max items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-50"
+            className="inline-flex w-max items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm hover:bg-blue-50"
           >
             <i className="fa-solid fa-arrow-left"></i>
             Về trang chủ
@@ -83,13 +82,13 @@ export default function FavoritesPage() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600">
               <i className="fa-regular fa-heart text-2xl"></i>
             </div>
-            <h2 className="text-lg font-extrabold text-slate-900">Chưa có cơ sở yêu thích</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Chưa có cơ sở yêu thích</h2>
             <p className="mt-2 text-sm text-gray-500">
               Bấm biểu tượng trái tim ở trang chủ để lưu cơ sở bạn quan tâm.
             </p>
             <Link
               to="/trang-chu"
-              className="mt-5 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
+              className="mt-5 inline-flex rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
             >
               Tìm cơ sở
             </Link>
@@ -99,11 +98,11 @@ export default function FavoritesPage() {
             {favorites.map((facility) => (
               <article
                 key={facility.yeu_thich_id || facility.co_so_id}
-                className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:flex-row sm:p-4"
+                className="flex flex-col gap-4 rounded-[18px] border border-white bg-white p-3 shadow-[0_10px_24px_rgb(15_23_42_/_0.08)] sm:flex-row sm:items-center sm:p-4"
               >
                 <Link
                   to={`/dat-san/${facility.co_so_id}`}
-                  className="relative h-44 overflow-hidden rounded-xl bg-gray-100 sm:h-36 sm:w-56 sm:flex-shrink-0"
+                  className="relative h-44 overflow-hidden rounded-[16px] bg-gray-100 sm:h-36 sm:w-56 sm:flex-shrink-0"
                 >
                   {facility.anh_chinh ? (
                     <img
@@ -112,17 +111,20 @@ export default function FavoritesPage() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-gray-400">
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 text-gray-400">
                       <i className="fa-regular fa-image text-3xl"></i>
                     </div>
                   )}
+                  <span className="absolute bottom-2 left-2 rounded-lg bg-white/95 px-3 py-1 text-[11px] font-semibold text-blue-600 shadow-sm">
+                    Đã lưu
+                  </span>
                 </Link>
 
-                <div className="flex flex-1 flex-col justify-between gap-4">
-                  <div>
+                <div className="flex min-w-0 flex-1 flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                  <div className="min-w-0">
                     <Link
                       to={`/dat-san/${facility.co_so_id}`}
-                      className="text-lg font-extrabold text-slate-900 hover:text-blue-600"
+                      className="line-clamp-2 text-lg font-semibold text-slate-900 hover:text-blue-600"
                     >
                       {facility.ten}
                     </Link>
@@ -141,26 +143,21 @@ export default function FavoritesPage() {
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-                      Đã lưu yêu thích
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => removeFavorite(facility.co_so_id)}
-                        disabled={removingIds.has(Number(facility.co_so_id))}
-                        className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        Bỏ yêu thích
-                      </button>
-                      <Link
-                        to={`/dat-san/${facility.co_so_id}`}
-                        className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
-                      >
-                        Đặt sân
-                      </Link>
-                    </div>
+                  <div className="flex flex-shrink-0 justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => removeFavorite(facility.co_so_id)}
+                      disabled={removingIds.has(Number(facility.co_so_id))}
+                      className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Bỏ yêu thích
+                    </button>
+                    <Link
+                      to={`/dat-san/${facility.co_so_id}`}
+                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Đặt sân
+                    </Link>
                   </div>
                 </div>
               </article>
@@ -168,8 +165,6 @@ export default function FavoritesPage() {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   );
 }

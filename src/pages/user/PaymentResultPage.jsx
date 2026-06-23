@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../../api/axios";
+import UserHeader from "../../components/common/UserHeader";
 
 const TXT = {
   empty: "Ch\u01b0a c\u00f3",
@@ -103,8 +104,9 @@ export default function PaymentResultPage() {
   const invoice = result?.hoa_don;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 p-3 font-sans text-slate-800">
-      <main className="mx-auto flex min-h-[calc(100vh-24px)] w-full max-w-5xl items-center justify-center">
+    <div className="min-h-screen bg-[#f4f8ff] font-sans text-slate-800">
+      <UserHeader />
+      <main className="mx-auto flex min-h-[calc(100vh-112px)] w-full max-w-5xl items-center justify-center p-3">
         <div className="w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           {status === "loading" ? (
             <div className="py-10 text-center">
