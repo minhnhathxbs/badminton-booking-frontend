@@ -1,0 +1,104 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import Header from "../../components/common/Header";
+import Footer from "../../components/common/Footer";
+import { useNotifications } from "../../contexts/notificationStore";
+
+const thoiGianTuongDoi = (ngay) => {
+  const t = new Date(ngay).getTime();
+  if (Number.isNaN(t)) return "";
+  const giay = Math.floor((Date.now() - t) / 1000);
+  if (giay < 60) return "Vừa xong";
+  if (giay < 3600) return `${Math.floor(giay / 60)} phút trước`;
+  if (giay < 86400) return `${Math.floor(giay / 3600)} giờ trước`;
+  return `${Math.floor(giay / 86400)} ngày trước`;
+};
+
+const iconTheoLoai = (loai) => {
+  if (loai === "THANH_TOAN") return "fa-solid fa-money-bill-wave";
+  if (loai === "CO_SO") return "fa-solid fa-building";
+  return "fa-solid fa-calendar-check";
+};
+
+export default function NotificationsPage() {
+  const navigate = useNavigate();
+  const { danhSach, soChuaDoc, dangTai, taiThongBao, danhDauDaDoc, danhDauTatCa } =
+    useNotifications();
+
+  useEffect(() => {
+    if (!localStorage.getItem("token")) {
+      navigate("/dang-nhap");
+      return;
+    }
+    taiThongBao();
+  }, [navigate, taiThongBao]);
+
+  const xuLyClick = (tb) => {
+    if (!tb.da_doc) danhDauDaDoc(tb.id);
+    if (tb.duong_dan) navigate(tb.duong_dan);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Header />
+      <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold text-gray-800">
+            Thông báo
+            {soChuaDoc > 0 && (
+              <span className="ml-2 text-sm font-medium text-red-500">
+                ({soChuaDoc} chưa đọc)
+              </span>
+            )}
+          </h1>
+          {soChuaDoc > 0 && (
+            <button
+              type="button"
+              onClick={danhDauTatCa}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Đánh dấu tất cả đã đọc
+            </button>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 overflow-hidden">
+          {dangTai && danhSach.length === 0 ? (
+            <div className="px-4 py-12 text-center text-gray-400">Đang tải...</div>
+          ) : danhSach.length === 0 ? (
+            <div className="px-4 py-12 text-center text-gray-400">
+              <i className="fa-regular fa-bell-slash text-3xl mb-2 block"></i>
+              Chưa có thông báo nào
+            </div>
+          ) : (
+            danhSach.map((tb) => (
+              <button
+                key={tb.id}
+                type="button"
+                onClick={() => xuLyClick(tb)}
+                className={`w-full text-left flex gap-3 px-4 py-4 hover:bg-gray-50 transition-colors ${
+                  tb.da_doc ? "bg-white" : "bg-blue-50/60"
+                }`}
+              >
+                <div className="w-10 h-10 rounded-full bg-[#eef3ff] text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <i className={iconTheoLoai(tb.loai_thong_bao)}></i>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-gray-800">{tb.tieu_de}</p>
+                  <p className="text-sm text-gray-500">{tb.noi_dung}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {thoiGianTuongDoi(tb.ngay_tao)}
+                  </p>
+                </div>
+                {!tb.da_doc && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></span>
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
