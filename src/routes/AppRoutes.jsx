@@ -23,6 +23,7 @@ import ManageCourtCategories from "../pages/owner/ManageCourtCategories";
 import ManagePromotions from "../pages/owner/ManagePromotions";
 import ManageReviews from "../pages/owner/ManageReviews";
 import ManageRefunds from "../pages/owner/ManageRefunds";
+import OwnerComplaints from "../pages/owner/OwnerComplaints";
 
 import AdminLayout from "../layouts/AdminLayout";
 import ManageUsers from "../pages/admin/ManageUsers";
@@ -83,6 +84,7 @@ export default function AppRoutes() {
           <Route path="bang-gia" element={<ManagePrices />} />
           <Route path="hoan-tien" element={<ManageRefunds />} />
           <Route path="danh-gia" element={<ManageReviews />} />
+          <Route path="khieu-nai" element={<OwnerComplaints />} />
         </Route>
       </Route>
       <Route element={<AdminRoute />}>
