@@ -76,6 +76,11 @@ export default function OwnerLayout() {
       label: "Hoàn tiền",
     },
     { path: "/chu-san/danh-gia", icon: "fa-star", label: "Quản lý đánh giá" },
+    {
+      path: "/chu-san/khieu-nai",
+      icon: "fa-flag",
+      label: "Khiếu nại từ khách",
+    },
   ];
 
   const handleLogout = () => {
