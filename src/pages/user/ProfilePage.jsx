@@ -1,8 +1,20 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Header from "../../components/common/Header";
-import Footer from "../../components/common/Footer";
 import api, { getAssetUrl } from "../../api/axios";
+import UserHeader from "../../components/common/UserHeader";
+
+const normalizeGender = (value) => {
+  const map = {
+    1: "male",
+    2: "female",
+    3: "other",
+    male: "male",
+    female: "female",
+    other: "other",
+  };
+
+  return map[value] || "male";
+};
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -22,7 +34,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
 
   // Lấy dữ liệu user
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const res = await api.get("/user/me");
 
@@ -31,7 +43,7 @@ export default function ProfilePage() {
         email: res.data.email || "",
         so_dien_thoai: res.data.so_dien_thoai || "",
         ngay_sinh: res.data.ngay_sinh ? res.data.ngay_sinh.split("T")[0] : "",
-        gioi_tinh: res.data.gioi_tinh || "male",
+        gioi_tinh: normalizeGender(res.data.gioi_tinh),
         anh_dai_dien: res.data.avatar || null,
       });
     } catch (err) {
@@ -42,11 +54,12 @@ export default function ProfilePage() {
         },
       });
     }
-  };
+  }, [navigate]);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    const timeoutId = window.setTimeout(fetchProfile, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchProfile]);
 
   const handleChange = (e) => {
     setProfileData({
@@ -101,10 +114,10 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100">
-      <Header />
+    <div className="min-h-screen bg-[#f4f8ff] font-sans text-slate-800">
+      <UserHeader />
 
-      <main className="max-w-[900px] mx-auto mt-10 px-4 flex-1 w-full mb-12">
+      <main className="mx-auto mb-12 mt-8 w-full max-w-[900px] px-4">
         <h1 className="text-2xl font-bold mb-6 text-[#0a192f]">
           Quản lý tài khoản
         </h1>
@@ -240,7 +253,6 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      <Footer />
     </div>
   );
 }

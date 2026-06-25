@@ -1,170 +1,686 @@
-import React, { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import api from "../../api/axios";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
+import { showToast } from "../../components/common/ToastMessage";
+
+const LIMIT = 10;
+const INPUT_CLASS =
+  "w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-[#0a192f] outline-none transition focus:border-[#349DFF] focus:ring-1 focus:ring-[#349DFF]";
+
+const TXT = {
+  title: "Qu\u1ea3n l\u00fd khuy\u1ebfn m\u00e3i",
+  add: "T\u1ea1o khuy\u1ebfn m\u00e3i",
+  edit: "S\u1eeda khuy\u1ebfn m\u00e3i",
+  search: "T\u00ecm m\u00e3, t\u00ean, c\u01a1 s\u1edf",
+  tabUsable: "\u0110ang d\u00f9ng",
+  tabLocked: "\u0110\u00e3 kh\u00f3a",
+  tabApproval: "Tr\u1ea1ng th\u00e1i duy\u1ec7t",
+  tabDeleted: "\u0110\u00e3 x\u00f3a",
+  tabExpired: "H\u1ebft h\u1ea1n",
+  code: "M\u00e3",
+  name: "Ch\u01b0\u01a1ng tr\u00ecnh",
+  facility: "C\u01a1 s\u1edf",
+  discount: "M\u1ee9c gi\u1ea3m",
+  quantity: "L\u01b0\u1ee3t d\u00f9ng",
+  time: "Th\u1eddi h\u1ea1n",
+  status: "Tr\u1ea1ng th\u00e1i",
+  approval: "Duy\u1ec7t",
+  action: "Thao t\u00e1c",
+  active: "\u0110ang ho\u1ea1t \u0111\u1ed9ng",
+  locked: "\u0110\u00e3 kh\u00f3a",
+  deleted: "\u0110\u00e3 x\u00f3a",
+  waiting: "Ch\u1edd duy\u1ec7t",
+  approved: "\u0110\u00e3 duy\u1ec7t",
+  expired: "H\u1ebft h\u1ea1n",
+  noData: "Kh\u00f4ng c\u00f3 khuy\u1ebfn m\u00e3i trong nh\u00f3m n\u00e0y",
+  loading: "\u0110ang t\u1ea3i d\u1eef li\u1ec7u...",
+  save: "L\u01b0u",
+  saving: "\u0110ang l\u01b0u...",
+  close: "\u0110\u00f3ng",
+  deleteTitle: "X\u00f3a khuy\u1ebfn m\u00e3i",
+  deleteText: "M\u00e3 s\u1ebd \u0111\u01b0\u1ee3c x\u00f3a m\u1ec1m v\u00e0 kh\u00f4ng c\u00f2n \u00e1p d\u1ee5ng.",
+  restoreTitle: "Kh\u00f4i ph\u1ee5c khuy\u1ebfn m\u00e3i",
+  restoreText: "M\u00e3 s\u1ebd quay l\u1ea1i tr\u1ea1ng th\u00e1i ch\u1edd admin duy\u1ec7t.",
+  restore: "Kh\u00f4i ph\u1ee5c",
+  delete: "X\u00f3a",
+  editAction: "S\u1eeda",
+  percent: "Ph\u1ea7n tr\u0103m",
+  fixedMoney: "S\u1ed1 ti\u1ec1n c\u1ed1 \u0111\u1ecbnh",
+  chooseFacility: "Ch\u1ecdn c\u01a1 s\u1edf",
+  promotionCode: "M\u00e3 khuy\u1ebfn m\u00e3i",
+  promotionName: "T\u00ean ch\u01b0\u01a1ng tr\u00ecnh",
+  discountType: "Lo\u1ea1i gi\u1ea3m",
+  discountPercent: "Gi\u00e1 tr\u1ecb gi\u1ea3m (%)",
+  discountMoney: "S\u1ed1 ti\u1ec1n gi\u1ea3m (\u0111)",
+  maxDiscount: "Gi\u1ea3m t\u1ed1i \u0111a (\u0111)",
+  minOrder: "\u0110\u01a1n t\u1ed1i thi\u1ec3u (\u0111)",
+  amount: "S\u1ed1 l\u01b0\u1ee3ng",
+  startDate: "Ng\u00e0y b\u1eaft \u0111\u1ea7u",
+  endDate: "Ng\u00e0y k\u1ebft th\u00fac",
+  prev: "Tr\u01b0\u1edbc",
+  next: "Ti\u1ebfp",
+  promotionCount: "khuy\u1ebfn m\u00e3i",
+};
+
+const TABS = [
+  {
+    key: "usable",
+    icon: "fa-solid fa-bolt",
+    label: TXT.tabUsable,
+    params: { trang_thai: "1", trang_thai_duyet: "1", thoi_han: "con_han" },
+  },
+  {
+    key: "locked",
+    icon: "fa-solid fa-lock",
+    label: TXT.tabLocked,
+    params: { trang_thai: "2", trang_thai_duyet: "1", thoi_han: "con_han" },
+  },
+  {
+    key: "approval",
+    icon: "fa-solid fa-hourglass-half",
+    label: TXT.tabApproval,
+    params: { trang_thai: "not_deleted", trang_thai_duyet: "0" },
+  },
+  {
+    key: "deleted",
+    icon: "fa-solid fa-trash-can",
+    label: TXT.tabDeleted,
+    params: { trang_thai: "0" },
+  },
+  {
+    key: "expired",
+    icon: "fa-regular fa-calendar-xmark",
+    label: TXT.tabExpired,
+    params: { trang_thai: "not_deleted", thoi_han: "het_han" },
+  },
+];
+
+const emptyForm = {
+  co_so_id: "",
+  ma_khuyen_mai: "",
+  ten: "",
+  mo_ta: "",
+  loai_giam: "1",
+  gia_tri_giam: "",
+  giam_toi_da: "",
+  don_toi_thieu: "0",
+  so_luong: "0",
+  ngay_bat_dau: "",
+  ngay_ket_thuc: "",
+};
+
+const formatCurrency = (value) =>
+  `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
+
+const toInputDateTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const formatDateTime = (value) =>
+  value ? new Date(value).toLocaleString("vi-VN") : "";
+
+const isExpired = (promo) =>
+  promo.ngay_ket_thuc && new Date(promo.ngay_ket_thuc) < new Date();
+
+const getError = (error, fallback) => error.response?.data?.message || fallback;
+
+const getStatusText = (promo) => {
+  if (Number(promo.trang_thai) === 0) return TXT.deleted;
+  if (isExpired(promo)) return TXT.expired;
+  if (Number(promo.trang_thai) === 2) return TXT.locked;
+  return TXT.active;
+};
+
+const getStatusClass = (promo) => {
+  if (Number(promo.trang_thai) === 0) return "bg-rose-50 text-rose-700 border-rose-200";
+  if (isExpired(promo)) return "bg-slate-100 text-slate-600 border-slate-200";
+  if (Number(promo.trang_thai) === 2) return "bg-gray-100 text-gray-700 border-gray-200";
+  return "bg-emerald-50 text-emerald-700 border-emerald-200";
+};
+
+const getApprovalText = (status) =>
+  Number(status) === 1 ? TXT.approved : TXT.waiting;
+
+const getApprovalClass = (status) =>
+  Number(status) === 1
+    ? "bg-blue-50 text-blue-700 border-blue-200"
+    : "bg-amber-50 text-amber-700 border-amber-200";
+
+const getTabStatus = (promo, activeTab) => {
+  if (activeTab === "approval") {
+    return {
+      text: getApprovalText(promo.trang_thai_duyet),
+      className: getApprovalClass(promo.trang_thai_duyet),
+    };
+  }
+
+  return {
+    text: getStatusText(promo),
+    className: getStatusClass(promo),
+  };
+};
 
 export default function ManagePromotions() {
-  const [promotions] = useState([
-    {
-      id: 1,
-      ma_code: "SUMMER2026",
-      ten: "Chào hè giảm giá sốc",
-      loai_giam: "Phần trăm",
-      gia_tri: "10%",
-      giam_toi_da: "30,000đ",
-      da_dung: 45,
-      tong_so: 100,
-      thoi_gian: "01/06/2026 - 30/06/2026",
-      trang_thai: "Đang diễn ra",
-    },
-    {
-      id: 2,
-      ma_code: "GIAMGIA50K",
-      ten: "Giảm 50k cho đơn từ 200k",
-      loai_giam: "Số tiền",
-      gia_tri: "50,000đ",
-      giam_toi_da: "-",
-      da_dung: 20,
-      tong_so: 50,
-      thoi_gian: "15/06/2026 - 20/06/2026",
-      trang_thai: "Sắp diễn ra",
-    },
-    {
-      id: 3,
-      ma_code: "KHAI_TRUONG",
-      ten: "Mừng khai trương cơ sở Beta",
-      loai_giam: "Phần trăm",
-      gia_tri: "20%",
-      giam_toi_da: "50,000đ",
-      da_dung: 100,
-      tong_so: 100,
-      thoi_gian: "01/05/2026 - 15/05/2026",
-      trang_thai: "Đã kết thúc",
-    },
-  ]);
+  const [activeTab, setActiveTab] = useState(TABS[0].key);
+  const [promotions, setPromotions] = useState([]);
+  const [facilities, setFacilities] = useState([]);
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "",
+    danger: false,
+    action: null,
+  });
 
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case "Đang diễn ra":
-        return "bg-green-50 text-green-700 border-green-200";
-      case "Sắp diễn ra":
-        return "bg-yellow-50 text-yellow-700 border-yellow-200";
-      case "Đã kết thúc":
-        return "bg-gray-50 text-gray-600 border-gray-200";
-      default:
-        return "";
+  const currentTab = TABS.find((tab) => tab.key === activeTab) || TABS[0];
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / LIMIT)), [total]);
+
+  const fetchFacilities = useCallback(async () => {
+    const res = await api.get("/co-so/cua-toi", { params: { trang_thai: 1 } });
+    const approved = (res.data || []).filter(
+      (item) => Number(item.trang_thai_duyet) === 1,
+    );
+    setFacilities(approved);
+  }, []);
+
+  const fetchPromotions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get("/khuyen-mai/cua-toi", {
+        params: {
+          ...currentTab.params,
+          tu_khoa: keyword.trim(),
+          trang: page,
+          gioi_han: LIMIT,
+        },
+      });
+      setPromotions(res.data.danh_sach || []);
+      setTotal(Number(res.data.tong || 0));
+    } catch (error) {
+      showToast(getError(error, "Kh\u00f4ng th\u1ec3 t\u1ea3i khuy\u1ebfn m\u00e3i"), "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentTab, keyword, page]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchFacilities();
+  }, [fetchFacilities]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchPromotions();
+  }, [fetchPromotions]);
+
+  const switchTab = (key) => {
+    setActiveTab(key);
+    setPage(1);
+  };
+
+  const openCreate = () => {
+    setEditing(null);
+    setIsFormOpen(true);
+    setForm({ ...emptyForm, co_so_id: facilities[0]?.id || "" });
+  };
+
+  const openEdit = (promo) => {
+    setEditing(promo);
+    setIsFormOpen(true);
+    setForm({
+      co_so_id: promo.co_so_id || "",
+      ma_khuyen_mai: promo.ma_khuyen_mai || "",
+      ten: promo.ten || "",
+      mo_ta: promo.mo_ta || "",
+      loai_giam: String(promo.loai_giam || 1),
+      gia_tri_giam: String(Number(promo.gia_tri_giam || 0)),
+      giam_toi_da:
+        promo.giam_toi_da === null || promo.giam_toi_da === undefined
+          ? ""
+          : String(Number(promo.giam_toi_da)),
+      don_toi_thieu: String(Number(promo.don_toi_thieu || 0)),
+      so_luong: String(Number(promo.so_luong || 0)),
+      ngay_bat_dau: toInputDateTime(promo.ngay_bat_dau),
+      ngay_ket_thuc: toInputDateTime(promo.ngay_ket_thuc),
+    });
+  };
+
+  const closeForm = () => {
+    setIsFormOpen(false);
+    setEditing(null);
+    setForm(emptyForm);
+  };
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "loai_giam" && value === "2" ? { giam_toi_da: "" } : {}),
+    }));
+  };
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+    setIsSaving(true);
+    try {
+      const payload = {
+        ...form,
+        ma_khuyen_mai: form.ma_khuyen_mai.trim().toUpperCase(),
+        giam_toi_da: form.loai_giam === "1" ? form.giam_toi_da : "",
+      };
+      const res = editing
+        ? await api.put(`/khuyen-mai/${editing.id}`, payload)
+        : await api.post("/khuyen-mai", payload);
+
+      showToast(res.data.message || "L\u01b0u khuy\u1ebfn m\u00e3i th\u00e0nh c\u00f4ng", "success");
+      closeForm();
+      fetchPromotions();
+    } catch (error) {
+      showToast(getError(error, "Kh\u00f4ng th\u1ec3 l\u01b0u khuy\u1ebfn m\u00e3i"), "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  const openConfirm = ({ title, message, confirmText, danger, action }) => {
+    setConfirmState({ open: true, title, message, confirmText, danger, action });
+  };
+
+  const runConfirm = async () => {
+    try {
+      setIsLoading(true);
+      await confirmState.action?.();
+      setConfirmState((prev) => ({ ...prev, open: false }));
+      fetchPromotions();
+    } catch (error) {
+      showToast(getError(error, "Thao t\u00e1c th\u1ea5t b\u1ea1i"), "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = (promo) => {
+    openConfirm({
+      title: TXT.deleteTitle,
+      message: `${TXT.deleteText} (${promo.ma_khuyen_mai})`,
+      confirmText: TXT.delete,
+      danger: true,
+      action: async () => {
+        const res = await api.delete(`/khuyen-mai/${promo.id}`);
+        showToast(res.data.message || "X\u00f3a khuy\u1ebfn m\u00e3i th\u00e0nh c\u00f4ng");
+      },
+    });
+  };
+
+  const handleRestore = (promo) => {
+    openConfirm({
+      title: TXT.restoreTitle,
+      message: `${TXT.restoreText} (${promo.ma_khuyen_mai})`,
+      confirmText: TXT.restore,
+      danger: false,
+      action: async () => {
+        const res = await api.patch(`/khuyen-mai/${promo.id}/khoi-phuc`);
+        showToast(res.data.message || "Kh\u00f4i ph\u1ee5c khuy\u1ebfn m\u00e3i th\u00e0nh c\u00f4ng");
+      },
+    });
+  };
+
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="mx-auto max-w-[1280px] space-y-5">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-[#0a192f]">
-            Quản lý khuyến mãi
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Tạo mã Voucher để thu hút khách hàng đặt sân
-          </p>
+          <h2 className="text-2xl font-bold text-[#0a192f]">{TXT.title}</h2>
         </div>
-        <div className="flex gap-3">
-          <div className="relative">
-            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input
-              type="text"
-              placeholder="Tìm mã Voucher..."
-              className="pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF] transition-all w-64"
-            />
-          </div>
-          <button className="bg-[#349DFF] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-sm flex items-center gap-2">
-            <i className="fa-solid fa-plus"></i> Tạo mã mới
+        <button
+          onClick={openCreate}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#349DFF] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-600"
+        >
+          <i className="fa-solid fa-plus"></i>
+          {TXT.add}
+        </button>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-5">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => switchTab(tab.key)}
+            className={`rounded-2xl border p-4 text-left transition ${
+              activeTab === tab.key
+                ? "border-[#349DFF] bg-blue-50 shadow-sm"
+                : "border-gray-200 bg-white hover:border-blue-200"
+            }`}
+          >
+            <div className="flex items-center gap-2 text-sm font-black text-[#0a192f]">
+              <i className={`${tab.icon} text-[#349DFF]`}></i>
+              {tab.label}
+            </div>
           </button>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="text-lg font-black text-[#0a192f]">{currentTab.label}</h3>
+          </div>
+          <input
+            value={keyword}
+            onChange={(event) => {
+              setKeyword(event.target.value);
+              setPage(1);
+            }}
+            placeholder={TXT.search}
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#349DFF] lg:w-80"
+          />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-[#f8fafc] text-gray-600 font-medium border-b border-gray-200">
+      <PromotionTable
+        promotions={promotions}
+        page={page}
+        isLoading={isLoading}
+        activeTab={activeTab}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        onRestore={handleRestore}
+      />
+
+      <Pagination page={page} totalPages={totalPages} total={total} setPage={setPage} />
+
+      {isFormOpen && (
+        <PromotionModal
+          title={editing ? TXT.edit : TXT.add}
+          form={form}
+          facilities={facilities}
+          isSaving={isSaving}
+          onChange={handleChange}
+          onClose={closeForm}
+          onSubmit={handleSave}
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        danger={confirmState.danger}
+        loading={isLoading}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, open: false }))}
+        onConfirm={runConfirm}
+      />
+    </div>
+  );
+}
+
+function PromotionTable({ promotions, page, isLoading, activeTab, onEdit, onDelete, onRestore }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1040px] text-left text-sm">
+          <thead className="border-b border-gray-200 bg-[#f8fafc] font-bold text-gray-600">
+            <tr>
+              <Th>STT</Th>
+              <Th>{TXT.code}</Th>
+              <Th>{TXT.name}</Th>
+              <Th>{TXT.facility}</Th>
+              <Th>{TXT.discount}</Th>
+              <Th>{TXT.quantity}</Th>
+              <Th>{TXT.time}</Th>
+              <Th>{TXT.status}</Th>
+              <Th align="right">{TXT.action}</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {isLoading && promotions.length === 0 ? (
               <tr>
-                <th className="px-6 py-4 whitespace-nowrap">Mã Code</th>
-                <th className="px-6 py-4 whitespace-nowrap">Chương trình</th>
-                <th className="px-6 py-4 whitespace-nowrap">Mức giảm</th>
-                <th className="px-6 py-4 whitespace-nowrap">
-                  Số lượng đã dùng
-                </th>
-                <th className="px-6 py-4 whitespace-nowrap">Thời hạn</th>
-                <th className="px-6 py-4 whitespace-nowrap">Trạng thái</th>
-                <th className="px-6 py-4 whitespace-nowrap text-right">
-                  Thao tác
-                </th>
+                <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
+                  {TXT.loading}
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {promotions.map((promo) => (
-                <tr
-                  key={promo.id}
-                  className="hover:bg-gray-50 transition-colors group"
-                >
-                  <td className="px-6 py-4">
-                    <span className="font-mono font-bold text-[#349DFF] bg-blue-50 px-2 py-1 rounded border border-blue-100">
-                      {promo.ma_code}
+            ) : promotions.length === 0 ? (
+              <tr>
+                <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
+                  {TXT.noData}
+                </td>
+              </tr>
+            ) : (
+              promotions.map((promo, index) => (
+                <tr key={promo.id} className="hover:bg-gray-50">
+                  <Td strong>{(page - 1) * LIMIT + index + 1}</Td>
+                  <Td>
+                    <span className="rounded-lg border border-blue-100 bg-blue-50 px-2 py-1 font-mono font-black text-blue-700">
+                      {promo.ma_khuyen_mai}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-[#0a192f]">
-                    {promo.ten}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-red-500">
-                      {promo.gia_tri}
+                  </Td>
+                  <Td>
+                    <div className="font-bold text-[#0a192f]">{promo.ten}</div>
+                  </Td>
+                  <Td>{promo.ten_co_so}</Td>
+                  <Td>
+                    <div className="font-bold text-rose-600">
+                      {Number(promo.loai_giam) === 1
+                        ? `${Number(promo.gia_tri_giam)}%`
+                        : formatCurrency(promo.gia_tri_giam)}
                     </div>
-                    <div className="text-[11px] text-gray-500">
-                      Tối đa: {promo.giam_toi_da}
+                    <div className="text-xs text-gray-500">
+                      {promo.giam_toi_da ? `T\u1ed1i \u0111a ${formatCurrency(promo.giam_toi_da)}` : ""}
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-full bg-gray-200 rounded-full h-1.5 max-w-[80px]">
-                        <div
-                          className="bg-[#349DFF] h-1.5 rounded-full"
-                          style={{
-                            width: `${(promo.da_dung / promo.tong_so) * 100}%`,
-                          }}
-                        ></div>
-                      </div>
-                      <span className="text-xs font-medium text-gray-600">
-                        {promo.da_dung}/{promo.tong_so}
-                      </span>
+                  </Td>
+                  <Td>
+                    {Number(promo.da_su_dung || 0)}/{Number(promo.so_luong || 0)}
+                  </Td>
+                  <Td className="text-xs">
+                    <div>{formatDateTime(promo.ngay_bat_dau)}</div>
+                    <div>{formatDateTime(promo.ngay_ket_thuc)}</div>
+                  </Td>
+                  <Td>
+                    <Badge className={getTabStatus(promo, activeTab).className}>
+                      {getTabStatus(promo, activeTab).text}
+                    </Badge>
+                  </Td>
+                  <Td align="right">
+                    <div className="inline-flex gap-1">
+                      {Number(promo.trang_thai) === 0 ? (
+                        <IconButton
+                          title={TXT.restore}
+                          icon="fa-solid fa-rotate-left"
+                          onClick={() => onRestore(promo)}
+                        />
+                      ) : (
+                        <>
+                          <IconButton
+                            title={TXT.editAction}
+                            icon="fa-solid fa-pen"
+                            onClick={() => onEdit(promo)}
+                          />
+                          <IconButton
+                            title={TXT.delete}
+                            icon="fa-solid fa-trash"
+                            danger
+                            onClick={() => onDelete(promo)}
+                          />
+                        </>
+                      )}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 text-xs">
-                    {promo.thoi_gian}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg border ${getStatusStyle(promo.trang_thai)}`}
-                    >
-                      {promo.trang_thai}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      className="text-gray-400 hover:text-[#349DFF] hover:bg-[#eef3ff] w-8 h-8 rounded-lg transition-colors mr-1"
-                      title="Chỉnh sửa"
-                    >
-                      <i className="fa-solid fa-pen text-xs"></i>
-                    </button>
-                    {promo.trang_thai !== "Đã kết thúc" && (
-                      <button
-                        className="text-gray-400 hover:text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg transition-colors"
-                        title="Kết thúc sớm"
-                      >
-                        <i className="fa-solid fa-power-off text-xs"></i>
-                      </button>
-                    )}
-                  </td>
+                  </Td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PromotionModal({
+  title,
+  form,
+  facilities,
+  isSaving,
+  onChange,
+  onClose,
+  onSubmit,
+}) {
+  const isPercentDiscount = String(form.loai_giam) === "1";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <form
+        onSubmit={onSubmit}
+        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-xl"
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4">
+          <h3 className="text-lg font-bold text-[#0a192f]">{title}</h3>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-rose-500">
+            <i className="fa-solid fa-xmark"></i>
+          </button>
         </div>
+        <div className="grid gap-4 p-5 md:grid-cols-2">
+          <Field label={TXT.facility}>
+            <select name="co_so_id" value={form.co_so_id} onChange={onChange} required className={INPUT_CLASS}>
+              <option value="">{TXT.chooseFacility}</option>
+              {facilities.map((facility) => (
+                <option key={facility.id} value={facility.id}>
+                  {facility.ten}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={TXT.promotionCode}>
+            <input name="ma_khuyen_mai" value={form.ma_khuyen_mai} onChange={onChange} required className={`${INPUT_CLASS} uppercase`} placeholder="VD: SUMMER2026" />
+          </Field>
+          <Field label={TXT.promotionName}>
+            <input name="ten" value={form.ten} onChange={onChange} required className={INPUT_CLASS} />
+          </Field>
+          <Field label={TXT.discountType}>
+            <select name="loai_giam" value={form.loai_giam} onChange={onChange} className={INPUT_CLASS}>
+              <option value="1">{TXT.percent}</option>
+              <option value="2">{TXT.fixedMoney}</option>
+            </select>
+          </Field>
+          <Field label={isPercentDiscount ? TXT.discountPercent : TXT.discountMoney}>
+            <input name="gia_tri_giam" type="number" min="1" max={isPercentDiscount ? "100" : undefined} value={form.gia_tri_giam} onChange={onChange} required className={INPUT_CLASS} placeholder={isPercentDiscount ? "VD: 10" : "VD: 50000"} />
+          </Field>
+          {isPercentDiscount ? (
+            <Field label={TXT.maxDiscount}>
+              <input name="giam_toi_da" type="number" min="0" value={form.giam_toi_da} onChange={onChange} className={INPUT_CLASS} placeholder="VD: 50000" />
+            </Field>
+          ) : null}
+          <Field label={TXT.minOrder}>
+            <input name="don_toi_thieu" type="number" min="0" value={form.don_toi_thieu} onChange={onChange} className={INPUT_CLASS} placeholder="VD: 200000" />
+          </Field>
+          <Field label={TXT.amount}>
+            <input name="so_luong" type="number" min="0" value={form.so_luong} onChange={onChange} className={INPUT_CLASS} />
+          </Field>
+          <Field label={TXT.startDate}>
+            <input name="ngay_bat_dau" type="datetime-local" value={form.ngay_bat_dau} onChange={onChange} required className={INPUT_CLASS} />
+          </Field>
+          <Field label={TXT.endDate}>
+            <input name="ngay_ket_thuc" type="datetime-local" value={form.ngay_ket_thuc} onChange={onChange} required className={INPUT_CLASS} />
+          </Field>
+        </div>
+        <div className="flex justify-end gap-3 border-t border-gray-100 px-5 py-4">
+          <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-bold text-gray-600">
+            {TXT.close}
+          </button>
+          <button disabled={isSaving} className="rounded-xl bg-[#349DFF] px-5 py-2 text-sm font-bold text-white disabled:opacity-60">
+            {isSaving ? TXT.saving : TXT.save}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block space-y-1.5 text-sm font-bold text-[#0a192f]">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Th({ children, align = "left" }) {
+  return (
+    <th className={`whitespace-nowrap px-5 py-4 ${align === "right" ? "text-right" : "text-left"}`}>
+      {children}
+    </th>
+  );
+}
+
+function Td({ children, strong = false, align = "left" }) {
+  return (
+    <td className={`px-5 py-4 align-top ${align === "right" ? "text-right" : "text-left"} ${strong ? "font-bold text-[#0a192f]" : "text-gray-600"}`}>
+      {children}
+    </td>
+  );
+}
+
+function Badge({ className, children }) {
+  return (
+    <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+function IconButton({ title, icon, onClick, danger = false }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={`h-8 w-8 rounded-lg border text-xs transition ${
+        danger
+          ? "border-rose-100 text-rose-500 hover:bg-rose-50"
+          : "border-gray-200 text-gray-500 hover:bg-gray-50"
+      }`}
+    >
+      <i className={icon}></i>
+    </button>
+  );
+}
+
+function Pagination({ page, totalPages, total, setPage }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-6 py-4 text-sm text-gray-500">
+      <span>
+        Trang {page}/{totalPages} - {total} {TXT.promotionCount}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          disabled={page === 1}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 disabled:opacity-40"
+        >
+          {TXT.prev}
+        </button>
+        <button
+          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          disabled={page === totalPages}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 disabled:opacity-40"
+        >
+          {TXT.next}
+        </button>
       </div>
     </div>
   );

@@ -1,11 +1,14 @@
 import axios from "axios";
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-});
-
 export const API_BASE_URL = import.meta.env.VITE_API_URL;
 export const ASSET_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "ngrok-skip-browser-warning": "true",
+  },
+});
 
 export const getAssetUrl = (path) => {
   if (!path) return "";

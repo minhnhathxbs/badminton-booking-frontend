@@ -1,9 +1,47 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Header from "../../components/common/Header";
-import Footer from "../../components/common/Footer";
 import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
+import {
+  loadCachedUserLocation,
+  requestBrowserLocation,
+} from "../../utils/userLocation";
+
+const EARTH_RADIUS_KM = 6371;
+
+const getFacilityPosition = (facility) => {
+  const lat = Number(facility?.vi_do);
+  const lng = Number(facility?.kinh_do);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  if (lat === 0 && lng === 0) return null;
+
+  return { lat, lng };
+};
+
+const getDistanceKm = (from, to) => {
+  if (!from || !to) return null;
+
+  const toRad = (value) => (value * Math.PI) / 180;
+  const dLat = toRad(to.lat - from.lat);
+  const dLng = toRad(to.lng - from.lng);
+  const lat1 = toRad(from.lat);
+  const lat2 = toRad(to.lat);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return EARTH_RADIUS_KM * c;
+};
+
+const formatDistance = (distanceKm) => {
+  if (!Number.isFinite(distanceKm)) return "";
+  if (distanceKm < 1) return `${Math.round(distanceKm * 1000)} m`;
+  return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km`;
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -23,6 +61,14 @@ export default function HomePage() {
   const [favoriteLoadingIds, setFavoriteLoadingIds] = useState(new Set());
   const [favoriteFacilityIds, setFavoriteFacilityIds] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState(() =>
+    loadCachedUserLocation(),
+  );
+  const [locationStatus, setLocationStatus] = useState(() =>
+    loadCachedUserLocation() ? "cached" : "idle",
+  );
 
   useEffect(() => {
     const fetchFacilities = async () => {
@@ -36,7 +82,8 @@ export default function HomePage() {
           gia_den: priceTo || undefined,
           ngay: selectedDate || undefined,
           gio: selectedTime ? `${selectedTime}:00` : undefined,
-          sap_xep: selectedSort || undefined,
+          sap_xep:
+            selectedSort && selectedSort !== "gan_ban" ? selectedSort : undefined,
         };
         const res = await api.get("/co-so", { params });
         setFacilities(res.data);
@@ -74,6 +121,40 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    const fetchMe = async () => {
+      if (!localStorage.getItem("token")) {
+        setUser(null);
+        return;
+      }
+
+      try {
+        const res = await api.get("/user/me");
+        setUser(res.data);
+      } catch {
+        setUser(null);
+      }
+    };
+
+    fetchMe();
+    window.addEventListener("userUpdated", fetchMe);
+    return () => window.removeEventListener("userUpdated", fetchMe);
+  }, []);
+
+  const requestCurrentLocation = async () => {
+    setLocationStatus("loading");
+    try {
+      const location = await requestBrowserLocation();
+      setUserLocation(location);
+      setLocationStatus("granted");
+      showToast("Đã lấy vị trí hiện tại");
+    } catch (error) {
+      setUserLocation(null);
+      setLocationStatus("error");
+      showToast(error.message || "Không thể lấy vị trí hiện tại", "error");
+    }
+  };
+
+  useEffect(() => {
     const fetchFavorites = async () => {
       if (!localStorage.getItem("token")) {
         setFavoriteFacilityIds(new Set());
@@ -101,8 +182,28 @@ export default function HomePage() {
   }, [allFacilities]);
 
   const filteredFacilities = useMemo(() => {
-    return facilities;
-  }, [facilities]);
+    const withDistance = facilities.map((facility) => {
+      const position = getFacilityPosition(facility);
+      const distanceKm = getDistanceKm(userLocation, position);
+
+      return {
+        ...facility,
+        distanceKm,
+      };
+    });
+
+    if (selectedSort !== "gan_ban" || !userLocation) {
+      return withDistance;
+    }
+
+    return [...withDistance].sort((a, b) => {
+      const distanceA = Number.isFinite(a.distanceKm) ? a.distanceKm : Infinity;
+      const distanceB = Number.isFinite(b.distanceKm) ? b.distanceKm : Infinity;
+
+      if (distanceA !== distanceB) return distanceA - distanceB;
+      return String(a.ten || "").localeCompare(String(b.ten || ""), "vi");
+    });
+  }, [facilities, selectedSort, userLocation]);
 
   const hasAdvancedFilter =
     selectedCourtType || priceFrom || priceTo || selectedDate || selectedTime;
@@ -126,17 +227,19 @@ export default function HomePage() {
     return `${String(hour).padStart(2, "0")}:00`;
   });
 
-  const today = new Intl.DateTimeFormat("vi-VN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date());
-
   const getFacilityAddress = (facility) =>
     [facility?.dia_chi, facility?.phuong_xa, facility?.tinh_thanh]
       .filter(Boolean)
       .join(", ");
+
+  const displayName = user?.ho_ten || "Khách";
+
+  const topNavItems = [
+    { to: "/trang-chu", icon: "fa-solid fa-house", label: "Trang chủ", active: true },
+    { to: "/ban-do", icon: "fa-regular fa-map", label: "Bản đồ" },
+    { to: "/yeu-thich", icon: "fa-solid fa-heart", label: "Yêu thích" },
+    { to: "/notifications", icon: "fa-regular fa-bell", label: "Thông báo" },
+  ];
 
   const toggleFavorite = async (facilityId) => {
     const normalizedId = Number(facilityId);
@@ -182,25 +285,195 @@ export default function HomePage() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    setIsProfileOpen(false);
+    navigate("/dang-nhap", {
+      state: { toastMessage: "Đã đăng xuất thành công!", toastType: "success" },
+    });
+  };
+
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 font-sans text-gray-800">
-      <Header />
+    <div className="min-h-screen bg-[#f4f8ff] font-sans text-gray-800">
+      <header className="border-b border-gray-200 bg-white">
+        <div className="mx-auto grid min-h-24 w-full max-w-[1600px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:flex-nowrap sm:justify-between sm:gap-4 lg:px-8 xl:px-10">
+          <Link
+            to="/trang-chu"
+            className="flex min-w-0 items-center gap-2 sm:min-w-[220px] sm:gap-3"
+          >
+            <img
+              src="/logo.png"
+              className="h-12 w-16 object-contain sm:h-16 sm:w-24"
+              alt="Badminton Booking"
+            />
+            <div className="leading-tight">
+              <div className="text-lg font-semibold text-blue-600 sm:text-2xl">
+                Badminton
+              </div>
+              <div className="text-[10px] font-medium text-gray-500 sm:text-xs">Booking</div>
+            </div>
+          </Link>
 
-      <main className="mx-auto mt-2 w-full max-w-[1600px] flex-1 px-4 lg:mt-6 lg:px-8 xl:px-10">
-        <div className="mb-4 flex items-center justify-end px-1 lg:hidden">
-          <div className="text-xs font-medium text-blue-500">{today}</div>
+          <nav className="col-span-2 row-start-2 mx-auto grid h-16 w-full grid-cols-4 px-0 sm:order-none sm:row-auto sm:h-20 sm:w-[560px] sm:max-w-[560px]">
+            {topNavItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`flex flex-col items-center justify-center gap-1 text-[11px] font-semibold sm:text-xs ${
+                  item.active ? "text-blue-600" : "text-gray-400"
+                }`}
+              >
+                <span
+                  className={`grid h-9 w-9 place-items-center rounded-full text-xl sm:h-11 sm:w-11 sm:text-2xl ${
+                    item.active ? "bg-blue-100 text-blue-600" : "text-gray-400"
+                  }`}
+                >
+                  <i className={item.icon}></i>
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+
+          <div className="relative hidden min-w-[220px] justify-end sm:flex">
+            <button
+              type="button"
+              onClick={() => setIsProfileOpen((prev) => !prev)}
+              className="flex items-center gap-3 rounded-2xl px-2 py-1.5 hover:bg-gray-50"
+            >
+              <div className="h-11 w-11 overflow-hidden rounded-full border-2 border-white bg-blue-50 shadow-sm">
+                {user?.avatar ? (
+                  <img
+                    src={getAssetUrl(user.avatar)}
+                    alt="Avatar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="grid h-full w-full place-items-center text-blue-600">
+                    <i className="fa-solid fa-user"></i>
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 text-left leading-tight">
+                <div className="text-xs font-medium text-gray-500">Xin chào,</div>
+                <div className="max-w-[160px] truncate text-sm font-semibold text-slate-900">
+                  {displayName}
+                </div>
+              </div>
+            </button>
+
+            {isProfileOpen && (
+              <div className="absolute right-0 top-[64px] z-50 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <div className="font-semibold text-slate-900">{displayName}</div>
+                  <div className="mt-1 truncate text-sm text-gray-500">
+                    {user?.email || "Chưa có email"}
+                  </div>
+                </div>
+                <Link
+                  to="/ho-so"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                >
+                  <i className="fa-regular fa-user w-4 text-center"></i>
+                  Thông tin cá nhân
+                </Link>
+                <Link
+                  to="/lich-su-dat-san"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                >
+                  <i className="fa-regular fa-calendar-check w-4 text-center"></i>
+                  Lịch sử đặt sân
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center"></i>
+                  Đăng xuất
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="relative justify-self-end sm:hidden">
+            <button
+              type="button"
+              onClick={() => setIsProfileOpen((prev) => !prev)}
+              className="flex items-center gap-2 rounded-2xl px-2 py-1.5 hover:bg-gray-50"
+              aria-label="Tài khoản"
+            >
+              <div className="h-11 w-11 overflow-hidden rounded-full border-2 border-white bg-blue-50 text-blue-600 shadow-sm">
+                {user?.avatar ? (
+                  <img
+                    src={getAssetUrl(user.avatar)}
+                    alt="Avatar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="grid h-full w-full place-items-center">
+                    <i className="fa-solid fa-user"></i>
+                  </div>
+                )}
+              </div>
+              <span className="hidden text-xs font-semibold text-slate-700 min-[420px]:inline">
+                Tài khoản
+              </span>
+            </button>
+
+            {isProfileOpen && (
+              <div className="absolute right-0 top-[58px] z-50 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <div className="font-semibold text-slate-900">{displayName}</div>
+                  <div className="mt-1 truncate text-sm text-gray-500">
+                    {user?.email || "Chưa có email"}
+                  </div>
+                </div>
+                <Link
+                  to="/ho-so"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                >
+                  <i className="fa-regular fa-user w-4 text-center"></i>
+                  Thông tin cá nhân
+                </Link>
+                <Link
+                  to="/lich-su-dat-san"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                >
+                  <i className="fa-regular fa-calendar-check w-4 text-center"></i>
+                  Lịch sử đặt sân
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center"></i>
+                  Đăng xuất
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+      </header>
 
-        <div className="mb-4 flex flex-col gap-3 lg:mb-5">
+      <main className="mx-auto w-full max-w-[1600px] px-4 pb-10 pt-7 lg:px-8 xl:px-10">
+
+        <div className="mb-5 flex flex-col gap-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <div className="flex min-h-[52px] flex-1 items-center rounded-2xl border border-gray-200 bg-white px-4 shadow-sm lg:rounded-full">
-              <i className="fa-solid fa-magnifying-glass mr-3 text-gray-400"></i>
+            <div className="flex min-h-[56px] flex-1 items-center rounded-[22px] border border-gray-200 bg-white px-5 shadow-[0_10px_24px_rgb(37_99_235_/_0.08)] lg:rounded-full">
+              <i className="fa-solid fa-magnifying-glass mr-3 text-lg text-gray-400"></i>
               <input
                 type="text"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 placeholder="Tìm sân cầu lông"
-                className="w-full flex-1 bg-transparent text-sm text-gray-700 outline-none"
+                className="w-full flex-1 bg-transparent text-base text-gray-700 outline-none placeholder:text-gray-400"
               />
             </div>
             <button
@@ -208,19 +481,16 @@ export default function HomePage() {
               onClick={() =>
                 setActivePopup(activePopup === "province" ? null : "province")
               }
-              className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#eef4ff] px-4 text-sm font-bold text-slate-900 shadow-sm hover:bg-blue-100"
+              className="flex min-h-[48px] items-center justify-center gap-2 rounded-[18px] bg-white px-5 text-sm font-semibold text-slate-900 shadow-[0_8px_18px_rgb(37_99_235_/_0.07)] hover:bg-blue-50"
             >
               <i className="fa-solid fa-location-dot text-blue-600"></i>
-              {selectedProvince || "Tỉnh / thành"}
+              {selectedProvince || "TP. Hồ Chí Minh"}
               <i className="fa-solid fa-chevron-down text-xs text-slate-500"></i>
             </button>
-            <div className="hidden whitespace-nowrap px-2 text-sm text-gray-500 lg:block">
-              {today}
-            </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex max-w-full flex-nowrap gap-3 overflow-x-auto pb-1">
               {[
                 { key: "filter", icon: "fa-sliders", label: "Lọc" },
                 { key: "date", icon: "fa-calendar-days", label: "Ngày" },
@@ -233,9 +503,11 @@ export default function HomePage() {
                   onClick={() =>
                     setActivePopup(activePopup === item.key ? null : item.key)
                   }
-                  className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50"
+                  className="flex flex-shrink-0 items-center gap-2 rounded-[18px] border border-white bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-[0_8px_18px_rgb(37_99_235_/_0.07)] hover:bg-gray-50"
                 >
-                  <i className={`fa-solid ${item.icon}`}></i>
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-[#f1f6ff] text-blue-600">
+                    <i className={`fa-solid ${item.icon}`}></i>
+                  </span>
                   {item.label}
                   {((item.key === "filter" && hasAdvancedFilter) ||
                     (item.key === "date" && selectedDate) ||
@@ -245,59 +517,79 @@ export default function HomePage() {
                   )}
                 </button>
               ))}
-            </div>
-            <div className="rounded-xl bg-[#eef3ff] px-4 py-2.5 text-sm font-bold text-blue-700">
-              {filteredFacilities.length} cơ sở
+              <button
+                type="button"
+                onClick={requestCurrentLocation}
+                disabled={locationStatus === "loading"}
+                className={`flex flex-shrink-0 items-center gap-2 rounded-[18px] border px-4 py-3 text-sm font-semibold shadow-[0_8px_18px_rgb(37_99_235_/_0.07)] ${
+                  userLocation
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                } ${locationStatus === "loading" ? "cursor-not-allowed opacity-70" : ""}`}
+              >
+                <i className="fa-solid fa-location-crosshairs"></i>
+                {locationStatus === "loading"
+                  ? "Đang lấy vị trí"
+                  : userLocation
+                    ? "Đã có vị trí"
+                    : "Vị trí của tôi"}
+              </button>
             </div>
           </div>
         </div>
 
         <div className="mb-10 flex flex-col gap-6 xl:flex-row">
           <div className="flex-1">
-            <div className="mb-6 block w-full lg:hidden">
-              <div className="relative flex items-center justify-between overflow-hidden rounded-2xl bg-gradient-to-r from-[#eef4ff] to-[#d6e5ff] p-4 shadow-sm">
-                <div className="z-10 flex-1">
-                  <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold tracking-wide text-blue-700">
-                    <i className="fa-solid fa-user-group"></i>
-                    Mời bạn chơi cùng
+            <div className="mb-6 block w-full xl:hidden">
+              <div className="relative min-h-[184px] overflow-hidden rounded-[22px] border border-white bg-gradient-to-br from-[#f8fbff] via-[#e7f1ff] to-[#cfe0ff] p-4 shadow-[0_12px_28px_rgb(37_99_235_/_0.12)]">
+                <div className="absolute inset-2 rounded-[18px] border border-white/80"></div>
+                <div className="absolute -right-5 bottom-0 h-32 w-48 rounded-tl-full bg-blue-200/35"></div>
+                <div className="absolute bottom-6 right-8 h-[76px] w-[76px] rotate-[-28deg] rounded-full border-[7px] border-blue-500/75 bg-white/20"></div>
+                <div className="absolute bottom-8 right-4 h-[7px] w-24 rotate-[-28deg] rounded-full bg-blue-500/75"></div>
+                <div className="absolute bottom-10 right-28 h-9 w-9 rotate-12 rounded-full bg-white shadow-sm">
+                  <span className="absolute left-1/2 top-1/2 h-7 w-1 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-slate-100"></span>
+                  <span className="absolute left-1/2 top-1/2 h-7 w-1 -translate-x-1/2 -translate-y-1/2 -rotate-45 rounded-full bg-slate-100"></span>
+                </div>
+                <div className="relative z-10 max-w-[260px]">
+                  <div className="mb-2 flex w-max items-center gap-1 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-semibold uppercase text-white shadow-sm">
+                    <i className="fa-solid fa-tag"></i>
+                    Ưu đãi cuối tuần
                   </div>
-                  <div className="mb-0.5 text-sm font-medium text-gray-800">
-                    Nhận voucher{" "}
-                    <span className="ml-1 align-middle text-2xl font-bold text-blue-600">
-                      50.000đ
+                  <div className="mb-1 text-2xl font-semibold leading-tight text-slate-900">
+                    Giảm đến{" "}
+                    <span className="text-[42px] leading-none text-blue-600">
+                      30%
                     </span>
                   </div>
-                  <div className="mb-3 max-w-[160px] text-[10px] leading-tight text-gray-500">
-                    Khi giới thiệu bạn bè đăng ký và đặt sân lần đầu
+                  <div className="mb-4 flex items-start gap-2 text-[11px] font-semibold leading-snug text-slate-600">
+                    <i className="fa-regular fa-calendar-days mt-0.5 text-blue-600"></i>
+                    <span>Đặt sân thứ 7 & chủ nhật, khung giờ 18:00 - 22:00</span>
                   </div>
                   <button
                     type="button"
-                    className="flex w-max items-center gap-1.5 rounded-full bg-blue-600 px-4 py-1.5 text-[10px] font-medium text-white"
+                    className="flex w-max items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-md"
                   >
-                    Nhận ưu đãi
-                    <i className="fa-solid fa-chevron-right text-[8px]"></i>
+                    Đặt ngay
+                    <i className="fa-solid fa-chevron-right text-[10px]"></i>
                   </button>
-                </div>
-                <div className="absolute -bottom-4 -right-4 z-0 h-32 w-32 opacity-40">
-                  <i className="fa-solid fa-gift text-[100px] text-blue-400"></i>
                 </div>
               </div>
             </div>
 
             <div className="mb-4 flex items-center justify-between px-1">
-              <h2 className="text-base font-bold text-gray-800 lg:text-lg">
+              <h2 className="text-base font-semibold text-gray-800 lg:text-lg">
                 Gợi ý cho bạn
               </h2>
               {filteredFacilities.length > 3 && !hasListFilter ? (
                 <button
                   type="button"
                   onClick={() => setShowAllFacilities((prev) => !prev)}
-                  className="text-sm font-bold text-blue-600 hover:text-blue-700"
+                  className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                 >
                   {showAllFacilities ? "Thu gọn" : "Xem tất cả"}
                 </button>
               ) : (
-                <span className="text-sm font-medium text-gray-500 lg:hidden">
+                <span className="text-sm font-medium text-gray-500">
                   {filteredFacilities.length} kết quả
                 </span>
               )}
@@ -316,9 +608,9 @@ export default function HomePage() {
                 visibleFacilities.map((facility) => (
                   <article
                     key={facility.id}
-                    className="flex flex-row gap-3 rounded-2xl border border-gray-100 bg-white p-2 shadow-sm lg:gap-4 lg:border-gray-200 lg:p-4"
+                    className="flex flex-row gap-3 rounded-[18px] border border-white bg-white p-2 shadow-[0_10px_24px_rgb(15_23_42_/_0.08)] lg:items-center lg:gap-4 lg:p-4"
                   >
-                    <div className="relative h-[130px] w-[130px] flex-shrink-0 overflow-hidden rounded-xl bg-gray-100 lg:h-[140px] lg:w-[200px]">
+                    <div className="relative h-[154px] w-[154px] flex-shrink-0 overflow-hidden rounded-[16px] bg-gray-100 max-[430px]:h-[132px] max-[430px]:w-[132px] lg:h-[140px] lg:w-[200px]">
                       <button
                         type="button"
                         onClick={() => setSelectedFacility(facility)}
@@ -331,19 +623,24 @@ export default function HomePage() {
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-gray-400">
+                        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100 text-gray-400">
                           <i className="fa-regular fa-image text-2xl"></i>
                         </div>
                       )}
-                      <span className="absolute bottom-2 left-2 z-10 rounded bg-black/60 px-2 py-0.5 text-[10px] font-medium text-white lg:py-1 lg:text-xs">
-                        {facility.so_san || 0} sân
-                      </span>
+                      <div className="absolute inset-x-2 bottom-2 z-10 flex items-center justify-between gap-2">
+                        <span className="rounded-lg bg-black/55 px-3 py-1 text-xs font-semibold text-white">
+                          {facility.so_san || 0} sân
+                        </span>
+                        <span className="rounded-lg bg-white/95 px-3 py-1 text-[11px] font-semibold text-blue-600 shadow-sm">
+                          Còn sân
+                        </span>
+                      </div>
                       </button>
                       <button
                         type="button"
                         onClick={() => toggleFavorite(facility.id)}
                         disabled={favoriteLoadingIds.has(Number(facility.id))}
-                        className={`absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-gray-500 shadow-sm transition hover:bg-white hover:text-rose-500 ${favoriteLoadingIds.has(Number(facility.id)) ? "cursor-not-allowed opacity-60" : ""}`}
+                        className={`absolute right-2 top-2 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-lg text-gray-500 shadow-sm transition hover:bg-white hover:text-rose-500 lg:h-8 lg:w-8 lg:text-base ${favoriteLoadingIds.has(Number(facility.id)) ? "cursor-not-allowed opacity-60" : ""}`}
                         aria-label="Yêu thích"
                       >
                         <i
@@ -352,20 +649,20 @@ export default function HomePage() {
                       </button>
                     </div>
 
-                    <div className="flex flex-1 flex-col justify-between py-0.5">
-                      <div>
+                    <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5 lg:min-h-[140px] lg:flex-row lg:items-stretch lg:gap-5">
+                      <div className="min-w-0 lg:flex-1">
                         <Link
                           to={`/dat-san/${facility.id}`}
-                          className="mb-1 line-clamp-1 text-sm font-bold text-gray-900 hover:text-blue-600 lg:text-base"
+                          className="mb-1 line-clamp-2 text-lg font-semibold leading-tight text-gray-950 hover:text-blue-600 max-[430px]:text-base lg:line-clamp-1 lg:text-base"
                         >
                           {facility.ten}
                         </Link>
-                        <div className="mb-1 flex items-center gap-1 text-[10px] text-gray-500 lg:text-sm">
+                        <div className="mb-1 flex items-center gap-1 text-xs text-gray-500 lg:text-sm">
                           <i className="fa-solid fa-star text-blue-600"></i>
                           <span className="font-medium text-gray-700">4.9</span>
-                          <span>(đánh giá)</span>
+                          <span>(297 đánh giá)</span>
                         </div>
-                        <div className="mb-1 flex items-center gap-1.5 text-[10px] text-gray-500 line-clamp-1 lg:text-sm">
+                        <div className="mb-1 flex items-center gap-1.5 text-xs text-gray-500 line-clamp-1 lg:text-sm">
                           <i className="fa-solid fa-location-dot w-3 text-center"></i>
                           <span>
                             {[facility.phuong_xa, facility.tinh_thanh]
@@ -373,22 +670,29 @@ export default function HomePage() {
                               .join(", ") || facility.dia_chi}
                           </span>
                         </div>
-                        <div className="mb-2 flex items-center gap-1.5 text-[10px] text-gray-500 lg:text-sm">
+                        <div className="mb-1 hidden items-center gap-1.5 text-[10px] font-medium text-blue-600 lg:flex lg:text-sm">
+                          <i className="fa-solid fa-route w-3 text-center"></i>
+                          <span>
+                            {Number.isFinite(facility.distanceKm)
+                              ? `Cách bạn ${formatDistance(facility.distanceKm)}`
+                              : userLocation
+                                ? "Chưa có tọa độ để tính khoảng cách"
+                                : "Bật vị trí để xem khoảng cách"}
+                          </span>
+                        </div>
+                        <div className="mb-2 hidden items-center gap-1.5 text-[10px] text-gray-500 lg:flex lg:text-sm">
                           <i className="fa-regular fa-clock w-3 text-center"></i>
                           <span>05:00 - 23:00</span>
                         </div>
                       </div>
 
-                      <div className="flex items-end justify-between">
-                        <span className="inline-block rounded bg-[#eef4ff] px-2.5 py-1 text-[9px] font-medium text-blue-600 lg:text-xs">
-                          Đang hoạt động
-                        </span>
+                      <div className="flex items-end justify-end lg:flex-shrink-0 lg:self-end">
                         <div className="text-right">
-                          <div className="mb-0.5 text-[9px] font-medium text-gray-800 lg:text-xs">
+                          <div className="mb-2 text-[10px] font-semibold text-gray-900 lg:text-xs">
                             {facility.gia_thap_nhat ? (
                               <>
-                                Giá từ{" "}
-                                <span className="text-[11px] font-bold text-blue-600 lg:text-sm">
+                                Chỉ từ{" "}
+                                <span className="text-xs font-semibold text-blue-600 lg:text-sm">
                                   {Number(facility.gia_thap_nhat).toLocaleString("vi-VN")}đ
                                   <span className="font-normal text-gray-800">
                                     /giờ
@@ -396,14 +700,14 @@ export default function HomePage() {
                                 </span>
                               </>
                             ) : (
-                              <span className="font-bold text-gray-500">Chưa có giá</span>
+                              <span className="font-semibold text-gray-500">Chưa có giá</span>
                             )}
                           </div>
                           <Link
                             to={`/dat-san/${facility.id}`}
-                            className="inline-flex rounded-lg bg-blue-600 px-5 py-1.5 text-[11px] font-medium text-white hover:bg-blue-700 lg:px-6 lg:py-2 lg:text-sm"
+                            className="inline-flex rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-md hover:bg-blue-700 lg:px-6 lg:text-sm"
                           >
-                            Đặt sân
+                            Đặt Sân
                           </Link>
                         </div>
                       </div>
@@ -415,27 +719,23 @@ export default function HomePage() {
           </div>
 
           <div className="hidden w-full max-w-[360px] flex-shrink-0 xl:block">
-            <div className="relative overflow-hidden rounded-2xl border border-[#dce6fa] bg-[#eef3ff] p-6 text-center shadow-sm">
-              <div className="mb-6 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide text-blue-600">
-                <i className="fa-solid fa-user-group"></i>
-                Mời bạn chơi cùng
+            <div className="relative overflow-hidden rounded-2xl border border-[#dce6fa] bg-gradient-to-br from-[#f8fbff] to-[#d9e7ff] p-6 shadow-sm">
+              <div className="mb-4 flex w-max items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+                <i className="fa-solid fa-tag"></i>
+                Ưu đãi cuối tuần
               </div>
-              <div className="mb-2 text-[15px] font-bold">Nhận voucher</div>
-              <div className="mb-3 text-5xl font-bold text-blue-600">
-                50.000
-                <span className="align-top text-2xl underline ml-1">đ</span>
+              <div className="mb-3 text-4xl font-semibold leading-tight text-slate-900">
+                Giảm đến <span className="text-blue-600">30%</span>
               </div>
-              <p className="mb-8 text-xs leading-relaxed text-gray-500">
-                Khi giới thiệu bạn bè
-                <br />
-                đăng ký và đặt sân lần đầu
+              <p className="mb-8 text-sm leading-relaxed text-gray-600">
+                Đặt sân thứ 7 & chủ nhật, khung giờ 18:00 - 22:00.
               </p>
 
               <button
                 type="button"
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0d6efd] py-3 text-sm font-medium text-white shadow-md hover:bg-blue-700"
               >
-                Nhận ưu đãi
+                Đặt ngay
                 <i className="fa-solid fa-chevron-right text-[10px]"></i>
               </button>
             </div>
@@ -482,7 +782,7 @@ export default function HomePage() {
 
               <Link
                 to={`/dat-san/${selectedFacility.id}`}
-                className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-blue-700"
+                className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700"
               >
                 Đặt sân
                 <i className="fa-solid fa-arrow-right text-xs"></i>
@@ -493,7 +793,7 @@ export default function HomePage() {
               <section className="border-b border-gray-100 p-5">
                 <div className="mb-3 flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-extrabold text-[#0a192f]">
+                    <h2 className="text-xl font-semibold text-[#0a192f]">
                       {selectedFacility.ten}
                     </h2>
                     <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -502,10 +802,10 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="rounded-xl bg-emerald-50 px-3 py-2 text-center">
-                    <div className="text-lg font-black text-emerald-600">
+                    <div className="text-lg font-semibold text-emerald-600">
                       4.9
                     </div>
-                    <div className="text-[10px] font-bold uppercase text-emerald-700">
+                    <div className="text-[10px] font-semibold uppercase text-emerald-700">
                       đánh giá
                     </div>
                   </div>
@@ -515,6 +815,16 @@ export default function HomePage() {
                   <p className="flex gap-3">
                     <i className="fa-solid fa-location-dot mt-0.5 w-4 text-blue-600"></i>
                     <span>{getFacilityAddress(selectedFacility) || "Chưa cập nhật địa chỉ"}</span>
+                  </p>
+                  <p className="flex gap-3">
+                    <i className="fa-solid fa-route mt-0.5 w-4 text-blue-600"></i>
+                    <span>
+                      {Number.isFinite(selectedFacility.distanceKm)
+                        ? `Cách bạn ${formatDistance(selectedFacility.distanceKm)}`
+                        : userLocation
+                          ? "Cơ sở chưa có tọa độ để tính khoảng cách"
+                          : "Bật vị trí để xem khoảng cách"}
+                    </span>
                   </p>
                   <p className="flex gap-3">
                     <i className="fa-regular fa-clock mt-0.5 w-4 text-blue-600"></i>
@@ -528,7 +838,7 @@ export default function HomePage() {
               </section>
 
               <section className="border-b border-gray-100 p-5">
-                <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-gray-900">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-900">
                   Thông tin cơ sở
                 </h3>
                 <p className="text-sm leading-6 text-gray-600">
@@ -539,12 +849,12 @@ export default function HomePage() {
 
               <section className="p-5">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-sm font-extrabold uppercase tracking-wide text-gray-900">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-900">
                     Đánh giá
                   </h3>
                   <button
                     type="button"
-                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
                   >
                     Viết đánh giá
                   </button>
@@ -552,7 +862,7 @@ export default function HomePage() {
 
                 <div className="mb-4 rounded-2xl bg-gray-50 p-4">
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="text-3xl font-black text-gray-900">4.9</span>
+                    <span className="text-3xl font-semibold text-gray-900">4.9</span>
                     <div>
                       <div className="text-sm text-yellow-500">
                         <i className="fa-solid fa-star"></i>
@@ -584,7 +894,7 @@ export default function HomePage() {
                       className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <div className="font-bold text-gray-900">{review.name}</div>
+                        <div className="font-semibold text-gray-900">{review.name}</div>
                         <div className="text-xs text-yellow-500">
                           <i className="fa-solid fa-star"></i> 5.0
                         </div>
@@ -692,16 +1002,48 @@ export default function HomePage() {
               )}
 
               {activePopup === "sort" && (
-                <div className="grid gap-2">
-                  {[
-                    { value: "pho_bien", label: "Phổ biến nhất" },
-                    { value: "gan_ban", label: "Gần bạn nhất" },
-                    { value: "gia_thap", label: "Giá thấp đến cao" },
-                    { value: "gia_cao", label: "Giá cao đến thấp" },
-                  ].map((item) => (
-                    <button key={item.value} type="button" onClick={() => { setSelectedSort(item.value); setActivePopup(null); }} className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${selectedSort === item.value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}>{item.label}</button>
-                  ))}
-                </div>
+                <>
+                  <div className="rounded-xl bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-700">
+                    {userLocation
+                      ? "Đã có vị trí hiện tại, có thể sắp xếp theo khoảng cách."
+                      : "Chọn gần bạn nhất sẽ cần quyền truy cập vị trí hiện tại."}
+                  </div>
+                  <div className="grid gap-2">
+                    {[
+                      { value: "pho_bien", label: "Phổ biến nhất" },
+                      { value: "gan_ban", label: "Gần bạn nhất" },
+                      { value: "gia_thap", label: "Giá thấp đến cao" },
+                      { value: "gia_cao", label: "Giá cao đến thấp" },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => {
+                          if (item.value === "gan_ban" && !userLocation) {
+                            requestCurrentLocation();
+                          }
+                          setSelectedSort(item.value);
+                          setActivePopup(null);
+                        }}
+                        className={`rounded-xl border px-4 py-3 text-left text-sm font-bold ${selectedSort === item.value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700"}`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                  {!userLocation && (
+                    <button
+                      type="button"
+                      onClick={requestCurrentLocation}
+                      disabled={locationStatus === "loading"}
+                      className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                    >
+                      {locationStatus === "loading"
+                        ? "Đang lấy vị trí..."
+                        : "Lấy vị trí hiện tại"}
+                    </button>
+                  )}
+                </>
               )}
             </div>
 
@@ -714,8 +1056,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   );
 }

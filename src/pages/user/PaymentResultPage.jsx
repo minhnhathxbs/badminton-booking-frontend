@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../../api/axios";
+import UserHeader from "../../components/common/UserHeader";
 
 const TXT = {
   empty: "Ch\u01b0a c\u00f3",
@@ -16,6 +17,7 @@ const TXT = {
   paymentStatus: "Tr\u1ea1ng th\u00e1i thanh to\u00e1n",
   fullName: "H\u1ecd t\u00ean",
   phone: "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i",
+  note: "Ghi chú",
   courtInfo: "Th\u00f4ng tin s\u00e2n",
   facility: "C\u01a1 s\u1edf",
   playDate: "Ng\u00e0y ch\u01a1i",
@@ -25,6 +27,9 @@ const TXT = {
   noCourt: "Ch\u01b0a c\u00f3 th\u00f4ng tin s\u00e2n",
   noTime: "Ch\u01b0a c\u00f3 th\u00f4ng tin gi\u1edd",
   total: "T\u1ed5ng ti\u1ec1n",
+  discount: "Khuyến mãi",
+  payable: "Thành tiền",
+  promoCode: "Mã giảm giá",
   deposit: "Ti\u1ec1n c\u1ecdc",
   paid: "\u0110\u00e3 thanh to\u00e1n",
   remain: "C\u00f2n l\u1ea1i",
@@ -99,8 +104,9 @@ export default function PaymentResultPage() {
   const invoice = result?.hoa_don;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 p-3 font-sans text-slate-800">
-      <main className="mx-auto flex min-h-[calc(100vh-24px)] w-full max-w-5xl items-center justify-center">
+    <div className="min-h-screen bg-[#f4f8ff] font-sans text-slate-800">
+      <UserHeader />
+      <main className="mx-auto flex min-h-[calc(100vh-112px)] w-full max-w-5xl items-center justify-center p-3">
         <div className="w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           {status === "loading" ? (
             <div className="py-10 text-center">
@@ -179,11 +185,29 @@ export default function PaymentResultPage() {
                       <InfoItem label={TXT.paymentStatus} value={invoice.trang_thai_thanh_toan} />
                       <InfoItem label={TXT.fullName} value={invoice.ho_ten} />
                       <InfoItem label={TXT.phone} value={invoice.so_dien_thoai} />
+                      <InfoItem label={TXT.note} value={invoice.ghi_chu} />
                     </div>
                   </section>
 
                   <section className="grid gap-2 rounded-2xl border border-slate-200 p-3 sm:grid-cols-4 lg:col-span-2">
                     <InfoItem label={TXT.total} value={formatCurrency(invoice.tong_tien)} strong />
+                    {Number(invoice.tien_giam || 0) > 0 && (
+                      <>
+                        <InfoItem
+                          label={TXT.discount}
+                          value={`-${formatCurrency(invoice.tien_giam)}`}
+                        />
+                        <InfoItem
+                          label={TXT.payable}
+                          value={formatCurrency(invoice.thanh_tien)}
+                          strong
+                        />
+                        <InfoItem
+                          label={TXT.promoCode}
+                          value={invoice.khuyen_mai?.ma_khuyen_mai}
+                        />
+                      </>
+                    )}
                     <InfoItem label={TXT.deposit} value={formatCurrency(invoice.tien_coc)} />
                     <InfoItem label={TXT.paid} value={formatCurrency(invoice.da_thanh_toan)} strong />
                     <InfoItem label={TXT.remain} value={formatCurrency(invoice.con_lai)} />

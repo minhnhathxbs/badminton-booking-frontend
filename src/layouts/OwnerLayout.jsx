@@ -70,6 +70,11 @@ export default function OwnerLayout() {
       icon: "fa-money-bill-wave",
       label: "Báo cáo doanh thu",
     },
+    {
+      path: "/chu-san/hoan-tien",
+      icon: "fa-receipt",
+      label: "Hoàn tiền",
+    },
     { path: "/chu-san/danh-gia", icon: "fa-star", label: "Quản lý đánh giá" },
   ];
 
