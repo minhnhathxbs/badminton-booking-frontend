@@ -33,6 +33,7 @@ import AdminRoute from "./AdminRoute";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import SystemConfig from "../pages/admin/SystemConfig";
 import SystemLogs from "../pages/admin/SystemLogs";
+import ManageComplaints from "../pages/admin/ManageComplaints";
 
 function RedirectFacilityToBooking() {
   const { id } = useParams();
@@ -93,6 +94,7 @@ export default function AppRoutes() {
           <Route path="khuyen-mai" element={<ManageAllPromotions />} />
           <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
+          <Route path="khieu-nai" element={<ManageComplaints />} />
           <Route path="cau-hinh" element={<SystemConfig />} />
           <Route path="nhat-ky" element={<SystemLogs />} />
         </Route>

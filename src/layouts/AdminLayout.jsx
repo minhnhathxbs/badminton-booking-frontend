@@ -68,6 +68,11 @@ export default function AdminLayout() {
       label: "Danh mục sân",
     },
     {
+      path: "/admin/khieu-nai",
+      icon: "fa-flag",
+      label: "Quản lý khiếu nại",
+    },
+    {
       path: "/admin/cau-hinh",
       icon: "fa-gear",
       label: "Cấu hình hệ thống",

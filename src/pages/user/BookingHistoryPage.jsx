@@ -51,6 +51,21 @@ const TXT = {
   cancelFail: "Kh\u00f4ng th\u1ec3 h\u1ee7y \u0111\u1eb7t s\u00e2n",
   cancelling: "\u0110ang h\u1ee7y",
   confirmCancel: "X\u00e1c nh\u1eadn h\u1ee7y",
+  complaint: "Khi\u1ebfu n\u1ea1i",
+  complaintTitle: "G\u1eedi khi\u1ebfu n\u1ea1i",
+  complaintDesc: "Nh\u1eadp l\u00fd do v\u00e0 t\u1ea3i h\u00ecnh \u1ea3nh ch\u1ee9ng minh \u0111\u1ec3 Admin x\u1eed l\u00fd.",
+  complaintPlaceholder: "VD: S\u00e2n b\u1ecb ng\u1eadp n\u01b0\u1edbc, c\u00fap \u0111i\u1ec7n, ch\u1ee7 s\u00e2n kh\u00f4ng cho \u0111\u00e1...",
+  complaintReasonRequired: "Vui l\u00f2ng nh\u1eadp l\u00fd do khi\u1ebfu n\u1ea1i",
+  complaintImageRequired: "Vui l\u00f2ng t\u1ea3i l\u00ean \u00edt nh\u1ea5t m\u1ed9t h\u00ecnh \u1ea3nh",
+  complaintSuccess: "G\u1eedi khi\u1ebfu n\u1ea1i th\u00e0nh c\u00f4ng",
+  complaintFail: "Kh\u00f4ng th\u1ec3 g\u1eedi khi\u1ebfu n\u1ea1i",
+  complaintSending: "\u0110ang g\u1eedi",
+  confirmComplaint: "G\u1eedi khi\u1ebfu n\u1ea1i",
+  addImage: "Th\u00eam h\u00ecnh \u1ea3nh",
+  complaintPending: "KN ch\u1edd x\u1eed l\u00fd",
+  complaintAccepted: "KN \u0111\u00e3 ch\u1ea5p nh\u1eadn",
+  complaintRejected: "KN b\u1ecb t\u1eeb ch\u1ed1i",
+  complaintFrozen: "\u0110\u00f3ng b\u0103ng",
   paymentUrlFail: "Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c \u0111\u01b0\u1eddng d\u1eabn thanh to\u00e1n",
   paymentCreateFail: "Kh\u00f4ng th\u1ec3 t\u1ea1o thanh to\u00e1n",
   hold: "\u0110ang ch\u1edd thanh to\u00e1n",
@@ -146,6 +161,34 @@ const isHoldExpired = (order) =>
 
 const isCancelledLike = (order) => {
   return Number(order.trang_thai) === 2;
+};
+
+const canComplainOrder = (order) => {
+  return [1, 4].includes(Number(order.trang_thai)) && !order.khieu_nai;
+};
+
+const getComplaintStatusInfo = (khieuNai) => {
+  if (!khieuNai) return null;
+
+  switch (Number(khieuNai.trang_thai)) {
+    case 0:
+      return {
+        label: TXT.complaintPending,
+        className: "bg-orange-50 text-orange-700 border-orange-200",
+      };
+    case 1:
+      return {
+        label: TXT.complaintAccepted,
+        className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      };
+    case 2:
+      return {
+        label: TXT.complaintRejected,
+        className: "bg-rose-50 text-rose-700 border-rose-200",
+      };
+    default:
+      return null;
+  }
 };
 
 const canCancelOrder = (order) => {
@@ -247,6 +290,10 @@ export default function BookingHistoryPage() {
   const [cancelOrder, setCancelOrder] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancellingId, setCancellingId] = useState(null);
+  const [complaintOrder, setComplaintOrder] = useState(null);
+  const [complaintReason, setComplaintReason] = useState("");
+  const [complaintImages, setComplaintImages] = useState([]);
+  const [complaintSending, setComplaintSending] = useState(false);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -296,6 +343,69 @@ export default function BookingHistoryPage() {
       );
     } finally {
       setPayingId(null);
+    }
+  };
+
+  const handleOpenComplaint = (order) => {
+    setComplaintOrder(order);
+    setComplaintReason("");
+    setComplaintImages([]);
+  };
+
+  const handleComplaintImageChange = (event) => {
+    const files = Array.from(event.target.files || []);
+    setComplaintImages((prev) => [...prev, ...files].slice(0, 5));
+  };
+
+  const handleRemoveImage = (index) => {
+    setComplaintImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleConfirmComplaint = async () => {
+    const reason = complaintReason.trim();
+    if (!reason) {
+      showToast(TXT.complaintReasonRequired, "error");
+      return;
+    }
+    if (complaintImages.length === 0) {
+      showToast(TXT.complaintImageRequired, "error");
+      return;
+    }
+
+    setComplaintSending(true);
+    try {
+      const formData = new FormData();
+      formData.append("dat_san_id", complaintOrder.id);
+      formData.append("ly_do", reason);
+      complaintImages.forEach((file) => formData.append("hinh_anh", file));
+
+      const res = await api.post("/khieu-nai", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const updated = {
+        ...complaintOrder,
+        trang_thai: 5,
+        khieu_nai: {
+          id: res.data?.data?.id,
+          trang_thai: 0,
+        },
+      };
+
+      setOrders((prev) =>
+        prev.map((o) => (o.id === complaintOrder.id ? updated : o)),
+      );
+      setSelectedOrder((prev) =>
+        prev?.id === complaintOrder.id ? { ...updated, stt: prev.stt } : prev,
+      );
+      setComplaintOrder(null);
+      setComplaintReason("");
+      setComplaintImages([]);
+      showToast(res.data?.message || TXT.complaintSuccess);
+    } catch (err) {
+      showToast(err.response?.data?.message || TXT.complaintFail, "error");
+    } finally {
+      setComplaintSending(false);
     }
   };
 
@@ -401,6 +511,7 @@ export default function BookingHistoryPage() {
                   {sortedOrders.map((order, index) => {
                     const status = getStatusInfo(order);
                     const refundStatus = getRefundStatusInfo(order.hoan_tien);
+                    const complaintStatus = getComplaintStatusInfo(order.khieu_nai);
                     const courtNames = getCourtNames(order);
                     const timeSlots = getTimeSlots(order);
                     const playDates = getPlayDates(order);
@@ -428,6 +539,18 @@ export default function BookingHistoryPage() {
                                 {refundStatus.label}
                               </span>
                             )}
+                            {complaintStatus && (
+                              <span
+                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${complaintStatus.className}`}
+                              >
+                                {complaintStatus.label}
+                              </span>
+                            )}
+                            {Number(order.trang_thai) === 5 && !order.khieu_nai && (
+                              <span className="inline-flex rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700">
+                                {TXT.complaintFrozen}
+                              </span>
+                            )}
                           </div>
                         </Td>
                         <Td>{formatDateTime(order.ngay_tao)}</Td>
@@ -441,6 +564,16 @@ export default function BookingHistoryPage() {
                             >
                               <i className="fa-regular fa-eye"></i>
                             </button>
+                            {canComplainOrder(order) && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenComplaint({ ...order, stt: index + 1 })}
+                                title={TXT.complaint}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-orange-200 text-sm text-orange-600 hover:bg-orange-50"
+                              >
+                                <i className="fa-solid fa-flag"></i>
+                              </button>
+                            )}
                             {canCancelOrder(order) && (
                               <button
                                 type="button"
@@ -470,6 +603,7 @@ export default function BookingHistoryPage() {
           onClose={() => setSelectedOrder(null)}
           onPay={handlePay}
           onCancel={handleOpenCancel}
+          onComplaint={handleOpenComplaint}
         />
       )}
 
@@ -490,6 +624,20 @@ export default function BookingHistoryPage() {
           onReasonChange={setCancelReason}
           onClose={() => setCancelOrder(null)}
           onConfirm={handleConfirmCancel}
+        />
+      )}
+
+      {complaintOrder && (
+        <ComplaintModal
+          order={complaintOrder}
+          reason={complaintReason}
+          images={complaintImages}
+          loading={complaintSending}
+          onReasonChange={setComplaintReason}
+          onImageChange={handleComplaintImageChange}
+          onRemoveImage={handleRemoveImage}
+          onClose={() => setComplaintOrder(null)}
+          onConfirm={handleConfirmComplaint}
         />
       )}
     </div>
@@ -549,7 +697,7 @@ function PaymentChoiceModal({ order, payingId, onClose, onPay }) {
   );
 }
 
-function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
+function OrderDetailModal({ order, payingId, onClose, onPay, onCancel, onComplaint }) {
   const action = getPrimaryAction(order);
   const status = getStatusInfo(order);
   const refundStatus = getRefundStatusInfo(order.hoan_tien);
@@ -558,6 +706,8 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
   const playDates = getPlayDates(order);
   const address = getAddress(order);
   const canShowCancel = canCancelOrder(order);
+  const canShowComplaint = canComplainOrder(order);
+  const complaintStatus = getComplaintStatusInfo(order.khieu_nai);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4">
@@ -689,9 +839,33 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
                     {refundStatus.label}
                   </span>
                 )}
+                {complaintStatus && (
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${complaintStatus.className}`}
+                  >
+                    {complaintStatus.label}
+                  </span>
+                )}
+                {Number(order.trang_thai) === 5 && !order.khieu_nai && (
+                  <span className="inline-flex rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700">
+                    {TXT.complaintFrozen}
+                  </span>
+                )}
               </div>
             </div>
           </section>
+
+          {order.khieu_nai && (
+            <section className="rounded-2xl border border-orange-200 bg-orange-50 p-4">
+              <InfoTitle>{TXT.complaint}</InfoTitle>
+              <p className="mt-2 text-sm font-bold text-slate-900">{order.khieu_nai.ly_do || TXT.noData}</p>
+              {order.khieu_nai.ghi_chu_admin && (
+                <p className="mt-1 text-sm font-medium text-slate-600">
+                  Ghi ch\u00fa Admin: {order.khieu_nai.ghi_chu_admin}
+                </p>
+              )}
+            </section>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-3">
             {action && (
@@ -712,6 +886,17 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel }) {
                     {action.label}
                   </>
                 )}
+              </button>
+            )}
+
+            {canShowComplaint && (
+              <button
+                type="button"
+                onClick={() => onComplaint(order)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-orange-200 px-4 py-3 text-sm font-bold text-orange-600 hover:bg-orange-50"
+              >
+                <i className="fa-solid fa-flag"></i>
+                {TXT.complaint}
               </button>
             )}
 
@@ -807,6 +992,125 @@ function CancelBookingModal({
                 <>
                   <i className="fa-solid fa-ban"></i>
                   {TXT.confirmCancel}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ComplaintModal({
+  order,
+  reason,
+  images,
+  loading,
+  onReasonChange,
+  onImageChange,
+  onRemoveImage,
+  onClose,
+  onConfirm,
+}) {
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900">
+              {TXT.complaintTitle}
+            </h2>
+            <p className="mt-1 text-sm font-medium text-slate-500">
+              {order.co_so?.ten || TXT.unknownFacility} &mdash; {TXT.booking} #{order.id}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-60"
+            aria-label={TXT.close}
+          >
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <p className="text-sm font-medium leading-6 text-slate-600">
+            {TXT.complaintDesc}
+          </p>
+
+          <textarea
+            value={reason}
+            onChange={(event) => onReasonChange(event.target.value)}
+            placeholder={TXT.complaintPlaceholder}
+            disabled={loading}
+            className="h-32 w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:border-orange-400 disabled:bg-slate-50"
+          />
+
+          <div>
+            <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+              {TXT.addImage} ({images.length}/5)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {images.map((file, index) => (
+                <div key={index} className="group relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={`Preview ${index + 1}`}
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onRemoveImage(index)}
+                    disabled={loading}
+                    className="absolute top-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] text-white opacity-0 group-hover:opacity-100"
+                  >
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              ))}
+              {images.length < 5 && (
+                <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-orange-400 hover:text-orange-500">
+                  <i className="fa-solid fa-plus text-lg"></i>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={onImageChange}
+                    disabled={loading}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            >
+              {TXT.close}
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-bold text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {loading ? (
+                <>
+                  <i className="fa-solid fa-circle-notch fa-spin"></i>
+                  {TXT.complaintSending}
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-flag"></i>
+                  {TXT.confirmComplaint}
                 </>
               )}
             </button>
