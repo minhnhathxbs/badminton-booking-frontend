@@ -62,6 +62,11 @@ export default function AdminLayout() {
       label: "Quản lý khuyến mãi",
     },
     {
+      path: "/admin/rut-tien",
+      icon: "fa-money-bill-transfer",
+      label: "Duyệt rút tiền",
+    },
+    {
       path: "/admin/danh-muc-san",
       icon: "fa-list",
       label: "Danh mục sân",

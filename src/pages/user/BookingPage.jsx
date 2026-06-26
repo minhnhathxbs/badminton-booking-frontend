@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { getSocket } from "../../api/socket";
 import { showToast } from "../../components/common/ToastMessage";
-import UserHeader from "../../components/common/UserHeader";
 
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
@@ -1036,7 +1035,6 @@ export default function FacilityDetailPage() {
   // --- TRANG CHON LICH SAN ---
   return (
     <div className="min-h-screen bg-[#f4f8ff] font-sans text-slate-800 selection:bg-indigo-100 selection:text-indigo-900">
-      <UserHeader />
       <main className="w-full px-3 pb-36 pt-4 lg:px-8 lg:pb-40 lg:pt-8">
         {/* Header chon san */}
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">

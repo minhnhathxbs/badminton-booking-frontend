@@ -32,6 +32,7 @@ import AdminRoute from "./AdminRoute";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import SystemConfig from "../pages/admin/SystemConfig";
 import SystemLogs from "../pages/admin/SystemLogs";
+import ManageWithdrawRequests from "../pages/admin/ManageWithdrawRequests";
 
 function RedirectFacilityToBooking() {
   const { id } = useParams();
@@ -88,6 +89,7 @@ export default function AppRoutes() {
           <Route path="nguoi-dung" element={<ManageUsers />} />
           <Route path="co-so" element={<ManageAllFacilities />} />
           <Route path="khuyen-mai" element={<ManageAllPromotions />} />
+          <Route path="rut-tien" element={<ManageWithdrawRequests />} />
           <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
           <Route path="cau-hinh" element={<SystemConfig />} />
