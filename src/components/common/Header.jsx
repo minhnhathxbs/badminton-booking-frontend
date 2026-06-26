@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import api, { getAssetUrl } from "../../api/axios";
+import NotificationBell from "./NotificationBell";
 
 export default function Header() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -15,7 +16,6 @@ export default function Header() {
     { to: "/trang-chu", icon: "fa-solid fa-house", label: "Trang chủ" },
     { to: "/ban-do", icon: "fa-solid fa-location-dot", label: "Bản đồ" },
     { to: "/yeu-thich", icon: "fa-regular fa-heart", label: "Yêu thích" },
-    { to: "/notifications", icon: "fa-regular fa-bell", label: "Thông báo" },
   ];
 
   const getDashboardLink = () => {
@@ -144,7 +144,8 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="hidden lg:flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-4">
+          {user && <NotificationBell />}
           {user ? (
             <div className="relative" ref={dropdownRef}>
               <button

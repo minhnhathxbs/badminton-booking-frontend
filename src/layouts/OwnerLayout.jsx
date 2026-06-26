@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../api/axios";
+import NotificationBell from "../components/common/NotificationBell";
 
 export default function OwnerLayout() {
   const location = useLocation();
@@ -75,6 +76,11 @@ export default function OwnerLayout() {
       label: "Hoàn tiền",
     },
     { path: "/chu-san/danh-gia", icon: "fa-star", label: "Quản lý đánh giá" },
+    {
+      path: "/chu-san/khieu-nai",
+      icon: "fa-flag",
+      label: "Khiếu nại từ khách",
+    },
   ];
 
   const handleLogout = () => {
@@ -154,10 +160,7 @@ export default function OwnerLayout() {
               "Quản lý"}
           </h1>
           <div className="flex items-center gap-4">
-            <button className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 hover:text-[#349DFF] hover:bg-[#eef3ff] transition-colors relative">
-              <i className="fa-regular fa-bell"></i>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-            </button>
+            <NotificationBell />
 
             {/* ----- PHẦN AVATAR + HỌ TÊN ----- */}
             <div className="flex items-center gap-3 pl-2 border-l border-gray-200">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../api/axios";
+import NotificationBell from "../components/common/NotificationBell";
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -70,6 +71,11 @@ export default function AdminLayout() {
       path: "/admin/danh-muc-san",
       icon: "fa-list",
       label: "Danh mục sân",
+    },
+    {
+      path: "/admin/khieu-nai",
+      icon: "fa-flag",
+      label: "Quản lý khiếu nại",
     },
     {
       path: "/admin/cau-hinh",
@@ -161,6 +167,7 @@ export default function AdminLayout() {
               "Quản trị"}
           </h1>
           <div className="flex items-center gap-4">
+            <NotificationBell />
             {/* Avatar và Họ Tên */}
             <div className="flex items-center gap-3 pl-2 border-l border-gray-200">
               <div className="hidden md:block text-right">

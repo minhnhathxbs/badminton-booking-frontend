@@ -5,6 +5,7 @@ import BookingPage from "../pages/user/BookingPage";
 import BookingHistoryPage from "../pages/user/BookingHistoryPage";
 import FavoritesPage from "../pages/user/FavoritesPage";
 import PaymentResultPage from "../pages/user/PaymentResultPage";
+import NotificationsPage from "../pages/user/NotificationsPage";
 import ProfilePage from "../pages/user/ProfilePage";
 import ChangePasswordPage from "../pages/user/ChangePasswordPage";
 import VerifyOtpPage from "../pages/auth/VerifyOtpPage";
@@ -22,6 +23,7 @@ import ManageCourtCategories from "../pages/owner/ManageCourtCategories";
 import ManagePromotions from "../pages/owner/ManagePromotions";
 import ManageReviews from "../pages/owner/ManageReviews";
 import ManageRefunds from "../pages/owner/ManageRefunds";
+import OwnerComplaints from "../pages/owner/OwnerComplaints";
 
 import AdminLayout from "../layouts/AdminLayout";
 import ManageUsers from "../pages/admin/ManageUsers";
@@ -33,6 +35,7 @@ import AdminDashboard from "../pages/admin/AdminDashboard";
 import SystemConfig from "../pages/admin/SystemConfig";
 import SystemLogs from "../pages/admin/SystemLogs";
 import ManageWithdrawRequests from "../pages/admin/ManageWithdrawRequests";
+import ManageComplaints from "../pages/admin/ManageComplaints";
 
 function RedirectFacilityToBooking() {
   const { id } = useParams();
@@ -50,6 +53,8 @@ export default function AppRoutes() {
       <Route path="/favorites" element={<FavoritesPage />} />
       <Route path="/yeu-thich" element={<FavoritesPage />} />
       <Route path="/thanh-toan/ket-qua" element={<PaymentResultPage />} />
+      <Route path="/notifications" element={<NotificationsPage />} />
+      <Route path="/thong-bao" element={<NotificationsPage />} />
       <Route path="/co-so/:id" element={<RedirectFacilityToBooking />} />
       <Route path="/login" element={<AuthPage initialForm="login" />} />
       <Route path="/dang-nhap" element={<AuthPage initialForm="login" />} />
@@ -80,6 +85,7 @@ export default function AppRoutes() {
           <Route path="bang-gia" element={<ManagePrices />} />
           <Route path="hoan-tien" element={<ManageRefunds />} />
           <Route path="danh-gia" element={<ManageReviews />} />
+          <Route path="khieu-nai" element={<OwnerComplaints />} />
         </Route>
       </Route>
       <Route element={<AdminRoute />}>
@@ -92,6 +98,7 @@ export default function AppRoutes() {
           <Route path="rut-tien" element={<ManageWithdrawRequests />} />
           <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
+          <Route path="khieu-nai" element={<ManageComplaints />} />
           <Route path="cau-hinh" element={<SystemConfig />} />
           <Route path="nhat-ky" element={<SystemLogs />} />
         </Route>
