@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
+import FacilityReviews from "../../components/user/FacilityReviews";
 import { useNotifications } from "../../contexts/notificationStore";
 import {
   loadCachedUserLocation,
@@ -706,8 +707,7 @@ export default function HomePage() {
                         </Link>
                         <div className="mb-1 flex items-center gap-1 text-xs text-gray-500 lg:text-sm">
                           <i className="fa-solid fa-star text-blue-600"></i>
-                          <span className="font-medium text-gray-700">4.9</span>
-                          <span>(297 đánh giá)</span>
+                          <span>Chưa tải đánh giá</span>
                         </div>
                         <div className="mb-1 flex items-center gap-1.5 text-xs text-gray-500 line-clamp-1 lg:text-sm">
                           <i className="fa-solid fa-location-dot w-3 text-center"></i>
@@ -850,7 +850,7 @@ export default function HomePage() {
                   </div>
                   <div className="rounded-xl bg-emerald-50 px-3 py-2 text-center">
                     <div className="text-lg font-semibold text-emerald-600">
-                      4.9
+                      <i className="fa-solid fa-star"></i>
                     </div>
                     <div className="text-[10px] font-semibold uppercase text-emerald-700">
                       đánh giá
@@ -894,65 +894,7 @@ export default function HomePage() {
                 </p>
               </section>
 
-              <section className="p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-900">
-                    Đánh giá
-                  </h3>
-                  <button
-                    type="button"
-                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                  >
-                    Viết đánh giá
-                  </button>
-                </div>
-
-                <div className="mb-4 rounded-2xl bg-gray-50 p-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="text-3xl font-semibold text-gray-900">4.9</span>
-                    <div>
-                      <div className="text-sm text-yellow-500">
-                        <i className="fa-solid fa-star"></i>
-                        <i className="fa-solid fa-star"></i>
-                        <i className="fa-solid fa-star"></i>
-                        <i className="fa-solid fa-star"></i>
-                        <i className="fa-solid fa-star"></i>
-                      </div>
-                      <p className="text-xs font-medium text-gray-500">
-                        Dựa trên đánh giá của khách đã đặt sân
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {[
-                    {
-                      name: "Nguyễn Minh",
-                      content: "Sân sạch, ánh sáng tốt, nhân viên hỗ trợ nhanh.",
-                    },
-                    {
-                      name: "Hoàng Anh",
-                      content: "Đặt sân thuận tiện, vị trí dễ tìm.",
-                    },
-                  ].map((review) => (
-                    <div
-                      key={review.name}
-                      className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="font-semibold text-gray-900">{review.name}</div>
-                        <div className="text-xs text-yellow-500">
-                          <i className="fa-solid fa-star"></i> 5.0
-                        </div>
-                      </div>
-                      <p className="text-sm leading-6 text-gray-600">
-                        {review.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <FacilityReviews facility={selectedFacility} />
             </div>
           </aside>
         </div>

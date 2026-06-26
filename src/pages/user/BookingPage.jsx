@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { getSocket } from "../../api/socket";
 import { showToast } from "../../components/common/ToastMessage";
+import FacilityReviews from "../../components/user/FacilityReviews";
 
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
@@ -1076,6 +1077,10 @@ export default function FacilityDetailPage() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <FacilityReviews facility={facility} />
         </div>
 
         {/* Khung dat san */}
