@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
+import { useNotifications } from "../../contexts/notificationStore";
 import {
   loadCachedUserLocation,
   requestBrowserLocation,
@@ -43,8 +44,32 @@ const formatDistance = (distanceKm) => {
   return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km`;
 };
 
+function AuthButtons({ compact = false }) {
+  return (
+    <div className={`flex items-center ${compact ? "gap-2" : "gap-3"}`}>
+      <Link
+        to="/dang-ky"
+        className={`rounded-xl border border-blue-600 font-bold text-blue-600 transition hover:bg-blue-50 ${
+          compact ? "px-3 py-2 text-xs" : "px-5 py-2 text-sm"
+        }`}
+      >
+        Đăng ký
+      </Link>
+      <Link
+        to="/dang-nhap"
+        className={`rounded-xl bg-blue-600 font-bold text-white transition hover:bg-blue-700 ${
+          compact ? "px-3 py-2 text-xs" : "px-5 py-2 text-sm"
+        }`}
+      >
+        Đăng nhập
+      </Link>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
+  const { soChuaDoc } = useNotifications();
   const [facilities, setFacilities] = useState([]);
   const [allFacilities, setAllFacilities] = useState([]);
   const [keyword, setKeyword] = useState("");
@@ -232,13 +257,18 @@ export default function HomePage() {
       .filter(Boolean)
       .join(", ");
 
-  const displayName = user?.ho_ten || "Khách";
+  const displayName = user?.ho_ten;
 
   const topNavItems = [
     { to: "/trang-chu", icon: "fa-solid fa-house", label: "Trang chủ", active: true },
     { to: "/ban-do", icon: "fa-regular fa-map", label: "Bản đồ" },
     { to: "/yeu-thich", icon: "fa-solid fa-heart", label: "Yêu thích" },
-    { to: "/notifications", icon: "fa-regular fa-bell", label: "Thông báo" },
+    {
+      to: "/notifications",
+      icon: "fa-regular fa-bell",
+      label: "Thông báo",
+      notification: true,
+    },
   ];
 
   const toggleFavorite = async (facilityId) => {
@@ -327,9 +357,14 @@ export default function HomePage() {
                 <span
                   className={`grid h-9 w-9 place-items-center rounded-full text-xl sm:h-11 sm:w-11 sm:text-2xl ${
                     item.active ? "bg-blue-100 text-blue-600" : "text-gray-400"
-                  }`}
+                  } relative`}
                 >
                   <i className={item.icon}></i>
+                  {item.notification && user && soChuaDoc > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white sm:h-[18px] sm:min-w-[18px] sm:text-[10px]">
+                      {soChuaDoc > 99 ? "99+" : soChuaDoc}
+                    </span>
+                  )}
                 </span>
                 <span>{item.label}</span>
               </Link>
@@ -337,126 +372,138 @@ export default function HomePage() {
           </nav>
 
           <div className="relative hidden min-w-[220px] justify-end sm:flex">
-            <button
-              type="button"
-              onClick={() => setIsProfileOpen((prev) => !prev)}
-              className="flex items-center gap-3 rounded-2xl px-2 py-1.5 hover:bg-gray-50"
-            >
-              <div className="h-11 w-11 overflow-hidden rounded-full border-2 border-white bg-blue-50 shadow-sm">
-                {user?.avatar ? (
-                  <img
-                    src={getAssetUrl(user.avatar)}
-                    alt="Avatar"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="grid h-full w-full place-items-center text-blue-600">
-                    <i className="fa-solid fa-user"></i>
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 text-left leading-tight">
-                <div className="text-xs font-medium text-gray-500">Xin chào,</div>
-                <div className="max-w-[160px] truncate text-sm font-semibold text-slate-900">
-                  {displayName}
-                </div>
-              </div>
-            </button>
-
-            {isProfileOpen && (
-              <div className="absolute right-0 top-[64px] z-50 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
-                <div className="border-b border-gray-100 px-5 py-4">
-                  <div className="font-semibold text-slate-900">{displayName}</div>
-                  <div className="mt-1 truncate text-sm text-gray-500">
-                    {user?.email || "Chưa có email"}
-                  </div>
-                </div>
-                <Link
-                  to="/ho-so"
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
-                >
-                  <i className="fa-regular fa-user w-4 text-center"></i>
-                  Thông tin cá nhân
-                </Link>
-                <Link
-                  to="/lich-su-dat-san"
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
-                >
-                  <i className="fa-regular fa-calendar-check w-4 text-center"></i>
-                  Lịch sử đặt sân
-                </Link>
+            {user ? (
+              <>
                 <button
                   type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                  onClick={() => setIsProfileOpen((prev) => !prev)}
+                  className="flex items-center gap-3 rounded-2xl px-2 py-1.5 hover:bg-gray-50"
                 >
-                  <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center"></i>
-                  Đăng xuất
+                  <div className="h-11 w-11 overflow-hidden rounded-full border-2 border-white bg-blue-50 shadow-sm">
+                    {user.avatar ? (
+                      <img
+                        src={getAssetUrl(user.avatar)}
+                        alt="Avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-blue-600">
+                        <i className="fa-solid fa-user"></i>
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 text-left leading-tight">
+                    <div className="text-xs font-medium text-gray-500">Xin chào,</div>
+                    <div className="max-w-[160px] truncate text-sm font-semibold text-slate-900">
+                      {displayName}
+                    </div>
+                  </div>
                 </button>
-              </div>
+
+                {isProfileOpen && (
+                  <div className="absolute right-0 top-[64px] z-50 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+                    <div className="border-b border-gray-100 px-5 py-4">
+                      <div className="font-semibold text-slate-900">{displayName}</div>
+                      <div className="mt-1 truncate text-sm text-gray-500">
+                        {user.email || "Chưa có email"}
+                      </div>
+                    </div>
+                    <Link
+                      to="/ho-so"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                    >
+                      <i className="fa-regular fa-user w-4 text-center"></i>
+                      Thông tin cá nhân
+                    </Link>
+                    <Link
+                      to="/lich-su-dat-san"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                    >
+                      <i className="fa-regular fa-calendar-check w-4 text-center"></i>
+                      Lịch sử đặt sân
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center"></i>
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <AuthButtons />
             )}
           </div>
 
           <div className="relative justify-self-end sm:hidden">
-            <button
-              type="button"
-              onClick={() => setIsProfileOpen((prev) => !prev)}
-              className="flex items-center gap-2 rounded-2xl px-2 py-1.5 hover:bg-gray-50"
-              aria-label="Tài khoản"
-            >
-              <div className="h-11 w-11 overflow-hidden rounded-full border-2 border-white bg-blue-50 text-blue-600 shadow-sm">
-                {user?.avatar ? (
-                  <img
-                    src={getAssetUrl(user.avatar)}
-                    alt="Avatar"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="grid h-full w-full place-items-center">
-                    <i className="fa-solid fa-user"></i>
-                  </div>
-                )}
-              </div>
-              <span className="hidden text-xs font-semibold text-slate-700 min-[420px]:inline">
-                Tài khoản
-              </span>
-            </button>
-
-            {isProfileOpen && (
-              <div className="absolute right-0 top-[58px] z-50 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
-                <div className="border-b border-gray-100 px-5 py-4">
-                  <div className="font-semibold text-slate-900">{displayName}</div>
-                  <div className="mt-1 truncate text-sm text-gray-500">
-                    {user?.email || "Chưa có email"}
-                  </div>
-                </div>
-                <Link
-                  to="/ho-so"
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
-                >
-                  <i className="fa-regular fa-user w-4 text-center"></i>
-                  Thông tin cá nhân
-                </Link>
-                <Link
-                  to="/lich-su-dat-san"
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
-                >
-                  <i className="fa-regular fa-calendar-check w-4 text-center"></i>
-                  Lịch sử đặt sân
-                </Link>
+            {user ? (
+              <>
                 <button
                   type="button"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                  onClick={() => setIsProfileOpen((prev) => !prev)}
+                  className="flex items-center gap-2 rounded-2xl px-2 py-1.5 hover:bg-gray-50"
+                  aria-label="Tài khoản"
                 >
-                  <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center"></i>
-                  Đăng xuất
+                  <div className="h-11 w-11 overflow-hidden rounded-full border-2 border-white bg-blue-50 text-blue-600 shadow-sm">
+                    {user.avatar ? (
+                      <img
+                        src={getAssetUrl(user.avatar)}
+                        alt="Avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center">
+                        <i className="fa-solid fa-user"></i>
+                      </div>
+                    )}
+                  </div>
+                  <span className="hidden text-xs font-semibold text-slate-700 min-[420px]:inline">
+                    Tài khoản
+                  </span>
                 </button>
-              </div>
+
+                {isProfileOpen && (
+                  <div className="absolute right-0 top-[58px] z-50 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+                    <div className="border-b border-gray-100 px-5 py-4">
+                      <div className="font-semibold text-slate-900">{displayName}</div>
+                      <div className="mt-1 truncate text-sm text-gray-500">
+                        {user.email || "Chưa có email"}
+                      </div>
+                    </div>
+                    <Link
+                      to="/ho-so"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                    >
+                      <i className="fa-regular fa-user w-4 text-center"></i>
+                      Thông tin cá nhân
+                    </Link>
+                    <Link
+                      to="/lich-su-dat-san"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                    >
+                      <i className="fa-regular fa-calendar-check w-4 text-center"></i>
+                      Lịch sử đặt sân
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      <i className="fa-solid fa-arrow-right-from-bracket w-4 text-center"></i>
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <AuthButtons compact />
             )}
           </div>
         </div>

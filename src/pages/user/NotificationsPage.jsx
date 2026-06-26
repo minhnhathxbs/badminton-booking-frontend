@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../../components/common/Header";
-import Footer from "../../components/common/Footer";
+import UserHeader from "../../components/common/UserHeader";
 import { useNotifications } from "../../contexts/notificationStore";
 
 const thoiGianTuongDoi = (ngay) => {
@@ -39,9 +38,9 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
-      <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-6">
+    <div className="min-h-screen bg-[#f4f8ff] font-sans text-gray-800">
+      <UserHeader />
+      <main className="mx-auto w-full max-w-[1600px] px-4 pb-10 pt-7 lg:px-8 xl:px-10">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-gray-800">
             Thông báo
@@ -62,7 +61,7 @@ export default function NotificationsPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 overflow-hidden">
+        <div className="mx-auto max-w-3xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-50">
           {dangTai && danhSach.length === 0 ? (
             <div className="px-4 py-12 text-center text-gray-400">Đang tải...</div>
           ) : danhSach.length === 0 ? (
@@ -98,7 +97,6 @@ export default function NotificationsPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
