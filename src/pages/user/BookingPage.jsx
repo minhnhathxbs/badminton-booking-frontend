@@ -2,8 +2,8 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { getSocket } from "../../api/socket";
+import promoBannerImage from "../../assets/promo-badminton-banner.png";
 import { showToast } from "../../components/common/ToastMessage";
-import FacilityReviews from "../../components/user/FacilityReviews";
 
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
@@ -58,6 +58,45 @@ const CalendarIcon = ({ className = "" }) => (
     <line x1="3" y1="10" x2="21" y2="10" />
   </svg>
 );
+
+const PromoBanner = ({ promo, discount, compact = false }) => {
+  if (!promo) return null;
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-950 shadow-sm ${
+        compact ? "min-h-28" : "min-h-36"
+      }`}
+    >
+      <img
+        src={promoBannerImage}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/45 to-transparent" />
+      <div className={`relative z-10 max-w-[72%] ${compact ? "p-3" : "p-4"}`}>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">
+          Ma khuyen mai
+        </p>
+        <p
+          className={`mt-1 font-black leading-tight text-white ${
+            compact ? "text-lg" : "text-2xl"
+          }`}
+        >
+          {promo.ma_khuyen_mai}
+        </p>
+        <p className="mt-1 line-clamp-2 text-xs font-semibold text-white/85">
+          {promo.ten}
+        </p>
+        {Number(discount || 0) > 0 && (
+          <div className="mt-3 inline-flex rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-700 shadow-sm">
+            -{formatCurrency(discount)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function FacilityDetailPage() {
   const { id } = useParams();
@@ -222,6 +261,7 @@ export default function FacilityDetailPage() {
   const selectedPromo = promoOptions.find(
     (item) => item.ma_khuyen_mai === promoCode,
   );
+  const activePromo = holdInfo?.khuyen_mai || selectedPromo;
   const estimatedDiscount = Number(selectedPromo?.tien_giam_du_kien || 0);
   const bookingTotal = Number(holdInfo?.tong_tien ?? totalPrice);
   const discountAmount = Number(holdInfo?.tien_giam ?? estimatedDiscount);
@@ -726,6 +766,10 @@ export default function FacilityDetailPage() {
                   <i className="fa-solid fa-chevron-right text-slate-400"></i>
                 </div>
               </button>
+
+              {activePromo && (
+                <PromoBanner promo={activePromo} discount={discountAmount} />
+              )}
             </div>
           </section>
 
@@ -934,7 +978,12 @@ export default function FacilityDetailPage() {
                             : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <PromoBanner
+                          promo={promo}
+                          discount={promo.tien_giam_du_kien}
+                          compact
+                        />
+                        <div className="mt-3 flex items-start justify-between gap-3">
                           <div>
                             <p className="text-base font-black text-slate-900">
                               {promo.ma_khuyen_mai}
@@ -1077,10 +1126,6 @@ export default function FacilityDetailPage() {
               </button>
             </div>
           </div>
-        </div>
-
-        <div className="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <FacilityReviews facility={facility} />
         </div>
 
         {/* Khung dat san */}

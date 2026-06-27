@@ -164,7 +164,7 @@ export default function OwnerDashboard() {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="hidden">
           <label className="text-sm font-medium text-gray-600">
             <span className="block mb-1">Từ ngày</span>
             <input
