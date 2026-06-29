@@ -33,6 +33,7 @@ const STATUS_OPTIONS = [
   { value: "2", label: "Đã hủy" },
   { value: "4", label: "Hoàn thành" },
   { value: "5", label: "Đang khiếu nại" },
+  { value: "6", label: "Đã hoàn tiền" },
 ];
 
 const START_HOUR = 5;
@@ -59,8 +60,19 @@ const formatDate = (value) =>
 const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString("vi-VN") : TXT.noData;
 
-const getStatusInfo = (status) => {
-  switch (Number(status)) {
+const getStatusInfo = (bookingOrStatus) => {
+  const booking =
+    typeof bookingOrStatus === "object" && bookingOrStatus !== null
+      ? bookingOrStatus
+      : null;
+  const status = Number(booking ? booking.trang_thai : bookingOrStatus);
+  const isExpiredHold =
+    booking &&
+    status === 2 &&
+    Number(booking.da_thanh_toan || 0) === 0 &&
+    String(booking.ly_do_huy || "").toLowerCase().includes("hết hạn");
+
+  switch (status) {
     case 0:
       return {
         label: "Giữ chỗ",
@@ -75,7 +87,7 @@ const getStatusInfo = (status) => {
       };
     case 2:
       return {
-        label: "Đã hủy",
+        label: isExpiredHold ? "Hết hạn giữ chỗ" : "Đã hủy",
         className: "border-rose-200 bg-rose-50 text-rose-700",
         blockClass: "border-rose-300 bg-rose-100 text-rose-800",
       };
@@ -90,6 +102,12 @@ const getStatusInfo = (status) => {
         label: "Đang khiếu nại",
         className: "border-orange-200 bg-orange-50 text-orange-700",
         blockClass: "border-orange-300 bg-orange-100 text-orange-800",
+      };
+    case 6:
+      return {
+        label: "Đã hoàn tiền",
+        className: "border-purple-200 bg-purple-50 text-purple-700",
+        blockClass: "border-purple-300 bg-purple-100 text-purple-800",
       };
     default:
       return {
@@ -205,10 +223,10 @@ export default function ManageBookings() {
         acc.total += 1;
         acc.revenue += Number(booking.da_thanh_toan || 0);
         if (Number(booking.trang_thai) === 1) acc.active += 1;
-        if (Number(booking.trang_thai) === 0) acc.hold += 1;
+        if (Number(booking.trang_thai) === 4) acc.completed += 1;
         return acc;
       },
-      { total: 0, active: 0, hold: 0, revenue: 0 },
+      { total: 0, active: 0, completed: 0, revenue: 0 },
     );
   }, [bookings]);
 
@@ -263,8 +281,8 @@ export default function ManageBookings() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard icon="fa-calendar-check" label="Tổng đơn" value={stats.total} />
-        <StatCard icon="fa-circle-check" label="Đã đặt" value={stats.active} />
-        <StatCard icon="fa-clock" label="Giữ chỗ" value={stats.hold} />
+        <StatCard icon="fa-circle-check" label="Đang đặt" value={stats.active} />
+        <StatCard icon="fa-flag-checkered" label="Hoàn thành" value={stats.completed} />
         <StatCard
           icon="fa-money-bill-wave"
           label="Đã thanh toán"
@@ -406,7 +424,7 @@ function Timeline({ courts, items, loading, onSelect }) {
                   {items
                     .filter((item) => item.courtKey === court.id)
                     .map((item) => {
-                      const statusInfo = getStatusInfo(item.booking.trang_thai);
+                      const statusInfo = getStatusInfo(item.booking);
                       const { left, width } = getPositionAndWidth(
                         item.gio_bat_dau,
                         item.gio_ket_thuc,
@@ -474,7 +492,7 @@ function BookingTable({ bookings, loading, onSelect }) {
               </tr>
             ) : (
               bookings.map((booking) => {
-                const statusInfo = getStatusInfo(booking.trang_thai);
+                const statusInfo = getStatusInfo(booking);
                 const firstDetail = booking.chi_tiet?.[0];
                 const detailCount = booking.chi_tiet?.length || 0;
 
@@ -540,7 +558,7 @@ function BookingTable({ bookings, loading, onSelect }) {
 }
 
 function BookingDetail({ booking, onClose }) {
-  const statusInfo = getStatusInfo(booking.trang_thai);
+  const statusInfo = getStatusInfo(booking);
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/50 p-4">

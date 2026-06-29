@@ -47,6 +47,10 @@ const getStatusLabel = (status) => {
       return "Đã hủy";
     case 4:
       return "Hoàn thành";
+    case 5:
+      return "Đang khiếu nại";
+    case 6:
+      return "Đã hoàn tiền";
     default:
       return "Giữ chỗ";
   }
@@ -60,6 +64,10 @@ const getStatusClass = (status) => {
       return "bg-red-50 text-red-700 border border-red-200";
     case 4:
       return "bg-blue-50 text-blue-700 border border-blue-200";
+    case 5:
+      return "bg-orange-50 text-orange-700 border border-orange-200";
+    case 6:
+      return "bg-purple-50 text-purple-700 border border-purple-200";
     default:
       return "bg-yellow-50 text-yellow-700 border border-yellow-200";
   }

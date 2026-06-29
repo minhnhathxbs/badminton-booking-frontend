@@ -65,7 +65,7 @@ const TXT = {
   complaintPending: "KN ch\u1edd x\u1eed l\u00fd",
   complaintAccepted: "KN \u0111\u00e3 ch\u1ea5p nh\u1eadn",
   complaintRejected: "KN b\u1ecb t\u1eeb ch\u1ed1i",
-  complaintFrozen: "\u0110\u00f3ng b\u0103ng",
+  complaintFrozen: "\u0110ang khi\u1ebfu n\u1ea1i",
   paymentUrlFail: "Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c \u0111\u01b0\u1eddng d\u1eabn thanh to\u00e1n",
   paymentCreateFail: "Kh\u00f4ng th\u1ec3 t\u1ea1o thanh to\u00e1n",
   hold: "\u0110ang ch\u1edd thanh to\u00e1n",
@@ -77,8 +77,9 @@ const TXT = {
   refundRejected: "T\u1eeb ch\u1ed1i ho\u00e0n ti\u1ec1n",
   refundAmount: "S\u1ed1 ti\u1ec1n ho\u00e0n",
   refundNote: "Ghi ch\u00fa ho\u00e0n ti\u1ec1n",
-  expired: "H\u1ebft h\u1ea1n",
+  expired: "H\u1ebft h\u1ea1n gi\u1eef ch\u1ed7",
   completed: "Ho\u00e0n th\u00e0nh",
+  complaintRefunded: "Khi\u1ebfu n\u1ea1i \u0111\u00e3 ho\u00e0n ti\u1ec1n",
   unknown: "Kh\u00f4ng x\u00e1c \u0111\u1ecbnh",
   action: "Thao t\u00e1c",
   choosePaymentType: "Ch\u1ecdn lo\u1ea1i thanh to\u00e1n",
@@ -98,6 +99,11 @@ const formatDateTime = (value) => {
 };
 
 const formatTime = (value) => String(value || "").slice(0, 5);
+
+const getPaymentMethodLabel = (order) => {
+  if (Number(order.da_thanh_toan || 0) <= 0) return "Chưa thanh toán";
+  return order.phuong_thuc || "Chưa cập nhật";
+};
 
 const formatLocalDateKey = (value) => {
   if (!value) return "";
@@ -159,9 +165,12 @@ const isHoldExpired = (order) =>
   order.thoi_gian_het_han &&
   new Date(order.thoi_gian_het_han) < new Date();
 
-const isCancelledLike = (order) => {
-  return Number(order.trang_thai) === 2;
-};
+const isExpiredHoldCancel = (order) =>
+  Number(order.trang_thai) === 2 &&
+  Number(order.da_thanh_toan || 0) === 0 &&
+  String(order.ly_do_huy || "").toLowerCase().includes("h\u1ebft h\u1ea1n");
+
+const isCancelledLike = (order) => Number(order.trang_thai) === 2;
 
 const canComplainOrder = (order) => {
   return [1, 4].includes(Number(order.trang_thai)) && !order.khieu_nai;
@@ -204,11 +213,18 @@ const canCancelOrder = (order) => {
 const getPaymentKind = (order) => {
   const total = Number(order.thanh_tien || 0);
   const paid = Number(order.da_thanh_toan || 0);
+  const bookingStatus = Number(order.trang_thai);
 
-  if (isCancelledLike(order)) return "cancelled";
+  if (bookingStatus === 4) return "completed";
+  if (bookingStatus === 5) return "complaint";
+  if (bookingStatus === 6) return "complaintRefunded";
+  if (bookingStatus === 2) {
+    return isExpiredHoldCancel(order) ? "expired" : "cancelled";
+  }
+  if (bookingStatus === 0 && isHoldExpired(order)) return "expired";
   if (paid >= total && total > 0) return "paid";
   if (paid > 0) return "deposit";
-  if (Number(order.trang_thai) === 0 && !isHoldExpired(order)) return "waiting";
+  if (bookingStatus === 0) return "waiting";
   return "unknown";
 };
 
@@ -233,6 +249,26 @@ const getStatusInfo = (order) => {
       return {
         label: TXT.cancelled,
         className: "bg-rose-50 text-rose-700 border-rose-200",
+      };
+    case "expired":
+      return {
+        label: TXT.expired,
+        className: "bg-slate-100 text-slate-600 border-slate-200",
+      };
+    case "completed":
+      return {
+        label: TXT.completed,
+        className: "bg-blue-50 text-blue-700 border-blue-200",
+      };
+    case "complaint":
+      return {
+        label: TXT.complaintFrozen,
+        className: "bg-orange-50 text-orange-700 border-orange-200",
+      };
+    case "complaintRefunded":
+      return {
+        label: TXT.complaintRefunded,
+        className: "bg-purple-50 text-purple-700 border-purple-200",
       };
     default:
       return {
@@ -802,7 +838,7 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel, onComplai
             <InfoLine label={TXT.deposit} value={formatCurrency(order.tien_coc)} />
             <InfoLine label={TXT.paid} value={formatCurrency(order.da_thanh_toan)} />
             <InfoLine label={TXT.remain} value={formatCurrency(order.con_lai)} />
-            <InfoLine label={TXT.method} value={order.phuong_thuc || "VNPay"} />
+            <InfoLine label={TXT.method} value={getPaymentMethodLabel(order)} />
             <InfoLine label={TXT.note} value={order.ghi_chu || TXT.noData} />
             {isCancelledLike(order) && (
               <InfoLine
