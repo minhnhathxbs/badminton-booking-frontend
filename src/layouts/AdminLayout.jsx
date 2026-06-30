@@ -79,6 +79,11 @@ export default function AdminLayout() {
       label: "Quản lý khiếu nại",
     },
     {
+      path: "/admin/danh-gia-bao-cao",
+      icon: "fa-star",
+      label: "Đánh giá bị báo cáo",
+    },
+    {
       path: "/admin/cau-hinh",
       icon: "fa-gear",
       label: "Cấu hình hệ thống",

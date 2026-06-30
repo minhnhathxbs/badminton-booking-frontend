@@ -166,15 +166,22 @@ export default function ManageReviews() {
   const handleSubmitReport = async () => {
     if (!reportReview) return;
 
+    const reason = reportReason.trim();
+    if (!reason) {
+      showToast("Vui lòng nhập lý do báo cáo", "error");
+      return;
+    }
+
     setIsReporting(true);
     try {
       await api.post(`/danh-gia/${reportReview.id}/bao-cao`, {
-        ly_do: reportReason,
+        ly_do: reason,
       });
 
       showToast("Đã báo cáo đánh giá vi phạm", "success");
       setIsReportModalOpen(false);
       setReportReview(null);
+      setReportReason("");
       await Promise.all([fetchReviews(), fetchStats()]);
     } catch (err) {
       showToast(err.response?.data?.message || "Báo cáo thất bại", "error");

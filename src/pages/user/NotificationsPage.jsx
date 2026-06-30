@@ -15,7 +15,10 @@ const thoiGianTuongDoi = (ngay) => {
 
 const iconTheoLoai = (loai) => {
   if (loai === "THANH_TOAN") return "fa-solid fa-money-bill-wave";
+  if (loai === "HOAN_TIEN") return "fa-solid fa-rotate-left";
   if (loai === "CO_SO") return "fa-solid fa-building";
+  if (loai === "KHIEU_NAI") return "fa-solid fa-flag";
+  if (loai === "DANH_GIA") return "fa-solid fa-star";
   return "fa-solid fa-calendar-check";
 };
 
