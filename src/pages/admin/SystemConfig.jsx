@@ -303,7 +303,9 @@ export default function SystemConfig() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
         <div className="relative max-w-md">
-          <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+            <i className="fa-solid fa-magnifying-glass text-sm leading-none"></i>
+          </span>
           <input
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}

@@ -179,7 +179,9 @@ export default function ManageComplaints() {
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative">
-            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <i className="fa-solid fa-magnifying-glass text-sm leading-none"></i>
+            </span>
             <input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}

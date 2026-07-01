@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
+import { getSocket } from "../../api/socket";
 import { showToast } from "../../components/common/ToastMessage";
 
 const TXT = {
@@ -48,7 +49,7 @@ const todayValue = () => formatInputDate(new Date());
 const addDays = (dateValue, days) => {
   const date = new Date(`${dateValue}T00:00:00`);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return formatInputDate(date);
 };
 
 const formatCurrency = (value) =>
@@ -115,6 +116,23 @@ const getSlotInfo = (status) => {
         icon: "fa-circle-question",
         className: "border-gray-200 bg-white text-gray-500",
       };
+  }
+};
+
+const getSlotCellClass = (status) => {
+  switch (status) {
+    case "trong":
+      return "border-[#9a9a9a] bg-white hover:bg-emerald-50";
+    case "giu_cho":
+      return "border-[#9a9a9a] bg-amber-100 text-amber-800 hover:bg-amber-200";
+    case "da_dat":
+    case "da_dat_qua_gio":
+      return "border-[#9a9a9a] bg-[#ff4d4d] text-white hover:bg-[#ef4444]";
+    case "qua_gio":
+    case "khong_co_gia":
+      return "border-[#9a9a9a] bg-[#b9b9b9] text-white";
+    default:
+      return "border-[#9a9a9a] bg-slate-100 text-slate-400";
   }
 };
 
@@ -269,6 +287,59 @@ export default function ManageBookings() {
     fetchSchedule();
   }, [fetchSchedule]);
 
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return undefined;
+
+    const roomFacilityIds = facilityId
+      ? [Number(facilityId)]
+      : facilities.map((facility) => Number(facility.id)).filter(Boolean);
+
+    if (roomFacilityIds.length === 0) return undefined;
+
+    const payloads = roomFacilityIds.map((coSoId) => ({
+      co_so_id: coSoId,
+      ngay: selectedDate,
+    }));
+
+    const joinRooms = () => {
+      payloads.forEach((payload) => {
+        socket.emit("booking:schedule-join", payload);
+      });
+    };
+
+    const leaveRooms = () => {
+      payloads.forEach((payload) => {
+        socket.emit("booking:schedule-leave", payload);
+      });
+    };
+
+    const handleScheduleUpdated = (event) => {
+      const eventFacilityId = Number(event?.co_so_id);
+      const eventDate = String(event?.ngay || "").slice(0, 10);
+
+      if (
+        roomFacilityIds.includes(eventFacilityId) &&
+        eventDate === selectedDate
+      ) {
+        fetchBookings();
+        if (!facilityId || Number(facilityId) === eventFacilityId) {
+          fetchSchedule();
+        }
+      }
+    };
+
+    joinRooms();
+    socket.on("connect", joinRooms);
+    socket.on("booking:schedule-updated", handleScheduleUpdated);
+
+    return () => {
+      leaveRooms();
+      socket.off("connect", joinRooms);
+      socket.off("booking:schedule-updated", handleScheduleUpdated);
+    };
+  }, [facilities, facilityId, fetchBookings, fetchSchedule, selectedDate]);
+
   const stats = useMemo(() => {
     return bookings.reduce(
       (acc, booking) => {
@@ -297,7 +368,9 @@ export default function ManageBookings() {
 
         <div className="flex flex-col gap-3 xl:flex-row">
           <div className="relative">
-            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <i className="fa-solid fa-magnifying-glass text-sm leading-none"></i>
+            </span>
             <input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
@@ -478,8 +551,8 @@ function ScheduleGrid({
       ) : courts.length === 0 || timeSlots.length === 0 ? (
         <EmptyState icon="fa-calendar-xmark" text="Chưa có dữ liệu sân trong ngày này" />
       ) : (
-        <div className="overflow-auto">
-          <div className="min-w-[980px] space-y-4 p-4">
+        <div className="overflow-x-auto custom-scrollbar">
+          <div className="min-w-[1000px] p-4">
             <div className="flex flex-wrap gap-2 text-xs font-bold">
               {[
                 ["trong", "Trống"],
@@ -500,26 +573,36 @@ function ScheduleGrid({
               })}
             </div>
 
-            {courts.map((court) => (
-              <section
-                key={court.id}
-                className="rounded-2xl border border-gray-200 bg-[#f8fafc] p-4"
-              >
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <h4 className="text-sm font-extrabold text-[#0a192f]">
-                      {court.ten}
-                    </h4>
-                    <p className="mt-0.5 text-xs font-bold text-gray-500">
-                      {court.ten_danh_muc || "Sân cầu lông"}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-extrabold text-gray-500">
-                    {court.slots?.length || 0} khung giờ
-                  </span>
+            <div
+              className="mt-4 grid rounded-xl border border-[#9a9a9a] bg-white"
+              style={{
+                gridTemplateColumns: `128px repeat(${timeSlots.length}, minmax(58px, 1fr))`,
+              }}
+            >
+              <div className="sticky left-0 z-20 flex items-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-3 py-2 text-xs font-semibold text-emerald-900">
+                Sân
+              </div>
+              {timeSlots.map((timeSlot) => (
+                <div
+                  key={timeSlot.id}
+                  className="border-b border-r border-[#9a9a9a] bg-white px-1 py-2 text-center text-xs font-semibold text-slate-700 last:border-r-0"
+                  title={`${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}`}
+                >
+                  {timeSlot.gio_bat_dau}
                 </div>
+              ))}
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+              {courts.map((court) => (
+                <Fragment key={court.id}>
+                  <div className="sticky left-0 z-10 flex min-h-[48px] flex-col justify-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-3 py-1">
+                    <div className="truncate text-xs font-bold text-emerald-950" title={court.ten}>
+                      {court.ten}
+                    </div>
+                    <div className="truncate text-[11px] font-semibold text-emerald-700">
+                      {court.ten_danh_muc || "Sân cầu lông"}
+                    </div>
+                  </div>
+
                   {timeSlots.map((timeSlot) => {
                     const slot = court.slots?.find(
                       (item) =>
@@ -533,22 +616,14 @@ function ScheduleGrid({
                     return (
                       <div
                         key={`${court.id}-${timeSlot.id}`}
-                        className="group relative"
+                        className="group relative min-h-[48px]"
                       >
                         <div
-                          className={`min-h-[76px] rounded-xl border bg-white p-3 transition ${info.className}`}
+                          className={`flex h-full min-h-[48px] items-center justify-center border-b border-r text-xs transition ${getSlotCellClass(slot?.trang_thai)}`}
+                          title={`${court.ten} | ${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}`}
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-black">
-                              {timeSlot.gio_bat_dau} - {timeSlot.gio_ket_thuc}
-                            </span>
-                            <i className={`fa-solid ${info.icon} text-xs`}></i>
-                          </div>
-                          <div className="mt-3 text-sm font-black">{info.label}</div>
-                          {booking && (
-                            <div className="mt-1 truncate text-[11px] font-bold opacity-80">
-                              #{booking.id} · {booking.khach_hang?.ho_ten || TXT.noData}
-                            </div>
+                          {slot?.trang_thai === "trong" ? null : (
+                            <i className={`fa-solid ${info.icon} text-[11px]`}></i>
                           )}
                         </div>
 
@@ -588,9 +663,9 @@ function ScheduleGrid({
                       </div>
                     );
                   })}
-                </div>
-              </section>
-            ))}
+                </Fragment>
+              ))}
+            </div>
           </div>
         </div>
       )}

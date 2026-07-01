@@ -174,7 +174,9 @@ export default function ManageWithdrawRequests() {
           </select>
 
           <div className="relative">
-            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <i className="fa-solid fa-magnifying-glass text-sm leading-none" />
+            </span>
             <input
               type="text"
               placeholder="Tìm chủ sân, ngân hàng..."

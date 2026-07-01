@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { getAssetUrl } from "../../api/axios";
+import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { showToast } from "../../components/common/ToastMessage";
 
 // ─── Đổi thành URL backend của mày ──────────────────────────────
@@ -9,10 +11,13 @@ const PASSWORD_MESSAGE =
 
 const getToken = () => localStorage.getItem("token");
 const isValidPassword = (value) =>
-  value.length >= 8 && /[A-Za-zÀ-ỹ]/.test(value) && /\d/.test(value);
+  value.length >= 8 && /\p{L}/u.test(value) && /\d/.test(value);
 
 const getVaiTroLabel = (id) =>
   id === 1 ? "Chủ sân" : id === 0 ? "Người chơi" : "Admin";
+
+const formatDateTime = (value) =>
+  value ? new Date(value).toLocaleString("vi-VN") : "Chưa có";
 
 export default function ManageUsers() {
   const [users, setUsers] = useState([]);
@@ -21,10 +26,14 @@ export default function ManageUsers() {
   const [searchInput, setSearchInput] = useState("");
   const [tuKhoa, setTuKhoa] = useState("");
   const [vaiTro, setVaiTro] = useState("all");
+  const [trangThai, setTrangThai] = useState("all");
   const [trang, setTrang] = useState(1);
   const [tongSo, setTongSo] = useState(0);
   const [tongSoTrang, setTongSoTrang] = useState(1);
   const [lockingIds, setLockingIds] = useState(new Set());
+  const [confirmUser, setConfirmUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [detailLoadingId, setDetailLoadingId] = useState(null);
   const [isCreateOwnerOpen, setIsCreateOwnerOpen] = useState(false);
   const [creatingOwner, setCreatingOwner] = useState(false);
   const [ownerForm, setOwnerForm] = useState({
@@ -61,10 +70,16 @@ export default function ManageUsers() {
         tu_khoa: tuKhoa,
         trang,
         gioi_han: GIOI_HAN,
-      }).toString();
+      });
+
+      if (trangThai !== "all") {
+        params.set("trang_thai", trangThai);
+      }
+
+      const queryString = params.toString();
 
       if (vaiTro === "all") {
-        const res = await fetch(`${API_BASE}/admin/tai-khoan?${params}`, {
+        const res = await fetch(`${API_BASE}/admin/tai-khoan?${queryString}`, {
           headers,
         });
         const data = await res.json();
@@ -80,7 +95,7 @@ export default function ManageUsers() {
             ? `${API_BASE}/admin/tai-khoan/chu-san`
             : `${API_BASE}/admin/tai-khoan/nguoi-choi`;
 
-        const res = await fetch(`${endpoint}?${params}`, { headers });
+        const res = await fetch(`${endpoint}?${queryString}`, { headers });
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.message ?? "Lỗi tải dữ liệu");
@@ -94,13 +109,37 @@ export default function ManageUsers() {
     } finally {
       setLoading(false);
     }
-  }, [tuKhoa, vaiTro, trang]);
+  }, [tuKhoa, vaiTro, trangThai, trang]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
   // ── Khóa / Mở khóa ──────────────────────────────────────────
+  const handleViewDetail = async (user) => {
+    setDetailLoadingId(user.id);
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/tai-khoan/${user.id}`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message ?? "Không thể tải chi tiết người dùng");
+      }
+
+      setSelectedUser(data);
+    } catch (err) {
+      showToast(err.message, "error");
+    } finally {
+      setDetailLoadingId(null);
+    }
+  };
+
   const handleToggleLock = async (user) => {
     const isActive = user.trang_thai === 1;
     const endpoint = isActive
@@ -126,6 +165,7 @@ export default function ManageUsers() {
           u.id === user.id ? { ...u, trang_thai: isActive ? 0 : 1 } : u,
         ),
       );
+      setConfirmUser(null);
     } catch (err) {
       showToast(err.message, "error");
     } finally {
@@ -140,6 +180,11 @@ export default function ManageUsers() {
   // ── Handlers ────────────────────────────────────────────────
   const handleVaiTroChange = (e) => {
     setVaiTro(e.target.value);
+    setTrang(1);
+  };
+
+  const handleTrangThaiChange = (e) => {
+    setTrangThai(e.target.value);
     setTrang(1);
   };
 
@@ -236,9 +281,21 @@ export default function ManageUsers() {
             <option value="owner">Chủ sân</option>
           </select>
 
+          <select
+            value={trangThai}
+            onChange={handleTrangThaiChange}
+            className="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF] transition-all bg-white"
+          >
+            <option value="all">Tất cả trạng thái</option>
+            <option value="1">Hoạt động</option>
+            <option value="0">Đã khóa</option>
+          </select>
+
           {/* Tìm kiếm */}
           <div className="relative">
-            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <i className="fa-solid fa-magnifying-glass text-sm leading-none" />
+            </span>
             <input
               type="text"
               placeholder="Tìm email, tên..."
@@ -373,23 +430,33 @@ export default function ManageUsers() {
 
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => handleToggleLock(user)}
+                          onClick={() => handleViewDetail(user)}
+                          disabled={detailLoadingId === user.id}
+                          className="mr-1 w-8 h-8 rounded-lg transition-colors border border-transparent text-gray-500 hover:bg-gray-100 hover:border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Xem chi tiết"
+                        >
+                          {detailLoadingId === user.id ? (
+                            <i className="fa-solid fa-spinner fa-spin text-xs" />
+                          ) : (
+                            <i className="fa-solid fa-eye text-xs" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setConfirmUser(user)}
                           disabled={isLocking}
-                          className={`px-3 py-1.5 rounded-lg transition-colors border border-transparent text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                          title={isActive ? "Khóa" : "Mở khóa"}
+                          className={`w-8 h-8 rounded-lg transition-colors border border-transparent disabled:opacity-50 disabled:cursor-not-allowed ${
                             isActive
-                              ? "text-red-500 hover:bg-red-50 hover:border-red-200"
-                              : "text-green-600 hover:bg-green-50 hover:border-green-200"
+                              ? "text-orange-600 hover:bg-orange-50 hover:border-orange-200"
+                              : "text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200"
                           }`}
                         >
                           {isLocking ? (
-                            <span className="flex items-center gap-1">
-                              <i className="fa-solid fa-spinner fa-spin text-xs" />
-                              {isActive ? "Đang khóa..." : "Đang mở..."}
-                            </span>
+                            <i className="fa-solid fa-spinner fa-spin text-xs" />
                           ) : isActive ? (
-                            "Khóa"
+                            <i className="fa-solid fa-lock text-xs"></i>
                           ) : (
-                            "Mở khóa"
+                            <i className="fa-solid fa-lock-open text-xs"></i>
                           )}
                         </button>
                       </td>
@@ -553,6 +620,146 @@ export default function ManageUsers() {
           </div>
         </div>
       )}
+
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[calc(100vh-32px)] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f8fafc]">
+              <div>
+                <h3 className="text-lg font-bold text-[#0a192f]">
+                  Chi tiết người dùng
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  #{selectedUser.id} - {selectedUser.ho_ten}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="text-gray-400 hover:text-red-500 transition-colors"
+                title="Đóng"
+              >
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-[96px_1fr] gap-5">
+                <div className="w-24 h-24 rounded-2xl bg-[#eef3ff] flex items-center justify-center overflow-hidden text-3xl font-bold text-[#349DFF]">
+                  {selectedUser.avatar ? (
+                    <img
+                      src={getAssetUrl(selectedUser.avatar)}
+                      alt={selectedUser.ho_ten}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    selectedUser.ho_ten?.charAt(0)?.toUpperCase() || "U"
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <InfoLine label="Họ tên" value={selectedUser.ho_ten} />
+                  <InfoLine label="Vai trò" value={getVaiTroLabel(selectedUser.vai_tro_id)} />
+                  <InfoLine label="Email" value={selectedUser.email} />
+                  <InfoLine label="Số điện thoại" value={selectedUser.so_dien_thoai} />
+                  <InfoLine
+                    label="Trạng thái"
+                    value={Number(selectedUser.trang_thai) === 1 ? "Hoạt động" : "Bị khóa"}
+                  />
+                  <InfoLine label="Ngày tạo" value={formatDateTime(selectedUser.ngay_tao)} />
+                </div>
+              </div>
+
+              {Number(selectedUser.vai_tro_id) === 1 && (
+                <div className="border-t border-gray-100 pt-5">
+                  <h4 className="text-sm font-bold text-[#0a192f] mb-3">
+                    Cơ sở của chủ sân
+                  </h4>
+                  {selectedUser.co_so?.length ? (
+                    <div className="overflow-x-auto rounded-xl border border-gray-200">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-[#f8fafc] text-gray-600">
+                          <tr>
+                            <th className="px-4 py-3 whitespace-nowrap">Cơ sở</th>
+                            <th className="px-4 py-3 whitespace-nowrap">Địa chỉ</th>
+                            <th className="px-4 py-3 whitespace-nowrap">Sân</th>
+                            <th className="px-4 py-3 whitespace-nowrap">Trạng thái</th>
+                            <th className="px-4 py-3 whitespace-nowrap">Duyệt</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {selectedUser.co_so.map((facility) => (
+                            <tr key={facility.id}>
+                              <td className="px-4 py-3 font-semibold text-[#0a192f]">
+                                {facility.ten}
+                              </td>
+                              <td className="px-4 py-3 text-gray-600">
+                                {[facility.dia_chi, facility.phuong_xa, facility.tinh_thanh]
+                                  .filter(Boolean)
+                                  .join(", ") || "Chưa cập nhật"}
+                              </td>
+                              <td className="px-4 py-3 text-gray-700">
+                                {facility.so_san ?? 0}
+                              </td>
+                              <td className="px-4 py-3">
+                                {Number(facility.trang_thai) === 1
+                                  ? "Hoạt động"
+                                  : Number(facility.trang_thai) === 2
+                                    ? "Đã khóa"
+                                    : "Đã xóa"}
+                              </td>
+                              <td className="px-4 py-3">
+                                {Number(facility.trang_thai_duyet) === 1
+                                  ? "Đã duyệt"
+                                  : Number(facility.trang_thai_duyet) === 2
+                                    ? "Từ chối"
+                                    : "Chờ duyệt"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
+                      Chủ sân này chưa có cơ sở nào
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={Boolean(confirmUser)}
+        title={
+          confirmUser?.trang_thai === 1
+            ? "Xác nhận khóa tài khoản"
+            : "Xác nhận mở khóa tài khoản"
+        }
+        message={
+          confirmUser?.trang_thai === 1
+            ? `Bạn chắc chắn muốn khóa tài khoản "${confirmUser?.ho_ten}"? Người dùng này sẽ không thể đăng nhập.`
+            : `Bạn chắc chắn muốn mở khóa tài khoản "${confirmUser?.ho_ten}"?`
+        }
+        confirmText={confirmUser?.trang_thai === 1 ? "Khóa" : "Mở khóa"}
+        danger={confirmUser?.trang_thai === 1}
+        loading={confirmUser ? lockingIds.has(confirmUser.id) : false}
+        onCancel={() => setConfirmUser(null)}
+        onConfirm={() => handleToggleLock(confirmUser)}
+      />
+    </div>
+  );
+}
+
+function InfoLine({ label, value }) {
+  return (
+    <div>
+      <div className="text-gray-500">{label}</div>
+      <div className="font-semibold text-[#0a192f] mt-1">
+        {value || "Chưa có"}
+      </div>
     </div>
   );
 }

@@ -5,569 +5,403 @@ import { showToast } from "../../components/common/ToastMessage";
 
 const LIMIT = 10;
 
-const getApprovalBadge = (status) => {
-  switch (Number(status)) {
-    case 1:
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg bg-green-50 text-green-700 border border-green-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
-          Đã duyệt
-        </span>
-      );
-    default:
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 mr-1.5"></span>
-          Chờ duyệt
-        </span>
-      );
-  }
+const TXT = {
+  title: "Quản lý cơ sở",
+  search: "Tìm tên, địa chỉ, chủ sân",
+  pending: "Chờ duyệt",
+  approved: "Đã duyệt",
+  locked: "Đã khóa",
+  deleted: "Đã xóa",
+  facility: "Cơ sở",
+  image: "Ảnh",
+  owner: "Chủ sân",
+  address: "Địa chỉ",
+  courts: "Sân",
+  status: "Trạng thái",
+  approval: "Duyệt",
+  action: "Thao tác",
+  active: "Đang hoạt động",
+  noData: "Không có cơ sở trong nhóm này",
+  loading: "Đang tải dữ liệu...",
+  approve: "Duyệt",
+  reject: "Từ chối",
+  lock: "Khóa",
+  unlock: "Mở khóa",
+  view: "Xem chi tiết",
+  approveTitle: "Duyệt cơ sở",
+  rejectTitle: "Từ chối cơ sở",
+  lockTitle: "Khóa cơ sở",
+  unlockTitle: "Mở khóa cơ sở",
+  success: "Thao tác thành công",
+  prev: "Trước",
+  next: "Tiếp",
+  facilityCount: "cơ sở",
 };
 
-const getActiveBadge = (status) => {
-  switch (Number(status)) {
-    case 1:
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
-          Hoạt động
-        </span>
-      );
-    case 2:
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg bg-orange-50 text-orange-700 border border-orange-200">
-          Đã khóa
-        </span>
-      );
-    default:
-      return (
-        <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 border border-gray-200">
-          Đã xóa
-        </span>
-      );
+const TABS = [
+  {
+    key: "pending",
+    icon: "fa-solid fa-hourglass-half",
+    label: TXT.pending,
+    params: { trang_thai_duyet: "0" },
+  },
+  {
+    key: "approved",
+    icon: "fa-solid fa-circle-check",
+    label: TXT.approved,
+    params: { trang_thai: "1", trang_thai_duyet: "1" },
+  },
+  {
+    key: "locked",
+    icon: "fa-solid fa-lock",
+    label: TXT.locked,
+    params: { trang_thai: "2" },
+  },
+];
+
+const getError = (error, fallback) => error.response?.data?.message || fallback;
+
+const facilityAddress = (facility) =>
+  [facility?.dia_chi, facility?.phuong_xa, facility?.tinh_thanh]
+    .filter(Boolean)
+    .join(", ");
+
+const activeText = (status) => {
+  if (Number(status) === 0) return TXT.deleted;
+  if (Number(status) === 2) return TXT.locked;
+  return TXT.active;
+};
+
+const activeClass = (status) => {
+  if (Number(status) === 0) return "bg-rose-50 text-rose-700 border-rose-200";
+  if (Number(status) === 2) return "bg-gray-100 text-gray-700 border-gray-200";
+  return "bg-emerald-50 text-emerald-700 border-emerald-200";
+};
+
+const approvalText = (status) => (Number(status) === 1 ? TXT.approved : TXT.pending);
+const approvalClass = (status) =>
+  Number(status) === 1
+    ? "bg-blue-50 text-blue-700 border-blue-200"
+    : "bg-amber-50 text-amber-700 border-amber-200";
+
+const tabStatus = (facility, activeTab) => {
+  if (activeTab === "pending") {
+    return {
+      text: approvalText(facility.trang_thai_duyet),
+      className: approvalClass(facility.trang_thai_duyet),
+    };
   }
+
+  return {
+    text: activeText(facility.trang_thai),
+    className: activeClass(facility.trang_thai),
+  };
 };
 
 export default function ManageAllFacilities() {
+  const [activeTab, setActiveTab] = useState(TABS[0].key);
   const [facilities, setFacilities] = useState([]);
   const [keyword, setKeyword] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [approvalFilter, setApprovalFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailLoadingId, setDetailLoadingId] = useState(null);
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [error, setError] = useState("");
   const [confirmState, setConfirmState] = useState({
     open: false,
     title: "",
     message: "",
-    confirmText: "Xác nhận",
+    confirmText: "",
     danger: false,
     action: null,
   });
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(total / LIMIT)),
-    [total],
-  );
+  const currentTab = TABS.find((tab) => tab.key === activeTab) || TABS[0];
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / LIMIT)), [total]);
 
   const fetchFacilities = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
-      const params = {
-        tu_khoa: keyword.trim(),
-        trang: page,
-        gioi_han: LIMIT,
-      };
-
-      if (statusFilter !== "all") params.trang_thai = statusFilter;
-      if (approvalFilter !== "all") params.trang_thai_duyet = approvalFilter;
-
-      const res = await api.get("/admin/co-so", { params });
+      const res = await api.get("/admin/co-so", {
+        params: {
+          ...currentTab.params,
+          tu_khoa: keyword.trim(),
+          trang: page,
+          gioi_han: LIMIT,
+        },
+      });
       setFacilities(res.data.danh_sach ?? []);
-      setTotal(res.data.tong ?? 0);
-    } catch (err) {
-      setError(err.response?.data?.message || "Không thể tải danh sách cơ sở");
+      setTotal(Number(res.data.tong ?? 0));
+    } catch (error) {
+      const message = getError(error, "Không thể tải danh sách cơ sở");
+      setError(message);
+      showToast(message, "error");
     } finally {
       setIsLoading(false);
     }
-  }, [approvalFilter, keyword, page, statusFilter]);
+  }, [currentTab, keyword, page]);
 
   useEffect(() => {
     fetchFacilities();
   }, [fetchFacilities]);
 
-  const openConfirm = ({
-    title,
-    message,
-    confirmText,
-    danger = false,
-    endpoint,
-    successMessage,
-  }) => {
-    setConfirmState({
-      open: true,
-      title,
-      message,
-      confirmText,
-      danger,
+  const switchTab = (key) => {
+    setActiveTab(key);
+    setPage(1);
+  };
+
+  const openConfirm = ({ title, message, confirmText, danger = false, action }) => {
+    setConfirmState({ open: true, title, message, confirmText, danger, action });
+  };
+
+  const runConfirm = async () => {
+    try {
+      setIsLoading(true);
+      await confirmState.action?.();
+      setConfirmState((prev) => ({ ...prev, open: false }));
+      fetchFacilities();
+    } catch (error) {
+      showToast(getError(error, "Thao tác thất bại"), "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const actionRequest = (facility, type) => {
+    const config = {
+      approve: {
+        title: TXT.approveTitle,
+        message: `Bạn chắc chắn muốn duyệt cơ sở "${facility.ten}"?`,
+        confirmText: TXT.approve,
+        endpoint: `/co-so/${facility.id}/duyet`,
+      },
+      reject: {
+        title: TXT.rejectTitle,
+        message: `Bạn chắc chắn muốn từ chối và xóa hẳn cơ sở chờ duyệt "${facility.ten}"?`,
+        confirmText: TXT.reject,
+        endpoint: `/co-so/${facility.id}/tu-choi`,
+        danger: true,
+      },
+      lock: {
+        title: TXT.lockTitle,
+        message: `Cơ sở "${facility.ten}" sẽ bị ẩn khỏi người dùng và không thể đặt sân.`,
+        confirmText: TXT.lock,
+        endpoint: `/admin/co-so/${facility.id}/khoa`,
+        danger: true,
+      },
+      unlock: {
+        title: TXT.unlockTitle,
+        message: `Khôi phục trạng thái hoạt động cho cơ sở "${facility.ten}"?`,
+        confirmText: TXT.unlock,
+        endpoint: `/admin/co-so/${facility.id}/mo-khoa`,
+      },
+    }[type];
+
+    openConfirm({
+      ...config,
       action: async () => {
-        setIsLoading(true);
-        try {
-          const res = await api.patch(endpoint);
-          showToast(res.data.message || successMessage, "success");
-          setConfirmState((prev) => ({ ...prev, open: false }));
-          fetchFacilities();
-        } catch (err) {
-          showToast(err.response?.data?.message || "Thao tác thất bại", "error");
-        } finally {
-          setIsLoading(false);
-        }
+        const res = await api.patch(config.endpoint);
+        showToast(res.data.message || TXT.success, "success");
       },
     });
   };
 
-  const handleApprove = (facility) => {
-    openConfirm({
-      facility,
-      title: "Duyệt cơ sở",
-      message: `Bạn chắc chắn muốn duyệt cơ sở "${facility.ten}"?`,
-      confirmText: "Duyệt",
-      endpoint: `/co-so/${facility.id}/duyet`,
-      successMessage: "Duyệt cơ sở thành công",
-    });
-  };
-
-  const handleReject = (facility) => {
-    openConfirm({
-      facility,
-      title: "Từ chối cơ sở",
-      message: `Bạn chắc chắn muốn từ chối và xóa hẳn cơ sở chờ duyệt "${facility.ten}"?`,
-      confirmText: "Từ chối",
-      danger: true,
-      endpoint: `/co-so/${facility.id}/tu-choi`,
-      successMessage: "Từ chối cơ sở thành công",
-    });
-  };
-
-  const handleLock = (facility) => {
-    openConfirm({
-      facility,
-      title: "Khóa cơ sở",
-      message: `Cơ sở "${facility.ten}" sẽ bị ẩn khỏi người dùng và không thể đặt sân.`,
-      confirmText: "Khóa",
-      danger: true,
-      endpoint: `/admin/co-so/${facility.id}/khoa`,
-      successMessage: "Khóa cơ sở thành công",
-    });
-  };
-
-  const handleUnlock = (facility) => {
-    openConfirm({
-      facility,
-      title: "Mở khóa cơ sở",
-      message: `Khôi phục trạng thái hoạt động cho cơ sở "${facility.ten}"?`,
-      confirmText: "Mở khóa",
-      endpoint: `/admin/co-so/${facility.id}/mo-khoa`,
-      successMessage: "Mở khóa cơ sở thành công",
-    });
-  };
-
   const handleViewDetail = async (facility) => {
-    setDetailLoading(true);
+    setDetailLoadingId(facility.id);
     try {
       const res = await api.get(`/admin/co-so/${facility.id}`);
       setSelectedFacility(res.data);
-    } catch (err) {
-      showToast(
-        err.response?.data?.message || "Không thể tải chi tiết cơ sở",
-        "error",
-      );
+    } catch (error) {
+      showToast(getError(error, "Không thể tải chi tiết cơ sở"), "error");
     } finally {
-      setDetailLoading(false);
+      setDetailLoadingId(null);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-[1280px] mx-auto">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-[#0a192f]">Quản lý cơ sở</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Quản lý tất cả cơ sở của chủ sân, duyệt, khóa, xóa mềm và khôi phục.
-          </p>
-        </div>
+    <div className="mx-auto max-w-[1280px] space-y-5">
+      <div>
+        <h2 className="text-2xl font-bold text-[#0a192f]">{TXT.title}</h2>
+      </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-          <input
-            value={keyword}
-            onChange={(e) => {
-              setKeyword(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Tìm theo tên, địa chỉ, chủ sân"
-            className="w-full sm:w-72 px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF] transition-all bg-white"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            className="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF] transition-all bg-white"
+      <div className="grid gap-3 md:grid-cols-3">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => switchTab(tab.key)}
+            className={`rounded-2xl border p-4 text-left transition ${
+              activeTab === tab.key
+                ? "border-[#349DFF] bg-blue-50 shadow-sm"
+                : "border-gray-200 bg-white hover:border-blue-200"
+            }`}
           >
-            <option value="all">Tất cả hoạt động</option>
-            <option value="1">Đang hoạt động</option>
-            <option value="0">Đã xóa</option>
-          </select>
-          <select
-            value={approvalFilter}
-            onChange={(e) => {
-              setApprovalFilter(e.target.value);
-              setPage(1);
-            }}
-            className="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF] transition-all bg-white"
-          >
-            <option value="all">Tất cả duyệt</option>
-            <option value="0">Chờ duyệt</option>
-            <option value="1">Đã duyệt</option>
-          </select>
+            <div className="flex items-center gap-2 text-sm font-black text-[#0a192f]">
+              <i className={`${tab.icon} text-[#349DFF]`}></i>
+              {tab.label}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="text-lg font-black text-[#0a192f]">{currentTab.label}</h3>
+          </div>
+          <div className="relative w-full lg:w-80">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <i className="fa-solid fa-magnifying-glass text-sm leading-none"></i>
+            </span>
+            <input
+              value={keyword}
+              onChange={(event) => {
+                setKeyword(event.target.value);
+                setPage(1);
+              }}
+              placeholder={TXT.search}
+              className="w-full rounded-xl border border-gray-200 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-[#349DFF]"
+            />
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
           {error}
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-[#f8fafc] text-gray-600 font-medium border-b border-gray-200">
+          <table className="w-full min-w-[1080px] text-left text-sm">
+            <thead className="border-b border-gray-200 bg-[#f8fafc] font-bold text-gray-600">
               <tr>
-                                <th className="px-5 py-4 whitespace-nowrap">STT</th>
-                <th className="px-5 py-4 whitespace-nowrap">Ảnh</th>
-                <th className="px-5 py-4 whitespace-nowrap">Cơ sở</th>
-                <th className="px-5 py-4 whitespace-nowrap">Chủ sân</th>
-                <th className="px-5 py-4 whitespace-nowrap">Địa chỉ</th>
-                <th className="px-5 py-4 whitespace-nowrap">Sân</th>
-                <th className="px-5 py-4 whitespace-nowrap">Hoạt động</th>
-                <th className="px-5 py-4 whitespace-nowrap">Duyệt</th>
-                <th className="px-5 py-4 whitespace-nowrap text-right">
-                  Thao tác
-                </th>
+                <Th>STT</Th>
+                <Th>{TXT.image}</Th>
+                <Th>{TXT.facility}</Th>
+                <Th>{TXT.owner}</Th>
+                <Th>{TXT.address}</Th>
+                <Th>{TXT.courts}</Th>
+                <Th>{TXT.status}</Th>
+                <Th>{TXT.approval}</Th>
+                <Th align="right">{TXT.action}</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading && facilities.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
-                    Đang tải dữ liệu...
+                    {TXT.loading}
                   </td>
                 </tr>
               ) : facilities.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
-                    Không có cơ sở phù hợp
+                    {TXT.noData}
                   </td>
                 </tr>
               ) : (
                 facilities.map((facility, index) => (
-                  <tr key={facility.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-5 py-4 font-medium text-gray-500">
-                      {(page - 1) * LIMIT + index + 1}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="w-16 h-12 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
+                  <tr key={facility.id} className="hover:bg-gray-50">
+                    <Td strong>{(page - 1) * LIMIT + index + 1}</Td>
+                    <Td>
+                      <div className="h-12 w-16 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
                         {facility.anh_chinh ? (
                           <img
                             src={getAssetUrl(facility.anh_chinh)}
                             alt={facility.ten}
-                            className="w-full h-full object-cover"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-gray-400">
+                            <i className="fa-regular fa-image"></i>
+                          </div>
+                        )}
+                      </div>
+                    </Td>
+                    <Td>
+                      <div className="font-bold text-[#0a192f]">{facility.ten}</div>
+                      <div className="text-xs text-gray-400">#{facility.id}</div>
+                    </Td>
+                    <Td>
+                      <div className="font-medium text-gray-700">{facility.ten_chu_so}</div>
+                      <div className="text-xs text-gray-400">{facility.email_chu_so}</div>
+                    </Td>
+                    <Td className="min-w-64">{facilityAddress(facility) || "-"}</Td>
+                    <Td>{facility.so_san ?? 0}</Td>
+                    <Td>
+                      <Badge className={tabStatus(facility, activeTab).className}>
+                        {tabStatus(facility, activeTab).text}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Badge className={approvalClass(facility.trang_thai_duyet)}>
+                        {approvalText(facility.trang_thai_duyet)}
+                      </Badge>
+                    </Td>
+                    <Td align="right">
+                      <div className="inline-flex gap-1">
+                        <IconButton
+                          title={TXT.view}
+                          icon={
+                            detailLoadingId === facility.id
+                              ? "fa-solid fa-spinner fa-spin"
+                              : "fa-solid fa-eye"
+                          }
+                          onClick={() => handleViewDetail(facility)}
+                          disabled={detailLoadingId === facility.id}
+                        />
+                        {Number(facility.trang_thai_duyet) === 0 &&
+                          Number(facility.trang_thai) !== 0 && (
+                            <>
+                              <IconButton
+                                title={TXT.approve}
+                                icon="fa-solid fa-check"
+                                success
+                                onClick={() => actionRequest(facility, "approve")}
+                              />
+                              <IconButton
+                                title={TXT.reject}
+                                icon="fa-solid fa-xmark"
+                                danger
+                                onClick={() => actionRequest(facility, "reject")}
+                              />
+                            </>
+                          )}
+                        {Number(facility.trang_thai) === 2 ? (
+                          <IconButton
+                            title={TXT.unlock}
+                            icon="fa-solid fa-lock-open"
+                            onClick={() => actionRequest(facility, "unlock")}
+                          />
+                        ) : Number(facility.trang_thai) === 1 ? (
+                          <IconButton
+                            title={TXT.lock}
+                            icon="fa-solid fa-lock"
+                            danger
+                            onClick={() => actionRequest(facility, "lock")}
                           />
                         ) : null}
                       </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="font-bold text-[#0a192f]">{facility.ten}</div>
-                    </td>
-                    <td className="px-5 py-4 text-gray-800 font-medium">
-                      <div>{facility.ten_chu_so}</div>
-                      <div className="text-xs text-gray-500">
-                        {facility.email_chu_so}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-gray-600 min-w-56">
-                      {[facility.dia_chi, facility.phuong_xa, facility.tinh_thanh]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </td>
-                    <td className="px-5 py-4 text-gray-700 font-semibold">
-                      {facility.so_san ?? 0}
-                    </td>
-                    <td className="px-5 py-4">
-                      {getActiveBadge(facility.trang_thai)}
-                    </td>
-                    <td className="px-5 py-4">
-                      {getApprovalBadge(facility.trang_thai_duyet)}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <div className="inline-flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleViewDetail(facility)}
-                          disabled={detailLoading}
-                          className="text-gray-500 hover:bg-gray-100 w-8 h-8 rounded-lg transition-colors border border-transparent hover:border-gray-200"
-                          title="Xem chi tiết"
-                        >
-                          <i className="fa-solid fa-eye text-xs"></i>
-                        </button>
-
-                        {Number(facility.trang_thai_duyet) === 0 &&
-                        Number(facility.trang_thai) !== 0 ? (
-                          <>
-                            <button
-                              onClick={() => handleApprove(facility)}
-                              className="text-green-600 hover:bg-green-50 w-8 h-8 rounded-lg transition-colors border border-transparent hover:border-green-200"
-                              title="Duyệt"
-                            >
-                              <i className="fa-solid fa-check text-xs"></i>
-                            </button>
-                            <button
-                              onClick={() => handleReject(facility)}
-                              className="text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg transition-colors border border-transparent hover:border-red-200"
-                              title="Từ chối"
-                            >
-                              <i className="fa-solid fa-xmark text-xs"></i>
-                            </button>
-                          </>
-                        ) : Number(facility.trang_thai) === 0 ? (
-                          <span className="px-2 text-xs text-gray-400">
-                            Đã xóa
-                          </span>
-                        ) : (
-                          <>
-                            {Number(facility.trang_thai) === 2 ? (
-                              <button
-                                onClick={() => handleUnlock(facility)}
-                                className="text-emerald-600 hover:bg-emerald-50 w-8 h-8 rounded-lg transition-colors border border-transparent hover:border-emerald-200"
-                                title="Mở khóa"
-                              >
-                                <i className="fa-solid fa-lock-open text-xs"></i>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleLock(facility)}
-                                className="text-orange-600 hover:bg-orange-50 w-8 h-8 rounded-lg transition-colors border border-transparent hover:border-orange-200"
-                                title="Khóa"
-                              >
-                                <i className="fa-solid fa-lock text-xs"></i>
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </td>
+                    </Td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
-        {!isLoading && totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
-            <span>
-              Trang {page}/{totalPages} · {total} cơ sở
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                disabled={page === 1}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 hover:border-[#349DFF] hover:text-[#349DFF] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              >
-                ← Trước
-              </button>
+      </div>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                .filter(
-                  (p) =>
-                    p === 1 || p === totalPages || Math.abs(p - page) <= 1,
-                )
-                .reduce((acc, p, idx, arr) => {
-                  if (idx > 0 && p - arr[idx - 1] > 1) {
-                    acc.push("...");
-                  }
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((item, idx) =>
-                  item === "..." ? (
-                    <span
-                      key={`ellipsis-${idx}`}
-                      className="px-1 text-gray-400"
-                    >
-                      ...
-                    </span>
-                  ) : (
-                    <button
-                      key={item}
-                      onClick={() => setPage(item)}
-                      className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
-                        page === item
-                          ? "bg-[#349DFF] text-white"
-                          : "border border-gray-200 hover:border-[#349DFF] hover:text-[#349DFF]"
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  ),
-                )}
-
-              <button
-                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={page === totalPages}
-                className="px-3 py-1.5 rounded-lg border border-gray-200 hover:border-[#349DFF] hover:text-[#349DFF] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              >
-                Tiếp →
-              </button>
-            </div>
-          </div>
-        )}
-        </div>
+      <Pagination page={page} totalPages={totalPages} total={total} setPage={setPage} />
 
       {selectedFacility && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[calc(100vh-32px)] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f8fafc]">
-              <div>
-                <h3 className="text-lg font-bold text-[#0a192f]">
-                  Chi tiết cơ sở
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  #{selectedFacility.id} - {selectedFacility.ten}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedFacility(null)}
-                className="text-gray-400 hover:text-red-500 transition-colors"
-                title="Đóng"
-              >
-                <i className="fa-solid fa-xmark text-lg"></i>
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
-                <div className="space-y-3">
-                  <div className="w-full aspect-[4/3] rounded-xl bg-gray-100 overflow-hidden border border-gray-200">
-                    {selectedFacility.hinh_anh?.[0]?.url ? (
-                      <img
-                        src={getAssetUrl(selectedFacility.hinh_anh[0].url)}
-                        alt={selectedFacility.ten}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                        Chưa có ảnh
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {getActiveBadge(selectedFacility.trang_thai)}
-                    {getApprovalBadge(selectedFacility.trang_thai_duyet)}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <div className="text-gray-500">Tên cơ sở</div>
-                    <div className="font-semibold text-[#0a192f] mt-1">
-                      {selectedFacility.ten}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-gray-500">Tỷ lệ cọc</div>
-                    <div className="font-semibold text-[#0a192f] mt-1">
-                      {selectedFacility.phan_tram_coc !== null &&
-                      selectedFacility.phan_tram_coc !== undefined &&
-                      selectedFacility.phan_tram_coc !== ""
-                        ? `${selectedFacility.phan_tram_coc}%`
-                        : "Chưa cấu hình"}
-                    </div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <div className="text-gray-500">Địa chỉ</div>
-                    <div className="font-semibold text-[#0a192f] mt-1">
-                      {[
-                        selectedFacility.dia_chi,
-                        selectedFacility.phuong_xa,
-                        selectedFacility.tinh_thanh,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <div className="text-gray-500">Mô tả</div>
-                    <div className="text-[#0a192f] mt-1 whitespace-pre-line">
-                      {selectedFacility.mo_ta || "Chưa có mô tả"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-100 pt-5">
-                <h4 className="text-sm font-bold text-[#0a192f] mb-3">
-                  Chủ sân
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <div className="text-gray-500">Họ tên</div>
-                    <div className="font-semibold text-[#0a192f] mt-1">
-                      {selectedFacility.ten_chu_so}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-gray-500">Email</div>
-                    <div className="font-semibold text-[#0a192f] mt-1">
-                      {selectedFacility.email_chu_so}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-gray-500">Số điện thoại</div>
-                    <div className="font-semibold text-[#0a192f] mt-1">
-                      {selectedFacility.sdt_chu_so || "Chưa cập nhật"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {selectedFacility.hinh_anh?.length > 1 && (
-                <div className="border-t border-gray-100 pt-5">
-                  <h4 className="text-sm font-bold text-[#0a192f] mb-3">
-                    Hình ảnh
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {selectedFacility.hinh_anh.map((image) => (
-                      <div
-                        key={image.id}
-                        className="aspect-[4/3] rounded-lg bg-gray-100 overflow-hidden border border-gray-200"
-                      >
-                        <img
-                          src={getAssetUrl(image.url)}
-                          alt={selectedFacility.ten}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <FacilityDetailModal
+          facility={selectedFacility}
+          onClose={() => setSelectedFacility(null)}
+        />
       )}
 
       <ConfirmDialog
@@ -577,14 +411,201 @@ export default function ManageAllFacilities() {
         confirmText={confirmState.confirmText}
         danger={confirmState.danger}
         loading={isLoading}
-        onCancel={() =>
-          setConfirmState((prev) => ({
-            ...prev,
-            open: false,
-          }))
-        }
-        onConfirm={() => confirmState.action?.()}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, open: false }))}
+        onConfirm={runConfirm}
       />
+    </div>
+  );
+}
+
+function FacilityDetailModal({ facility, onClose }) {
+  const images = facility.hinh_anh || [];
+  const cover = images[0]?.url || facility.anh_chinh;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-4">
+      <div className="max-h-[calc(100vh-32px)] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-100 bg-[#f8fafc] px-6 py-4">
+          <div>
+            <h3 className="text-lg font-bold text-[#0a192f]">Chi tiết cơ sở</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              #{facility.id} - {facility.ten}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-400 transition-colors hover:text-red-500"
+            title="Đóng"
+          >
+            <i className="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <div className="space-y-6 p-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr]">
+            <div className="space-y-3">
+              <div className="aspect-[4/3] w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100">
+                {cover ? (
+                  <img
+                    src={getAssetUrl(cover)}
+                    alt={facility.ten}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">
+                    Chưa có ảnh
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge className={activeClass(facility.trang_thai)}>
+                  {activeText(facility.trang_thai)}
+                </Badge>
+                <Badge className={approvalClass(facility.trang_thai_duyet)}>
+                  {approvalText(facility.trang_thai_duyet)}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+              <InfoLine label="Tên cơ sở" value={facility.ten} />
+              <InfoLine
+                label="Tỷ lệ cọc"
+                value={
+                  facility.phan_tram_coc !== null &&
+                  facility.phan_tram_coc !== undefined &&
+                  facility.phan_tram_coc !== ""
+                    ? `${facility.phan_tram_coc}%`
+                    : "Chưa cấu hình"
+                }
+              />
+              <InfoLine label="Địa chỉ" value={facilityAddress(facility)} wide />
+              <InfoLine label="Mô tả" value={facility.mo_ta || "Chưa có mô tả"} wide multiline />
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-5">
+            <h4 className="mb-3 text-sm font-bold text-[#0a192f]">Chủ sân</h4>
+            <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
+              <InfoLine label="Họ tên" value={facility.ten_chu_so} />
+              <InfoLine label="Email" value={facility.email_chu_so} />
+              <InfoLine label="Số điện thoại" value={facility.sdt_chu_so || "Chưa cập nhật"} />
+            </div>
+          </div>
+
+          {images.length > 1 && (
+            <div className="border-t border-gray-100 pt-5">
+              <h4 className="mb-3 text-sm font-bold text-[#0a192f]">Hình ảnh</h4>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {images.map((image) => (
+                  <div
+                    key={image.id || image.url}
+                    className="aspect-[4/3] overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+                  >
+                    <img
+                      src={getAssetUrl(image.url)}
+                      alt={facility.ten}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InfoLine({ label, value, wide = false, multiline = false }) {
+  return (
+    <div className={wide ? "sm:col-span-2" : ""}>
+      <div className="text-gray-500">{label}</div>
+      <div className={`mt-1 font-semibold text-[#0a192f] ${multiline ? "whitespace-pre-line font-normal" : ""}`}>
+        {value || "-"}
+      </div>
+    </div>
+  );
+}
+
+function Th({ children, align = "left" }) {
+  return (
+    <th className={`whitespace-nowrap px-5 py-4 ${align === "right" ? "text-right" : "text-left"}`}>
+      {children}
+    </th>
+  );
+}
+
+function Td({ children, strong = false, align = "left", className = "" }) {
+  return (
+    <td className={`px-5 py-4 align-top ${align === "right" ? "text-right" : "text-left"} ${strong ? "font-bold text-[#0a192f]" : "text-gray-600"} ${className}`}>
+      {children}
+    </td>
+  );
+}
+
+function Badge({ className, children }) {
+  return (
+    <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+function IconButton({
+  title,
+  icon,
+  onClick,
+  danger = false,
+  success = false,
+  disabled = false,
+}) {
+  const className = success
+    ? "border-emerald-100 text-emerald-600 hover:bg-emerald-50"
+    : danger
+      ? "border-rose-100 text-rose-500 hover:bg-rose-50"
+      : "border-gray-200 text-gray-500 hover:bg-gray-50";
+
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      className={`h-8 w-8 rounded-lg border text-xs transition disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+    >
+      <i className={icon}></i>
+    </button>
+  );
+}
+
+function Pagination({ page, totalPages, total, setPage }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-6 py-4 text-sm text-gray-500">
+      <span>
+        Trang {page}/{totalPages} - {total} {TXT.facilityCount}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          disabled={page === 1}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 disabled:opacity-40"
+        >
+          {TXT.prev}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          disabled={page === totalPages}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 disabled:opacity-40"
+        >
+          {TXT.next}
+        </button>
+      </div>
     </div>
   );
 }
