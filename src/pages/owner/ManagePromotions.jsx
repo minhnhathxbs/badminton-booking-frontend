@@ -8,58 +8,58 @@ const INPUT_CLASS =
   "w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-[#0a192f] outline-none transition focus:border-[#349DFF] focus:ring-1 focus:ring-[#349DFF]";
 
 const TXT = {
-  title: "Qu\u1ea3n l\u00fd khuy\u1ebfn m\u00e3i",
-  add: "T\u1ea1o khuy\u1ebfn m\u00e3i",
-  edit: "S\u1eeda khuy\u1ebfn m\u00e3i",
-  search: "T\u00ecm m\u00e3, t\u00ean, c\u01a1 s\u1edf",
-  tabUsable: "\u0110ang d\u00f9ng",
-  tabLocked: "\u0110\u00e3 kh\u00f3a",
-  tabApproval: "Tr\u1ea1ng th\u00e1i duy\u1ec7t",
-  tabDeleted: "\u0110\u00e3 x\u00f3a",
-  tabExpired: "H\u1ebft h\u1ea1n",
-  code: "M\u00e3",
-  name: "Ch\u01b0\u01a1ng tr\u00ecnh",
-  facility: "C\u01a1 s\u1edf",
-  discount: "M\u1ee9c gi\u1ea3m",
-  quantity: "L\u01b0\u1ee3t d\u00f9ng",
-  time: "Th\u1eddi h\u1ea1n",
-  status: "Tr\u1ea1ng th\u00e1i",
-  approval: "Duy\u1ec7t",
-  action: "Thao t\u00e1c",
-  active: "\u0110ang ho\u1ea1t \u0111\u1ed9ng",
-  locked: "\u0110\u00e3 kh\u00f3a",
-  deleted: "\u0110\u00e3 x\u00f3a",
-  waiting: "Ch\u1edd duy\u1ec7t",
-  approved: "\u0110\u00e3 duy\u1ec7t",
-  expired: "H\u1ebft h\u1ea1n",
-  noData: "Kh\u00f4ng c\u00f3 khuy\u1ebfn m\u00e3i trong nh\u00f3m n\u00e0y",
-  loading: "\u0110ang t\u1ea3i d\u1eef li\u1ec7u...",
-  save: "L\u01b0u",
-  saving: "\u0110ang l\u01b0u...",
-  close: "\u0110\u00f3ng",
-  deleteTitle: "X\u00f3a khuy\u1ebfn m\u00e3i",
-  deleteText: "M\u00e3 s\u1ebd \u0111\u01b0\u1ee3c x\u00f3a m\u1ec1m v\u00e0 kh\u00f4ng c\u00f2n \u00e1p d\u1ee5ng.",
-  restoreTitle: "Kh\u00f4i ph\u1ee5c khuy\u1ebfn m\u00e3i",
-  restoreText: "M\u00e3 s\u1ebd quay l\u1ea1i tr\u1ea1ng th\u00e1i ch\u1edd admin duy\u1ec7t.",
-  restore: "Kh\u00f4i ph\u1ee5c",
-  delete: "X\u00f3a",
-  editAction: "S\u1eeda",
-  percent: "Ph\u1ea7n tr\u0103m",
-  fixedMoney: "S\u1ed1 ti\u1ec1n c\u1ed1 \u0111\u1ecbnh",
-  chooseFacility: "Ch\u1ecdn c\u01a1 s\u1edf",
-  promotionCode: "M\u00e3 khuy\u1ebfn m\u00e3i",
-  promotionName: "T\u00ean ch\u01b0\u01a1ng tr\u00ecnh",
-  discountType: "Lo\u1ea1i gi\u1ea3m",
-  discountPercent: "Gi\u00e1 tr\u1ecb gi\u1ea3m (%)",
-  discountMoney: "S\u1ed1 ti\u1ec1n gi\u1ea3m (\u0111)",
-  maxDiscount: "Gi\u1ea3m t\u1ed1i \u0111a (\u0111)",
-  minOrder: "\u0110\u01a1n t\u1ed1i thi\u1ec3u (\u0111)",
-  amount: "S\u1ed1 l\u01b0\u1ee3ng",
-  startDate: "Ng\u00e0y b\u1eaft \u0111\u1ea7u",
-  endDate: "Ng\u00e0y k\u1ebft th\u00fac",
-  prev: "Tr\u01b0\u1edbc",
-  next: "Ti\u1ebfp",
-  promotionCount: "khuy\u1ebfn m\u00e3i",
+  title: "Quản lý khuyến mãi",
+  add: "Tạo khuyến mãi",
+  edit: "Sửa khuyến mãi",
+  search: "Tìm mã, tên, cơ sở",
+  tabUsable: "Đang dùng",
+  tabLocked: "Đã khóa",
+  tabApproval: "Trạng thái duyệt",
+  tabDeleted: "Đã xóa",
+  tabExpired: "Hết hạn",
+  code: "Mã",
+  name: "Chương trình",
+  facility: "Cơ sở",
+  discount: "Mức giảm",
+  quantity: "Lượt dùng",
+  time: "Thời hạn",
+  status: "Trạng thái",
+  approval: "Duyệt",
+  action: "Thao tác",
+  active: "Đang hoạt động",
+  locked: "Đã khóa",
+  deleted: "Đã xóa",
+  waiting: "Chờ duyệt",
+  approved: "Đã duyệt",
+  expired: "Hết hạn",
+  noData: "Không có khuyến mãi trong nhóm này",
+  loading: "Đang tải dữ liệu...",
+  save: "Lưu",
+  saving: "Đang lưu...",
+  close: "Đóng",
+  deleteTitle: "Xóa khuyến mãi",
+  deleteText: "Mã sẽ được xóa mềm và không còn áp dụng.",
+  restoreTitle: "Khôi phục khuyến mãi",
+  restoreText: "Mã sẽ quay lại trạng thái chờ admin duyệt.",
+  restore: "Khôi phục",
+  delete: "Xóa",
+  editAction: "Sửa",
+  percent: "Phần trăm",
+  fixedMoney: "Số tiền cố định",
+  chooseFacility: "Chọn cơ sở",
+  promotionCode: "Mã khuyến mãi",
+  promotionName: "Tên chương trình",
+  discountType: "Loại giảm",
+  discountPercent: "Giá trị giảm (%)",
+  discountMoney: "Số tiền giảm (đ)",
+  maxDiscount: "Giảm tối đa (đ)",
+  minOrder: "Đơn tối thiểu (đ)",
+  amount: "Số lượng",
+  startDate: "Ngày bắt đầu",
+  endDate: "Ngày kết thúc",
+  prev: "Trước",
+  next: "Tiếp",
+  promotionCount: "khuyến mãi",
 };
 
 const TABS = [
@@ -110,7 +110,7 @@ const emptyForm = {
 };
 
 const formatCurrency = (value) =>
-  `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
+  `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 
 const toInputDateTime = (value) => {
   if (!value) return "";
@@ -210,7 +210,7 @@ export default function ManagePromotions() {
       setPromotions(res.data.danh_sach || []);
       setTotal(Number(res.data.tong || 0));
     } catch (error) {
-      showToast(getError(error, "Kh\u00f4ng th\u1ec3 t\u1ea3i khuy\u1ebfn m\u00e3i"), "error");
+      showToast(getError(error, "Không thể tải khuyến mãi"), "error");
     } finally {
       setIsLoading(false);
     }
@@ -286,11 +286,11 @@ export default function ManagePromotions() {
         ? await api.put(`/khuyen-mai/${editing.id}`, payload)
         : await api.post("/khuyen-mai", payload);
 
-      showToast(res.data.message || "L\u01b0u khuy\u1ebfn m\u00e3i th\u00e0nh c\u00f4ng", "success");
+      showToast(res.data.message || "Lưu khuyến mãi thành công", "success");
       closeForm();
       fetchPromotions();
     } catch (error) {
-      showToast(getError(error, "Kh\u00f4ng th\u1ec3 l\u01b0u khuy\u1ebfn m\u00e3i"), "error");
+      showToast(getError(error, "Không thể lưu khuyến mãi"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -307,7 +307,7 @@ export default function ManagePromotions() {
       setConfirmState((prev) => ({ ...prev, open: false }));
       fetchPromotions();
     } catch (error) {
-      showToast(getError(error, "Thao t\u00e1c th\u1ea5t b\u1ea1i"), "error");
+      showToast(getError(error, "Thao tác thất bại"), "error");
     } finally {
       setIsLoading(false);
     }
@@ -321,7 +321,7 @@ export default function ManagePromotions() {
       danger: true,
       action: async () => {
         const res = await api.delete(`/khuyen-mai/${promo.id}`);
-        showToast(res.data.message || "X\u00f3a khuy\u1ebfn m\u00e3i th\u00e0nh c\u00f4ng");
+        showToast(res.data.message || "Xóa khuyến mãi thành công");
       },
     });
   };
@@ -334,7 +334,7 @@ export default function ManagePromotions() {
       danger: false,
       action: async () => {
         const res = await api.patch(`/khuyen-mai/${promo.id}/khoi-phuc`);
-        showToast(res.data.message || "Kh\u00f4i ph\u1ee5c khuy\u1ebfn m\u00e3i th\u00e0nh c\u00f4ng");
+        showToast(res.data.message || "Khôi phục khuyến mãi thành công");
       },
     });
   };
@@ -479,7 +479,7 @@ function PromotionTable({ promotions, page, isLoading, activeTab, onEdit, onDele
                         : formatCurrency(promo.gia_tri_giam)}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {promo.giam_toi_da ? `T\u1ed1i \u0111a ${formatCurrency(promo.giam_toi_da)}` : ""}
+                      {promo.giam_toi_da ? `Tối đa ${formatCurrency(promo.giam_toi_da)}` : ""}
                     </div>
                   </Td>
                   <Td>

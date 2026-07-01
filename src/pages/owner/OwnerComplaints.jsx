@@ -3,37 +3,37 @@ import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
 
 const TXT = {
-  title: "Danh s\u00e1ch khi\u1ebfu n\u1ea1i t\u1eeb kh\u00e1ch h\u00e0ng",
-  desc: "Theo d\u00f5i c\u00e1c khi\u1ebfu n\u1ea1i t\u1eeb kh\u00e1ch h\u00e0ng \u0111\u1ed1i v\u1edbi c\u01a1 s\u1edf c\u1ee7a b\u1ea1n.",
-  all: "T\u1ea5t c\u1ea3 tr\u1ea1ng th\u00e1i",
-  pending: "Ch\u1edd x\u1eed l\u00fd",
-  accepted: "\u0110\u00e3 ch\u1ea5p nh\u1eadn",
-  rejected: "\u0110\u00e3 t\u1eeb ch\u1ed1i",
-  search: "T\u00ecm theo kh\u00e1ch h\u00e0ng, S\u0110T, c\u01a1 s\u1edf ho\u1eb7c l\u00fd do",
-  loading: "\u0110ang t\u1ea3i khi\u1ebfu n\u1ea1i...",
-  empty: "Ch\u01b0a c\u00f3 khi\u1ebfu n\u1ea1i n\u00e0o",
-  customer: "Kh\u00e1ch h\u00e0ng",
-  facility: "C\u01a1 s\u1edf",
-  booking: "\u0110\u01a1n",
-  amount: "S\u1ed1 ti\u1ec1n",
-  reason: "L\u00fd do khi\u1ebfu n\u1ea1i",
-  evidence: "H\u00ecnh \u1ea3nh ch\u1ee9ng minh",
-  status: "Tr\u1ea1ng th\u00e1i",
-  createdAt: "Ng\u00e0y g\u1eedi",
-  action: "Thao t\u00e1c",
-  close: "\u0110\u00f3ng",
-  noData: "Ch\u01b0a c\u00f3",
-  viewDetail: "Xem chi ti\u1ebft",
-  detailTitle: "Chi ti\u1ebft khi\u1ebfu n\u1ea1i",
-  phone: "S\u0110T",
-  adminNote: "Ghi ch\u00fa Admin",
-  processedAt: "Ng\u00e0y x\u1eed l\u00fd",
-  totalComplaints: "T\u1ed5ng khi\u1ebfu n\u1ea1i",
-  pendingCount: "Ch\u1edd x\u1eed l\u00fd",
-  resolvedCount: "\u0110\u00e3 x\u1eed l\u00fd",
-  loadFail: "Kh\u00f4ng th\u1ec3 t\u1ea3i danh s\u00e1ch khi\u1ebfu n\u1ea1i",
-  contactAdmin: "Li\u00ean h\u1ec7 Admin",
-  contactHint: "N\u1ebfu khi\u1ebfu n\u1ea1i kh\u00f4ng h\u1ee3p l\u00fd, vui l\u00f2ng li\u00ean h\u1ec7 hotline Admin \u0111\u1ec3 gi\u1ea3i tr\u00ecnh v\u00e0 cung c\u1ea5p minh ch\u1ee9ng.",
+  title: "Danh sách khiếu nại từ khách hàng",
+  desc: "Theo dõi các khiếu nại từ khách hàng đối với cơ sở của bạn.",
+  all: "Tất cả trạng thái",
+  pending: "Chờ xử lý",
+  accepted: "Đã chấp nhận",
+  rejected: "Đã từ chối",
+  search: "Tìm theo khách hàng, SĐT, cơ sở hoặc lý do",
+  loading: "Đang tải khiếu nại...",
+  empty: "Chưa có khiếu nại nào",
+  customer: "Khách hàng",
+  facility: "Cơ sở",
+  booking: "Đơn",
+  amount: "Số tiền",
+  reason: "Lý do khiếu nại",
+  evidence: "Hình ảnh chứng minh",
+  status: "Trạng thái",
+  createdAt: "Ngày gửi",
+  action: "Thao tác",
+  close: "Đóng",
+  noData: "Chưa có",
+  viewDetail: "Xem chi tiết",
+  detailTitle: "Chi tiết khiếu nại",
+  phone: "SĐT",
+  adminNote: "Ghi chú Admin",
+  processedAt: "Ngày xử lý",
+  totalComplaints: "Tổng khiếu nại",
+  pendingCount: "Chờ xử lý",
+  resolvedCount: "Đã xử lý",
+  loadFail: "Không thể tải danh sách khiếu nại",
+  contactAdmin: "Liên hệ Admin",
+  contactHint: "Nếu khiếu nại không hợp lý, vui lòng liên hệ hotline Admin để giải trình và cung cấp minh chứng.",
 };
 
 const STATUS_OPTIONS = [
@@ -44,7 +44,7 @@ const STATUS_OPTIONS = [
 ];
 
 const formatCurrency = (value) =>
-  `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
+  `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 
 const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString("vi-VN") : TXT.noData;
@@ -373,7 +373,7 @@ function DetailModal({ complaint, onClose, imageList }) {
                   >
                     <img
                       src={getAssetUrl(url)}
-                      alt={`Minh ch\u1ee9ng ${index + 1}`}
+                      alt={`Minh chứng ${index + 1}`}
                       className="h-full w-full object-cover"
                     />
                   </a>
