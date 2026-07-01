@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { io } from "socket.io-client";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import api, { ASSET_BASE_URL } from "../api/axios";
+import api from "../api/axios";
+import { getSocket } from "../api/socket";
 import { NotificationContext } from "./notificationStore";
 
 const docUserHienTai = () => {
@@ -18,7 +18,6 @@ export function NotificationProvider({ children }) {
   const [soChuaDoc, setSoChuaDoc] = useState(0);
   const [dangTai, setDangTai] = useState(false);
   const [userId, setUserId] = useState(() => docUserHienTai()?.id ?? null);
-  const socketRef = useRef(null);
 
   // Theo dõi user đăng nhập / đăng xuất
   useEffect(() => {
@@ -57,36 +56,32 @@ export function NotificationProvider({ children }) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDanhSach([]);
       setSoChuaDoc(0);
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
       return;
     }
 
     taiThongBao();
 
-    const socket = io(ASSET_BASE_URL, {
-      transports: ["websocket", "polling"],
-    });
-    socketRef.current = socket;
+    const socket = getSocket();
+    if (!socket) return;
 
     const join = () => socket.emit("notification:join", { nguoi_dung_id: userId });
-    socket.on("connect", join);
-    join();
+    const onConnect = () => join();
+    socket.on("connect", onConnect);
+    if (socket.connected) join();
 
-    socket.on("notification:new", (tb) => {
+    const onNewNotification = (tb) => {
       setDanhSach((truoc) => [tb, ...truoc].slice(0, 50));
       setSoChuaDoc((truoc) =>
         typeof tb.so_chua_doc === "number" ? tb.so_chua_doc : truoc + 1,
       );
       toast(tb.tieu_de, { icon: "🔔" });
-    });
+    };
+    socket.on("notification:new", onNewNotification);
 
     return () => {
       socket.emit("notification:leave", { nguoi_dung_id: userId });
-      socket.disconnect();
-      socketRef.current = null;
+      socket.off("connect", onConnect);
+      socket.off("notification:new", onNewNotification);
     };
   }, [userId, taiThongBao]);
 

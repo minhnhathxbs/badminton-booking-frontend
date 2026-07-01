@@ -58,7 +58,7 @@ export default function SystemConfig() {
     const keyword = searchText.trim().toLowerCase();
     if (!keyword) return configs;
     return configs.filter((config) =>
-      [config.key_name, config.mo_ta]
+      [config.key_name, config.key_value, config.mo_ta]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -140,9 +140,17 @@ export default function SystemConfig() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    const keyName = newConfig.key_name.trim();
+    if (!/^[A-Z0-9_]+$/.test(keyName)) {
+      showToast(
+        "Tên khóa chỉ được chứa chữ in hoa, số và dấu gạch dưới (vd: THOI_GIAN_GIU_CHO_PHUT)",
+        "error",
+      );
+      return;
+    }
     setIsSaving(true);
     try {
-      await api.post("/cau-hinh", newConfig);
+      await api.post("/cau-hinh", { ...newConfig, key_name: keyName });
       showToast("Thêm cấu hình thành công", "success");
       closeCreateModal();
       fetchConfigs();
@@ -202,6 +210,27 @@ export default function SystemConfig() {
         >
           <i className="fa-solid fa-plus"></i> Thêm cấu hình
         </button>
+      </div>
+
+      <div className="bg-blue-50 rounded-2xl border border-blue-200 p-4 text-sm text-blue-900">
+        <div className="font-semibold mb-2 flex items-center gap-2">
+          <i className="fa-solid fa-circle-info"></i>
+          Các khóa cấu hình đang được hệ thống sử dụng
+        </div>
+        <ul className="list-disc list-inside space-y-1 text-blue-800">
+          <li>
+            <strong>THOI_GIAN_GIU_CHO_PHUT</strong> — Thời gian giữ chỗ tạm thời (phút)
+          </li>
+          <li>
+            <strong>SO_GIO_TOI_THIEU_TRUOC_KHI_HUY</strong> — Số giờ tối thiểu trước giờ chơi được phép hủy
+          </li>
+          <li>
+            <strong>PHAN_TRAM_HOAN_TIEN_MAC_DINH</strong> — Phần trăm hoàn tiền khi hủy đơn (0-100)
+          </li>
+          <li>
+            <strong>SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA</strong> — Số giờ sau khi kết thúc giờ chơi mới được đánh giá
+          </li>
+        </ul>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">

@@ -36,6 +36,7 @@ import SystemConfig from "../pages/admin/SystemConfig";
 import SystemLogs from "../pages/admin/SystemLogs";
 import ManageWithdrawRequests from "../pages/admin/ManageWithdrawRequests";
 import ManageComplaints from "../pages/admin/ManageComplaints";
+import ManageReportedReviews from "../pages/admin/ManageReportedReviews";
 
 function RedirectFacilityToBooking() {
   const { id } = useParams();
@@ -99,6 +100,7 @@ export default function AppRoutes() {
           <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
           <Route path="khieu-nai" element={<ManageComplaints />} />
+          <Route path="danh-gia-bao-cao" element={<ManageReportedReviews />} />
           <Route path="cau-hinh" element={<SystemConfig />} />
           <Route path="nhat-ky" element={<SystemLogs />} />
         </Route>

@@ -173,7 +173,10 @@ const isExpiredHoldCancel = (order) =>
 const isCancelledLike = (order) => Number(order.trang_thai) === 2;
 
 const canComplainOrder = (order) => {
-  return [1, 4].includes(Number(order.trang_thai)) && !order.khieu_nai;
+  if (![1, 4].includes(Number(order.trang_thai))) return false;
+  if (!order.khieu_nai) return true;
+  // Cho phép khiếu nại lại nếu khiếu nại trước đó đã bị từ chối
+  return Number(order.khieu_nai.trang_thai) === 2;
 };
 
 const getComplaintStatusInfo = (khieuNai) => {
@@ -425,6 +428,7 @@ export default function BookingHistoryPage() {
         khieu_nai: {
           id: res.data?.data?.id,
           trang_thai: 0,
+          ly_do: reason,
         },
       };
 
