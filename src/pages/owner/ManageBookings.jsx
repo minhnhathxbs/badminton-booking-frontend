@@ -36,14 +36,14 @@ const STATUS_OPTIONS = [
   { value: "6", label: "Đã hoàn tiền" },
 ];
 
-const START_HOUR = 5;
-const END_HOUR = 23;
-const TOTAL_HOURS = END_HOUR - START_HOUR;
-const CELL_WIDTH = 120;
-const COURT_COL_WIDTH = 120;
-const TIMELINE_WIDTH = TOTAL_HOURS * CELL_WIDTH;
+const formatInputDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
-const todayValue = () => new Date().toISOString().slice(0, 10);
+const todayValue = () => formatInputDate(new Date());
 
 const addDays = (dateValue, days) => {
   const date = new Date(`${dateValue}T00:00:00`);
@@ -59,6 +59,64 @@ const formatDate = (value) =>
 
 const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString("vi-VN") : TXT.noData;
+
+const getLocalDateKey = (value) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return formatInputDate(date);
+  }
+
+  return String(value).slice(0, 10);
+};
+
+const getSlotInfo = (status) => {
+  switch (status) {
+    case "trong":
+      return {
+        label: "Trống",
+        icon: "fa-circle-check",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+      };
+    case "giu_cho":
+      return {
+        label: "Giữ chỗ",
+        icon: "fa-clock",
+        className: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+      };
+    case "da_dat":
+      return {
+        label: "Đã đặt",
+        icon: "fa-calendar-check",
+        className: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100",
+      };
+    case "da_dat_qua_gio":
+      return {
+        label: "Đã đặt",
+        icon: "fa-calendar-check",
+        className: "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200",
+      };
+    case "qua_gio":
+      return {
+        label: "Qua giờ",
+        icon: "fa-circle-minus",
+        className: "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100",
+      };
+    case "khong_co_gia":
+      return {
+        label: "Chưa có giá",
+        icon: "fa-tag",
+        className: "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100",
+      };
+    default:
+      return {
+        label: TXT.noData,
+        icon: "fa-circle-question",
+        className: "border-gray-200 bg-white text-gray-500",
+      };
+  }
+};
 
 const getStatusInfo = (bookingOrStatus) => {
   const booking =
@@ -118,20 +176,6 @@ const getStatusInfo = (bookingOrStatus) => {
   }
 };
 
-const parseTime = (timeValue) => {
-  const [hour, minute] = String(timeValue || "00:00").split(":").map(Number);
-  return (Number(hour) || 0) + (Number(minute) || 0) / 60;
-};
-
-const getPositionAndWidth = (startTime, endTime) => {
-  const start = Math.max(parseTime(startTime), START_HOUR);
-  const end = Math.min(parseTime(endTime), END_HOUR);
-  const left = Math.max((start - START_HOUR) * CELL_WIDTH, 0);
-  const width = Math.max((end - start) * CELL_WIDTH, 72);
-
-  return { left: `${left}px`, width: `${width}px` };
-};
-
 export default function ManageBookings() {
   const [selectedDate, setSelectedDate] = useState(todayValue());
   const [status, setStatus] = useState("");
@@ -139,13 +183,16 @@ export default function ManageBookings() {
   const [keyword, setKeyword] = useState("");
   const [bookings, setBookings] = useState([]);
   const [facilities, setFacilities] = useState([]);
+  const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
 
   const fetchFacilities = useCallback(async () => {
     try {
       const res = await api.get("/co-so/cua-toi?trang_thai=1");
-      setFacilities(res.data?.data || []);
+      setFacilities(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       showToast(
         error.response?.data?.message || "Không thể tải danh sách cơ sở",
@@ -180,6 +227,36 @@ export default function ManageBookings() {
     }
   }, [facilityId, keyword, selectedDate, status]);
 
+  const fetchSchedule = useCallback(async () => {
+    if (!facilityId) {
+      setSchedule(null);
+      setScheduleError("");
+      return;
+    }
+
+    if (selectedDate < todayValue()) {
+      setSchedule(null);
+      setScheduleError("Tình trạng sân chỉ hỗ trợ từ hôm nay trở đi.");
+      return;
+    }
+
+    setScheduleLoading(true);
+    setScheduleError("");
+    try {
+      const res = await api.get("/dat-san/lich", {
+        params: { co_so_id: facilityId, ngay: selectedDate },
+      });
+      setSchedule(res.data || null);
+    } catch (error) {
+      setSchedule(null);
+      setScheduleError(
+        error.response?.data?.message || "Không thể tải tình trạng sân",
+      );
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [facilityId, selectedDate]);
+
   useEffect(() => {
     fetchFacilities();
   }, [fetchFacilities]);
@@ -188,34 +265,9 @@ export default function ManageBookings() {
     fetchBookings();
   }, [fetchBookings]);
 
-  const timelineItems = useMemo(() => {
-    return bookings.flatMap((booking) =>
-      (booking.chi_tiet || [])
-        .filter((item) => String(item.ngay || "").slice(0, 10) === selectedDate)
-        .map((item) => ({
-          ...item,
-          booking,
-          courtKey: `${item.san_id}-${item.ten_san}`,
-        })),
-    );
-  }, [bookings, selectedDate]);
-
-  const courts = useMemo(() => {
-    const courtMap = new Map();
-
-    timelineItems.forEach((item) => {
-      if (!courtMap.has(item.courtKey)) {
-        courtMap.set(item.courtKey, {
-          id: item.courtKey,
-          name: item.ten_san || `${TXT.court} ${item.san_id}`,
-        });
-      }
-    });
-
-    return Array.from(courtMap.values()).sort((a, b) =>
-      a.name.localeCompare(b.name, "vi"),
-    );
-  }, [timelineItems]);
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
 
   const stats = useMemo(() => {
     return bookings.reduce(
@@ -229,6 +281,11 @@ export default function ManageBookings() {
       { total: 0, active: 0, completed: 0, revenue: 0 },
     );
   }, [bookings]);
+
+  const selectedFacilityName = useMemo(() => {
+    return facilities.find((facility) => String(facility.id) === String(facilityId))
+      ?.ten;
+  }, [facilities, facilityId]);
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-5">
@@ -336,11 +393,14 @@ export default function ManageBookings() {
         </button>
       </div>
 
-      <Timeline
-        courts={courts}
-        items={timelineItems}
-        loading={loading}
-        onSelect={setSelectedBooking}
+      <ScheduleGrid
+        facilityId={facilityId}
+        facilityName={selectedFacilityName}
+        selectedDate={selectedDate}
+        schedule={schedule}
+        bookings={bookings}
+        loading={scheduleLoading}
+        error={scheduleError}
       />
 
       <BookingTable
@@ -359,98 +419,177 @@ export default function ManageBookings() {
   );
 }
 
-function Timeline({ courts, items, loading, onSelect }) {
+function ScheduleGrid({
+  facilityId,
+  facilityName,
+  selectedDate,
+  schedule,
+  bookings,
+  loading,
+  error,
+}) {
+  const timeSlots = schedule?.khung_gio || [];
+  const courts = schedule?.san || [];
+  const bookingSlotMap = useMemo(() => {
+    const map = new Map();
+
+    bookings.forEach((booking) => {
+      (booking.chi_tiet || []).forEach((detail) => {
+        const key = [
+          Number(detail.san_id),
+          Number(detail.khung_gio_mau_id),
+          getLocalDateKey(detail.ngay),
+        ].join("-");
+
+        if (!map.has(key)) {
+          map.set(key, booking);
+        }
+      });
+    });
+
+    return map;
+  }, [bookings]);
+
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      <div className="border-b border-gray-100 px-4 py-3">
-        <h3 className="text-sm font-extrabold uppercase text-gray-500">
-          Timeline theo sân
-        </h3>
+      <div className="flex flex-col gap-2 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-extrabold uppercase text-gray-500">
+            Tình trạng sân trong ngày
+          </h3>
+          <p className="mt-1 text-sm font-bold text-[#0a192f]">
+            {facilityName || "Chọn một cơ sở để xem sân trống/đã đặt"}
+          </p>
+        </div>
+        <div className="text-xs font-bold text-gray-500">
+          {formatDate(selectedDate)}
+        </div>
       </div>
 
-      {loading ? (
-        <EmptyState icon="fa-circle-notch fa-spin" text={TXT.loading} />
-      ) : courts.length === 0 ? (
-        <EmptyState icon="fa-calendar-xmark" text={TXT.empty} />
+      {!facilityId ? (
+        <EmptyState
+          icon="fa-building-circle-exclamation"
+          text="Chọn cơ sở để xem tình trạng từng sân"
+        />
+      ) : loading ? (
+        <EmptyState icon="fa-circle-notch fa-spin" text="Đang tải tình trạng sân..." />
+      ) : error ? (
+        <EmptyState icon="fa-circle-exclamation" text={error} />
+      ) : courts.length === 0 || timeSlots.length === 0 ? (
+        <EmptyState icon="fa-calendar-xmark" text="Chưa có dữ liệu sân trong ngày này" />
       ) : (
         <div className="overflow-auto">
-          <div style={{ width: `${COURT_COL_WIDTH + TIMELINE_WIDTH}px` }}>
-            <div className="sticky top-0 z-20 flex h-12 border-b border-gray-200 bg-[#f8fafc]">
-              <div
-                style={{ width: `${COURT_COL_WIDTH}px` }}
-                className="sticky left-0 z-30 flex shrink-0 items-center justify-center border-r border-gray-200 bg-[#f8fafc] text-xs font-bold uppercase text-gray-500"
-              >
-                {TXT.court}
-              </div>
-              <div className="relative" style={{ width: `${TIMELINE_WIDTH}px` }}>
-                {Array.from({ length: TOTAL_HOURS }).map((_, index) => {
-                  const hour = START_HOUR + index;
-                  return (
-                    <div
-                      key={hour}
-                      className="absolute inset-y-0 flex items-center justify-center border-l border-gray-200 text-xs font-bold text-gray-600"
-                      style={{
-                        left: `${index * CELL_WIDTH}px`,
-                        width: `${CELL_WIDTH}px`,
-                      }}
-                    >
-                      {hour}:00
-                    </div>
-                  );
-                })}
-              </div>
+          <div className="min-w-[980px] space-y-4 p-4">
+            <div className="flex flex-wrap gap-2 text-xs font-bold">
+              {[
+                ["trong", "Trống"],
+                ["da_dat", "Đã đặt"],
+                ["giu_cho", "Giữ chỗ"],
+                ["qua_gio", "Qua giờ"],
+              ].map(([statusValue, label]) => {
+                const info = getSlotInfo(statusValue);
+                return (
+                  <span
+                    key={statusValue}
+                    className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 ${info.className}`}
+                  >
+                    <i className={`fa-solid ${info.icon} text-[10px]`}></i>
+                    {label}
+                  </span>
+                );
+              })}
             </div>
 
             {courts.map((court) => (
-              <div key={court.id} className="flex h-24 border-b border-gray-100">
-                <div
-                  style={{ width: `${COURT_COL_WIDTH}px` }}
-                  className="sticky left-0 z-10 flex shrink-0 items-center justify-center border-r border-gray-200 bg-white px-3 text-center text-sm font-extrabold text-[#0a192f]"
-                >
-                  {court.name}
+              <section
+                key={court.id}
+                className="rounded-2xl border border-gray-200 bg-[#f8fafc] p-4"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-extrabold text-[#0a192f]">
+                      {court.ten}
+                    </h4>
+                    <p className="mt-0.5 text-xs font-bold text-gray-500">
+                      {court.ten_danh_muc || "Sân cầu lông"}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-extrabold text-gray-500">
+                    {court.slots?.length || 0} khung giờ
+                  </span>
                 </div>
-                <div className="relative" style={{ width: `${TIMELINE_WIDTH}px` }}>
-                  {Array.from({ length: TOTAL_HOURS }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="absolute inset-y-0 border-l border-gray-100"
-                      style={{
-                        left: `${index * CELL_WIDTH}px`,
-                        width: `${CELL_WIDTH}px`,
-                      }}
-                    />
-                  ))}
 
-                  {items
-                    .filter((item) => item.courtKey === court.id)
-                    .map((item) => {
-                      const statusInfo = getStatusInfo(item.booking);
-                      const { left, width } = getPositionAndWidth(
-                        item.gio_bat_dau,
-                        item.gio_ket_thuc,
-                      );
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                  {timeSlots.map((timeSlot) => {
+                    const slot = court.slots?.find(
+                      (item) =>
+                        Number(item.khung_gio_mau_id) === Number(timeSlot.id),
+                    );
+                    const info = getSlotInfo(slot?.trang_thai);
+                    const booking = bookingSlotMap.get(
+                      [Number(court.id), Number(timeSlot.id), selectedDate].join("-"),
+                    );
 
-                      return (
-                        <button
-                          key={`${item.booking.id}-${item.san_id}-${item.khung_gio_mau_id}`}
-                          type="button"
-                          onClick={() => onSelect(item.booking)}
-                          title={`${item.booking.khach_hang?.ho_ten || TXT.noData} (${item.gio_bat_dau} - ${item.gio_ket_thuc})`}
-                          className={`absolute top-3 bottom-3 z-10 overflow-hidden rounded-lg border px-3 py-2 text-left shadow-sm transition hover:scale-[1.01] hover:shadow-md ${statusInfo.blockClass}`}
-                          style={{ left, width }}
+                    return (
+                      <div
+                        key={`${court.id}-${timeSlot.id}`}
+                        className="group relative"
+                      >
+                        <div
+                          className={`min-h-[76px] rounded-xl border bg-white p-3 transition ${info.className}`}
                         >
-                          <div className="truncate text-sm font-extrabold">
-                            {item.booking.khach_hang?.ho_ten || TXT.noData}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-black">
+                              {timeSlot.gio_bat_dau} - {timeSlot.gio_ket_thuc}
+                            </span>
+                            <i className={`fa-solid ${info.icon} text-xs`}></i>
                           </div>
-                          <div className="mt-1 truncate text-xs font-semibold opacity-90">
-                            #{item.booking.id} · {item.gio_bat_dau} -{" "}
-                            {item.gio_ket_thuc}
+                          <div className="mt-3 text-sm font-black">{info.label}</div>
+                          {booking && (
+                            <div className="mt-1 truncate text-[11px] font-bold opacity-80">
+                              #{booking.id} · {booking.khach_hang?.ho_ten || TXT.noData}
+                            </div>
+                          )}
+                        </div>
+
+                        {booking && (
+                          <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-xl group-hover:block">
+                            <div className="font-black text-[#0a192f]">
+                              Đơn #{booking.id}
+                            </div>
+                            <div className="mt-2 space-y-1 font-semibold text-gray-600">
+                              <div>
+                                Khách:{" "}
+                                <span className="font-bold text-gray-900">
+                                  {booking.khach_hang?.ho_ten || TXT.noData}
+                                </span>
+                              </div>
+                              <div>
+                                SĐT:{" "}
+                                <span className="font-bold text-gray-900">
+                                  {booking.khach_hang?.so_dien_thoai || TXT.noData}
+                                </span>
+                              </div>
+                              <div>
+                                Thanh toán:{" "}
+                                <span className="font-bold text-gray-900">
+                                  {formatCurrency(booking.da_thanh_toan)}
+                                </span>
+                              </div>
+                              <div>
+                                Trạng thái:{" "}
+                                <span className="font-bold text-gray-900">
+                                  {getStatusInfo(booking).label}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </button>
-                      );
-                    })}
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         </div>
