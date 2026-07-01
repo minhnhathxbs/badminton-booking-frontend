@@ -6,36 +6,36 @@ import { showToast } from "../../components/common/ToastMessage";
 const LIMIT = 10;
 
 const TXT = {
-  title: "Qu\u1ea3n l\u00fd khuy\u1ebfn m\u00e3i",
-  search: "T\u00ecm m\u00e3, t\u00ean, c\u01a1 s\u1edf",
-  pending: "Ch\u1edd duy\u1ec7t",
-  approved: "\u0110\u00e3 duy\u1ec7t",
-  locked: "\u0110\u00e3 kh\u00f3a",
-  deleted: "\u0110\u00e3 x\u00f3a",
-  expired: "H\u1ebft h\u1ea1n",
-  code: "M\u00e3",
-  name: "Ch\u01b0\u01a1ng tr\u00ecnh",
-  facility: "C\u01a1 s\u1edf",
-  owner: "Ch\u1ee7 s\u00e2n",
-  discount: "M\u1ee9c gi\u1ea3m",
-  quantity: "L\u01b0\u1ee3t d\u00f9ng",
-  time: "Th\u1eddi h\u1ea1n",
-  status: "Tr\u1ea1ng th\u00e1i",
-  approval: "Duy\u1ec7t",
-  action: "Thao t\u00e1c",
-  active: "\u0110ang ho\u1ea1t \u0111\u1ed9ng",
-  noData: "Kh\u00f4ng c\u00f3 khuy\u1ebfn m\u00e3i trong nh\u00f3m n\u00e0y",
-  loading: "\u0110ang t\u1ea3i d\u1eef li\u1ec7u...",
-  approve: "Duy\u1ec7t",
-  lock: "Kh\u00f3a",
-  unlock: "M\u1edf kh\u00f3a",
-  approveTitle: "Duy\u1ec7t khuy\u1ebfn m\u00e3i",
-  lockTitle: "Kh\u00f3a khuy\u1ebfn m\u00e3i",
-  unlockTitle: "M\u1edf kh\u00f3a khuy\u1ebfn m\u00e3i",
-  success: "Thao t\u00e1c th\u00e0nh c\u00f4ng",
-  prev: "Tr\u01b0\u1edbc",
-  next: "Ti\u1ebfp",
-  promotionCount: "khuy\u1ebfn m\u00e3i",
+  title: "Quản lý khuyến mãi",
+  search: "Tìm mã, tên, cơ sở",
+  pending: "Chờ duyệt",
+  approved: "Đã duyệt",
+  locked: "Đã khóa",
+  deleted: "Đã xóa",
+  expired: "Hết hạn",
+  code: "Mã",
+  name: "Chương trình",
+  facility: "Cơ sở",
+  owner: "Chủ sân",
+  discount: "Mức giảm",
+  quantity: "Lượt dùng",
+  time: "Thời hạn",
+  status: "Trạng thái",
+  approval: "Duyệt",
+  action: "Thao tác",
+  active: "Đang hoạt động",
+  noData: "Không có khuyến mãi trong nhóm này",
+  loading: "Đang tải dữ liệu...",
+  approve: "Duyệt",
+  lock: "Khóa",
+  unlock: "Mở khóa",
+  approveTitle: "Duyệt khuyến mãi",
+  lockTitle: "Khóa khuyến mãi",
+  unlockTitle: "Mở khóa khuyến mãi",
+  success: "Thao tác thành công",
+  prev: "Trước",
+  next: "Tiếp",
+  promotionCount: "khuyến mãi",
 };
 
 const TABS = [
@@ -72,7 +72,7 @@ const TABS = [
 ];
 
 const formatCurrency = (value) =>
-  `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
+  `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 
 const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString("vi-VN") : "";
@@ -149,7 +149,7 @@ export default function ManageAllPromotions() {
       setPromotions(res.data.danh_sach || []);
       setTotal(Number(res.data.tong || 0));
     } catch (error) {
-      showToast(getError(error, "Kh\u00f4ng th\u1ec3 t\u1ea3i khuy\u1ebfn m\u00e3i"), "error");
+      showToast(getError(error, "Không thể tải khuyến mãi"), "error");
     } finally {
       setIsLoading(false);
     }
@@ -176,7 +176,7 @@ export default function ManageAllPromotions() {
       setConfirmState((prev) => ({ ...prev, open: false }));
       fetchPromotions();
     } catch (error) {
-      showToast(getError(error, "Thao t\u00e1c th\u1ea5t b\u1ea1i"), "error");
+      showToast(getError(error, "Thao tác thất bại"), "error");
     } finally {
       setIsLoading(false);
     }

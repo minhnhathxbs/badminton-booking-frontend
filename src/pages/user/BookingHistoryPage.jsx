@@ -5,88 +5,89 @@ import UserHeader from "../../components/common/UserHeader";
 import { showToast } from "../../components/common/ToastMessage";
 
 const TXT = {
-  title: "L\u1ecbch s\u1eed \u0111\u1eb7t s\u00e2n",
-  desc: "Theo d\u00f5i \u0111\u01a1n \u0111\u1eb7t s\u00e2n, thanh to\u00e1n v\u00e0 xem chi ti\u1ebft khi c\u1ea7n.",
-  newBooking: "\u0110\u1eb7t s\u00e2n m\u1edbi",
-  loading: "\u0110ang t\u1ea3i l\u1ecbch s\u1eed \u0111\u1eb7t s\u00e2n...",
-  emptyTitle: "Ch\u01b0a c\u00f3 l\u1ecbch s\u1eed \u0111\u1eb7t s\u00e2n",
-  emptyDesc: "Khi b\u1ea1n \u0111\u1eb7t s\u00e2n, c\u00e1c \u0111\u01a1n s\u1ebd hi\u1ec3n th\u1ecb t\u1ea1i \u0111\u00e2y.",
-  loadFail: "Kh\u00f4ng th\u1ec3 t\u1ea3i l\u1ecbch s\u1eed \u0111\u1eb7t s\u00e2n",
-  noData: "Ch\u01b0a c\u00f3",
-  unknownFacility: "C\u01a1 s\u1edf kh\u00f4ng x\u00e1c \u0111\u1ecbnh",
-  unknownAddress: "Ch\u01b0a c\u1eadp nh\u1eadt \u0111\u1ecba ch\u1ec9",
-  noSlot: "Kh\u00f4ng c\u00f2n th\u00f4ng tin khung gi\u1edd cho \u0111\u01a1n n\u00e0y.",
-  viewDetail: "Xem chi ti\u1ebft",
-  close: "\u0110\u00f3ng",
+  title: "Lịch sử đặt sân",
+  desc: "Theo dõi đơn đặt sân, thanh toán và xem chi tiết khi cần.",
+  newBooking: "Đặt sân mới",
+  loading: "Đang tải lịch sử đặt sân...",
+  emptyTitle: "Chưa có lịch sử đặt sân",
+  emptyDesc: "Khi bạn đặt sân, các đơn sẽ hiển thị tại đây.",
+  loadFail: "Không thể tải lịch sử đặt sân",
+  noData: "Chưa có",
+  unknownFacility: "Cơ sở không xác định",
+  unknownAddress: "Chưa cập nhật địa chỉ",
+  noSlot: "Không còn thông tin khung giờ cho đơn này.",
+  viewDetail: "Xem chi tiết",
+  close: "Đóng",
   index: "STT",
-  facility: "T\u00ean c\u01a1 s\u1edf",
-  court: "T\u00ean s\u00e2n",
-  playDate: "Ng\u00e0y ch\u01a1i",
-  timeSlot: "Khung gi\u1edd",
-  total: "T\u1ed5ng ti\u1ec1n",
+  facility: "Tên cơ sở",
+  court: "Tên sân",
+  playDate: "Ngày chơi",
+  timeSlot: "Khung giờ",
+  total: "Tổng tiền",
   originalTotal: "Tổng tiền sân",
   discount: "Khuyến mãi",
   promoCode: "Mã giảm giá",
-  paid: "\u0110\u00e3 thanh to\u00e1n",
-  status: "Tr\u1ea1ng th\u00e1i",
-  createdAt: "Ng\u00e0y t\u1ea1o \u0111\u01a1n",
-  address: "\u0110\u1ecba ch\u1ec9",
-  deposit: "Ti\u1ec1n c\u1ecdc",
-  remain: "C\u00f2n l\u1ea1i",
-  method: "Ph\u01b0\u01a1ng th\u1ee9c",
-  detailTitle: "Chi ti\u1ebft \u0111\u01a1n \u0111\u1eb7t s\u00e2n",
+  paid: "Đã thanh toán",
+  status: "Trạng thái",
+  booking: "Đơn đặt sân",
+  createdAt: "Ngày tạo đơn",
+  address: "Địa chỉ",
+  deposit: "Tiền cọc",
+  remain: "Còn lại",
+  method: "Phương thức",
+  detailTitle: "Chi tiết đơn đặt sân",
   note: "Ghi chú",
   cancelReason: "Lý do hủy",
-  payDeposit: "Thanh to\u00e1n",
-  payDepositOnly: "Thanh to\u00e1n c\u1ecdc",
-  payAll: "Thanh to\u00e1n to\u00e0n b\u1ed9",
-  payRemaining: "Thanh to\u00e1n ph\u1ea7n c\u00f2n l\u1ea1i",
-  paying: "\u0110ang t\u1ea1o thanh to\u00e1n",
-  cancel: "H\u1ee7y s\u00e2n",
-  cancelTitle: "H\u1ee7y \u0111\u1eb7t s\u00e2n",
-  cancelDesc: "Nh\u1eadp l\u00fd do h\u1ee7y \u0111\u1ec3 ch\u1ee7 s\u00e2n xem x\u00e9t ho\u00e0n ti\u1ec1n n\u1ebfu \u0111\u01a1n \u0111\u00e3 thanh to\u00e1n.",
-  cancelPlaceholder: "VD: B\u1eadn vi\u1ec7c \u0111\u1ed9t xu\u1ea5t, kh\u00f4ng th\u1ec3 \u0111\u1ebfn s\u00e2n...",
-  cancelReasonRequired: "Vui l\u00f2ng nh\u1eadp l\u00fd do h\u1ee7y",
-  cancelSuccess: "H\u1ee7y \u0111\u1eb7t s\u00e2n th\u00e0nh c\u00f4ng",
-  cancelFail: "Kh\u00f4ng th\u1ec3 h\u1ee7y \u0111\u1eb7t s\u00e2n",
-  cancelling: "\u0110ang h\u1ee7y",
-  confirmCancel: "X\u00e1c nh\u1eadn h\u1ee7y",
-  complaint: "Khi\u1ebfu n\u1ea1i",
-  complaintTitle: "G\u1eedi khi\u1ebfu n\u1ea1i",
-  complaintDesc: "Nh\u1eadp l\u00fd do v\u00e0 t\u1ea3i h\u00ecnh \u1ea3nh ch\u1ee9ng minh \u0111\u1ec3 Admin x\u1eed l\u00fd.",
-  complaintPlaceholder: "VD: S\u00e2n b\u1ecb ng\u1eadp n\u01b0\u1edbc, c\u00fap \u0111i\u1ec7n, ch\u1ee7 s\u00e2n kh\u00f4ng cho \u0111\u00e1...",
-  complaintReasonRequired: "Vui l\u00f2ng nh\u1eadp l\u00fd do khi\u1ebfu n\u1ea1i",
-  complaintImageRequired: "Vui l\u00f2ng t\u1ea3i l\u00ean \u00edt nh\u1ea5t m\u1ed9t h\u00ecnh \u1ea3nh",
-  complaintSuccess: "G\u1eedi khi\u1ebfu n\u1ea1i th\u00e0nh c\u00f4ng",
-  complaintFail: "Kh\u00f4ng th\u1ec3 g\u1eedi khi\u1ebfu n\u1ea1i",
-  complaintSending: "\u0110ang g\u1eedi",
-  confirmComplaint: "G\u1eedi khi\u1ebfu n\u1ea1i",
-  addImage: "Th\u00eam h\u00ecnh \u1ea3nh",
-  complaintPending: "KN ch\u1edd x\u1eed l\u00fd",
-  complaintAccepted: "KN \u0111\u00e3 ch\u1ea5p nh\u1eadn",
-  complaintRejected: "KN b\u1ecb t\u1eeb ch\u1ed1i",
-  complaintFrozen: "\u0110ang khi\u1ebfu n\u1ea1i",
-  paymentUrlFail: "Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c \u0111\u01b0\u1eddng d\u1eabn thanh to\u00e1n",
-  paymentCreateFail: "Kh\u00f4ng th\u1ec3 t\u1ea1o thanh to\u00e1n",
-  hold: "\u0110ang ch\u1edd thanh to\u00e1n",
-  confirmed: "\u0110\u00e3 c\u1ecdc",
-  paidFull: "\u0110\u00e3 thanh to\u00e1n",
-  cancelled: "\u0110\u00e3 h\u1ee7y",
-  refundPending: "Ho\u00e0n ti\u1ec1n ch\u1edd x\u1eed l\u00fd",
-  refundApproved: "\u0110\u00e3 ho\u00e0n ti\u1ec1n",
-  refundRejected: "T\u1eeb ch\u1ed1i ho\u00e0n ti\u1ec1n",
-  refundAmount: "S\u1ed1 ti\u1ec1n ho\u00e0n",
-  refundNote: "Ghi ch\u00fa ho\u00e0n ti\u1ec1n",
-  expired: "H\u1ebft h\u1ea1n gi\u1eef ch\u1ed7",
-  completed: "Ho\u00e0n th\u00e0nh",
-  complaintRefunded: "Khi\u1ebfu n\u1ea1i \u0111\u00e3 ho\u00e0n ti\u1ec1n",
-  unknown: "Kh\u00f4ng x\u00e1c \u0111\u1ecbnh",
-  action: "Thao t\u00e1c",
-  choosePaymentType: "Ch\u1ecdn lo\u1ea1i thanh to\u00e1n",
+  payDeposit: "Thanh toán",
+  payDepositOnly: "Thanh toán cọc",
+  payAll: "Thanh toán toàn bộ",
+  payRemaining: "Thanh toán phần còn lại",
+  paying: "Đang tạo thanh toán",
+  cancel: "Hủy sân",
+  cancelTitle: "Hủy đặt sân",
+  cancelDesc: "Nhập lý do hủy để chủ sân xem xét hoàn tiền nếu đơn đã thanh toán.",
+  cancelPlaceholder: "VD: Bận việc đột xuất, không thể đến sân...",
+  cancelReasonRequired: "Vui lòng nhập lý do hủy",
+  cancelSuccess: "Hủy đặt sân thành công",
+  cancelFail: "Không thể hủy đặt sân",
+  cancelling: "Đang hủy",
+  confirmCancel: "Xác nhận hủy",
+  complaint: "Khiếu nại",
+  complaintTitle: "Gửi khiếu nại",
+  complaintDesc: "Nhập lý do và tải hình ảnh chứng minh để Admin xử lý.",
+  complaintPlaceholder: "VD: Sân bị ngập nước, cúp điện, chủ sân không cho đá...",
+  complaintReasonRequired: "Vui lòng nhập lý do khiếu nại",
+  complaintImageRequired: "Vui lòng tải lên ít nhất một hình ảnh",
+  complaintSuccess: "Gửi khiếu nại thành công",
+  complaintFail: "Không thể gửi khiếu nại",
+  complaintSending: "Đang gửi",
+  confirmComplaint: "Gửi khiếu nại",
+  addImage: "Thêm hình ảnh",
+  complaintPending: "KN chờ xử lý",
+  complaintAccepted: "KN đã chấp nhận",
+  complaintRejected: "KN bị từ chối",
+  complaintFrozen: "Đang khiếu nại",
+  paymentUrlFail: "Không nhận được đường dẫn thanh toán",
+  paymentCreateFail: "Không thể tạo thanh toán",
+  hold: "Đang chờ thanh toán",
+  confirmed: "Đã cọc",
+  paidFull: "Đã thanh toán",
+  cancelled: "Đã hủy",
+  refundPending: "Hoàn tiền chờ xử lý",
+  refundApproved: "Đã hoàn tiền",
+  refundRejected: "Từ chối hoàn tiền",
+  refundAmount: "Số tiền hoàn",
+  refundNote: "Ghi chú hoàn tiền",
+  expired: "Hết hạn giữ chỗ",
+  completed: "Hoàn thành",
+  complaintRefunded: "Khiếu nại đã hoàn tiền",
+  unknown: "Không xác định",
+  action: "Thao tác",
+  choosePaymentType: "Chọn loại thanh toán",
 };
 
 const formatCurrency = (value) =>
-  `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
+  `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 
 const formatDate = (value) => {
   if (!value) return TXT.noData;
@@ -168,7 +169,7 @@ const isHoldExpired = (order) =>
 const isExpiredHoldCancel = (order) =>
   Number(order.trang_thai) === 2 &&
   Number(order.da_thanh_toan || 0) === 0 &&
-  String(order.ly_do_huy || "").toLowerCase().includes("h\u1ebft h\u1ea1n");
+  String(order.ly_do_huy || "").toLowerCase().includes("hết hạn");
 
 const isCancelledLike = (order) => Number(order.trang_thai) === 2;
 
@@ -901,7 +902,7 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel, onComplai
               <p className="mt-2 text-sm font-bold text-slate-900">{order.khieu_nai.ly_do || TXT.noData}</p>
               {order.khieu_nai.ghi_chu_admin && (
                 <p className="mt-1 text-sm font-medium text-slate-600">
-                  Ghi ch\u00fa Admin: {order.khieu_nai.ghi_chu_admin}
+                  Ghi chú Admin: {order.khieu_nai.ghi_chu_admin}
                 </p>
               )}
             </section>
@@ -1062,7 +1063,7 @@ function ComplaintModal({
               {TXT.complaintTitle}
             </h2>
             <p className="mt-1 text-sm font-medium text-slate-500">
-              {order.co_so?.ten || TXT.unknownFacility} &mdash; {TXT.booking} #{order.id}
+              {order.co_so?.ten || TXT.unknownFacility} - {TXT.booking} #{order.id}
             </p>
           </div>
           <button
