@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useNotifications } from "../../contexts/notificationStore";
 
@@ -25,18 +26,57 @@ export default function NotificationBell({ className = "" }) {
   const { danhSach, soChuaDoc, danhDauDaDoc, danhDauTatCa } =
     useNotifications();
   const [moMenu, setMoMenu] = useState(false);
+  const [menuStyle, setMenuStyle] = useState({
+    top: 64,
+    right: 16,
+    width: 360,
+  });
   const ref = useRef(null);
+  const menuRef = useRef(null);
   const navigate = useNavigate();
+
+  const capNhatViTriMenu = useCallback(() => {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const margin = 16;
+    const width = Math.min(360, window.innerWidth - margin * 2);
+    const right = Math.max(margin, window.innerWidth - rect.right);
+
+    setMenuStyle({
+      top: rect.bottom + 12,
+      right,
+      width,
+    });
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
+      if (
+        ref.current &&
+        !ref.current.contains(e.target) &&
+        menuRef.current &&
+        !menuRef.current.contains(e.target)
+      ) {
         setMoMenu(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!moMenu) return undefined;
+
+    capNhatViTriMenu();
+    window.addEventListener("resize", capNhatViTriMenu);
+    window.addEventListener("scroll", capNhatViTriMenu, true);
+
+    return () => {
+      window.removeEventListener("resize", capNhatViTriMenu);
+      window.removeEventListener("scroll", capNhatViTriMenu, true);
+    };
+  }, [capNhatViTriMenu, moMenu]);
 
   const xuLyClick = (tb) => {
     if (!tb.da_doc) danhDauDaDoc(tb.id);
@@ -48,7 +88,10 @@ export default function NotificationBell({ className = "" }) {
     <div className={`relative ${className}`} ref={ref}>
       <button
         type="button"
-        onClick={() => setMoMenu((v) => !v)}
+        onClick={() => {
+          capNhatViTriMenu();
+          setMoMenu((v) => !v);
+        }}
         className="relative w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-600 transition-colors"
         aria-label="Thông báo"
       >
@@ -60,8 +103,16 @@ export default function NotificationBell({ className = "" }) {
         )}
       </button>
 
-      {moMenu && (
-        <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+      {moMenu && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-slate-200/70 z-[9999]"
+          style={{
+            top: `${menuStyle.top}px`,
+            right: `${menuStyle.right}px`,
+            width: `${menuStyle.width}px`,
+          }}
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <p className="font-bold text-gray-800">Thông báo</p>
             {soChuaDoc > 0 && (
@@ -75,7 +126,7 @@ export default function NotificationBell({ className = "" }) {
             )}
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[min(420px,calc(100vh-160px))] overflow-y-auto">
             {danhSach.length === 0 ? (
               <div className="px-4 py-10 text-center text-sm text-gray-400">
                 <i className="fa-regular fa-bell-slash text-2xl mb-2 block"></i>
@@ -112,7 +163,8 @@ export default function NotificationBell({ className = "" }) {
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
