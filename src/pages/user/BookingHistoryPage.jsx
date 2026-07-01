@@ -205,12 +205,12 @@ const getComplaintStatusInfo = (khieuNai) => {
 
 const canCancelOrder = (order) => {
   if (![0, 1].includes(Number(order.trang_thai))) return false;
+  if (isHoldExpired(order)) return false;
 
   const earliestStart = getEarliestStartDate(order);
   if (!earliestStart) return false;
 
-  const cancelDeadline = new Date(earliestStart.getTime() - 2 * 60 * 60 * 1000);
-  return new Date() < cancelDeadline;
+  return new Date() < earliestStart;
 };
 
 const getPaymentKind = (order) => {

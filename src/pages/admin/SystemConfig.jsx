@@ -9,6 +9,50 @@ const initialNewConfig = {
   mo_ta: "",
 };
 
+const systemConfigKeys = new Set([
+  "THOI_GIAN_GIU_CHO_PHUT",
+  "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY",
+  "PHAN_TRAM_HOAN_TIEN_MAC_DINH",
+  "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA",
+]);
+
+const getConfigValidationMessage = (keyName, value) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return `Giá trị cấu hình "${keyName}" là bắt buộc`;
+  }
+
+  const rawValue = String(value).trim();
+  const numberValue = Number(rawValue);
+
+  if (systemConfigKeys.has(keyName) && !Number.isFinite(numberValue)) {
+    return `Giá trị cấu hình "${keyName}" phải là số hợp lệ`;
+  }
+
+  if (
+    keyName === "THOI_GIAN_GIU_CHO_PHUT" &&
+    (!Number.isInteger(numberValue) || numberValue <= 0)
+  ) {
+    return "THOI_GIAN_GIU_CHO_PHUT phải là số nguyên lớn hơn 0";
+  }
+
+  if (keyName === "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY" && numberValue < 0) {
+    return "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY phải lớn hơn hoặc bằng 0";
+  }
+
+  if (
+    keyName === "PHAN_TRAM_HOAN_TIEN_MAC_DINH" &&
+    (numberValue < 0 || numberValue > 100)
+  ) {
+    return "PHAN_TRAM_HOAN_TIEN_MAC_DINH phải nằm trong khoảng 0-100";
+  }
+
+  if (keyName === "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA" && numberValue < 0) {
+    return "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA phải lớn hơn hoặc bằng 0";
+  }
+
+  return "";
+};
+
 export default function SystemConfig() {
   const [configs, setConfigs] = useState([]);
   const [values, setValues] = useState({});
@@ -82,6 +126,20 @@ export default function SystemConfig() {
       return;
     }
 
+    const invalidConfig = changedConfigs.find((config) =>
+      getConfigValidationMessage(config.key_name, values[config.key_name]),
+    );
+    if (invalidConfig) {
+      showToast(
+        getConfigValidationMessage(
+          invalidConfig.key_name,
+          values[invalidConfig.key_name],
+        ),
+        "error",
+      );
+      return;
+    }
+
     setConfirmState({
       open: true,
       title: "Xác nhận lưu cấu hình",
@@ -148,6 +206,16 @@ export default function SystemConfig() {
       );
       return;
     }
+
+    const validationMessage = getConfigValidationMessage(
+      keyName,
+      newConfig.key_value,
+    );
+    if (validationMessage) {
+      showToast(validationMessage, "error");
+      return;
+    }
+
     setIsSaving(true);
     try {
       await api.post("/cau-hinh", { ...newConfig, key_name: keyName });
@@ -263,6 +331,7 @@ export default function SystemConfig() {
         ) : (
           filteredConfigs.map((config) => {
             const isChanged = values[config.key_name] !== config.key_value;
+            const isSystemConfig = systemConfigKeys.has(config.key_name);
             return (
               <div
                 key={config.key_name}
@@ -291,14 +360,16 @@ export default function SystemConfig() {
                       isChanged ? "border-amber-400 bg-amber-50" : "border-gray-200"
                     }`}
                   />
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(config)}
-                    title="Xóa cấu hình"
-                    className="w-10 h-10 shrink-0 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <i className="fa-solid fa-trash"></i>
-                  </button>
+                  {!isSystemConfig && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(config)}
+                      title="Xóa cấu hình"
+                      className="w-10 h-10 shrink-0 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <i className="fa-solid fa-trash"></i>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -351,7 +422,7 @@ export default function SystemConfig() {
                     value={newConfig.key_name}
                     onChange={handleNewConfigChange}
                     required
-                    placeholder="vd: thoi_gian_giu_cho_phut"
+                    placeholder="vd: THOI_GIAN_GIU_CHO_PHUT"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF]"
                   />
                 </div>

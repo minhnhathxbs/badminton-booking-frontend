@@ -479,7 +479,7 @@ export default function ManageReviews() {
               <textarea
                 value={reportReason}
                 onChange={(e) => setReportReason(e.target.value)}
-                placeholder="Lý do báo cáo (không bắt buộc)..."
+                placeholder="Lý do báo cáo (bắt buộc)..."
                 className="w-full h-24 px-4 py-3 border border-gray-300 rounded-xl outline-none focus:border-red-400 text-sm resize-none"
               ></textarea>
               <div className="flex justify-end gap-3 mt-4">
