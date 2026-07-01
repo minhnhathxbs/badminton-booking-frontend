@@ -4,8 +4,12 @@ import { showToast } from "../../components/common/ToastMessage";
 // ─── Đổi thành URL backend của mày ──────────────────────────────
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 const GIOI_HAN = 10;
+const PASSWORD_MESSAGE =
+  "Mật khẩu phải có ít nhất 8 ký tự, gồm ít nhất 1 chữ và 1 số";
 
 const getToken = () => localStorage.getItem("token");
+const isValidPassword = (value) =>
+  value.length >= 8 && /[A-Za-zÀ-ỹ]/.test(value) && /\d/.test(value);
 
 const getVaiTroLabel = (id) =>
   id === 1 ? "Chủ sân" : id === 0 ? "Người chơi" : "Admin";
@@ -159,6 +163,13 @@ export default function ManageUsers() {
 
   const handleCreateOwner = async (e) => {
     e.preventDefault();
+
+    if (!isValidPassword(ownerForm.mat_khau)) {
+      setError(PASSWORD_MESSAGE);
+      showToast(PASSWORD_MESSAGE, "error");
+      return;
+    }
+
     setCreatingOwner(true);
     setError(null);
 
@@ -514,10 +525,11 @@ export default function ManageUsers() {
                   name="mat_khau"
                   value={ownerForm.mat_khau}
                   onChange={handleOwnerFormChange}
-                  minLength={6}
+                  minLength={8}
                   className="w-full border border-gray-300 rounded-xl px-4 py-2.5 outline-none focus:border-[#349DFF]"
                   required
                 />
+                <p className="mt-1 text-xs text-gray-500">{PASSWORD_MESSAGE}</p>
               </div>
 
               <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t border-gray-100">
