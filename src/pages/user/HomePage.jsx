@@ -80,11 +80,19 @@ function PromoBannerCard({ banner, featured = false }) {
       }`}
     >
       {banner.anh_nen ? (
-        <img
-          src={getAssetUrl(banner.anh_nen)}
-          alt={banner.ten_co_so}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        <>
+          <img
+            src={getAssetUrl(banner.anh_nen)}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full scale-110 object-cover blur-xl"
+          />
+          <img
+            src={getAssetUrl(banner.anh_nen)}
+            alt={banner.ten_co_so}
+            className="absolute inset-0 h-full w-full object-contain"
+          />
+        </>
       ) : (
         <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500" />
       )}
@@ -114,7 +122,7 @@ function PromoBannerCard({ banner, featured = false }) {
             <div className="text-xs text-white/70">Ưu đãi có hạn</div>
           </div>
           <span className="inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-md transition group-hover:bg-blue-50">
-            {banner.nut_bam || "Xem sân"}
+            {banner.nut_bam || "Đặt sân"}
             <i className="fa-solid fa-arrow-right text-xs"></i>
           </span>
         </div>
