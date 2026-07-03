@@ -22,6 +22,9 @@ const getFacilityPosition = (facility) => {
   return { lat, lng };
 };
 
+const getDirectionsUrl = (position) =>
+  `https://www.google.com/maps/dir/?api=1&destination=${position.lat},${position.lng}`;
+
 const getDistanceKm = (from, to) => {
   if (!from || !to) return null;
 
@@ -68,11 +71,65 @@ function AuthButtons({ compact = false }) {
   );
 }
 
+function PromoBannerCard({ banner, featured = false }) {
+  return (
+    <Link
+      to={`/dat-san/${banner.co_so_id || banner.id}`}
+      className={`group relative isolate overflow-hidden rounded-[22px] bg-slate-900 text-white shadow-[0_16px_36px_rgb(15_23_42_/_0.16)] ${
+        featured ? "min-h-[220px] lg:col-span-2" : "min-h-[180px]"
+      }`}
+    >
+      {banner.anh_nen ? (
+        <img
+          src={getAssetUrl(banner.anh_nen)}
+          alt={banner.ten_co_so}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/45 to-blue-950/15" />
+      <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full border border-white/25" />
+      <div className="relative z-10 flex h-full flex-col justify-between p-5 sm:p-6">
+        <div>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700 shadow-sm">
+            <i className="fa-solid fa-bolt"></i>
+            {banner.badge || "Khuyến mãi hot"}
+          </div>
+          <h2
+            className={`max-w-[560px] font-semibold leading-tight ${
+              featured ? "text-3xl sm:text-4xl" : "text-2xl"
+            }`}
+          >
+            {banner.gia_tri_hien_thi || banner.ten_khuyen_mai}
+          </h2>
+          <p className="mt-3 line-clamp-2 max-w-[520px] text-sm font-medium text-white/85">
+            {banner.ten_khuyen_mai} tại {banner.ten_co_so}
+          </p>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold">{banner.ten_co_so}</div>
+            <div className="text-xs text-white/70">Ưu đãi có hạn</div>
+          </div>
+          <span className="inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-md transition group-hover:bg-blue-50">
+            {banner.nut_bam || "Xem sân"}
+            <i className="fa-solid fa-arrow-right text-xs"></i>
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const { soChuaDoc } = useNotifications();
   const [facilities, setFacilities] = useState([]);
   const [allFacilities, setAllFacilities] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [keyword, setKeyword] = useState("");
   const [selectedProvince, setSelectedProvince] = useState("");
   const [activePopup, setActivePopup] = useState(null);
@@ -145,6 +202,33 @@ export default function HomePage() {
 
     fetchAllFacilities();
   }, []);
+
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const res = await api.get("/banner", { params: { gioi_han: 3 } });
+        setBanners(res.data?.data || []);
+      } catch {
+        setBanners([]);
+      }
+    };
+
+    fetchBanners();
+  }, []);
+
+  useEffect(() => {
+    setActiveBannerIndex(0);
+  }, [banners.length]);
+
+  useEffect(() => {
+    if (banners.length <= 1) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % banners.length);
+    }, 4500);
+
+    return () => window.clearInterval(intervalId);
+  }, [banners.length]);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -246,7 +330,7 @@ export default function HomePage() {
   const visibleFacilities =
     showAllFacilities || hasListFilter
       ? filteredFacilities
-      : filteredFacilities.slice(0, 3);
+      : filteredFacilities.slice(0, 4);
 
   const timeOptions = Array.from({ length: 18 }, (_, index) => {
     const hour = 5 + index;
@@ -259,6 +343,7 @@ export default function HomePage() {
       .join(", ");
 
   const displayName = user?.ho_ten;
+  const activeBanner = banners[activeBannerIndex] || null;
 
   const topNavItems = [
     { to: "/trang-chu", icon: "fa-solid fa-house", label: "Trang chủ", active: true },
@@ -586,49 +671,88 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="mb-10 flex flex-col gap-6 xl:flex-row">
-          <div className="flex-1">
-            <div className="mb-6 block w-full xl:hidden">
-              <div className="relative min-h-[184px] overflow-hidden rounded-[22px] border border-white bg-gradient-to-br from-[#f8fbff] via-[#e7f1ff] to-[#cfe0ff] p-4 shadow-[0_12px_28px_rgb(37_99_235_/_0.12)]">
-                <div className="absolute inset-2 rounded-[18px] border border-white/80"></div>
-                <div className="absolute -right-5 bottom-0 h-32 w-48 rounded-tl-full bg-blue-200/35"></div>
-                <div className="absolute bottom-6 right-8 h-[76px] w-[76px] rotate-[-28deg] rounded-full border-[7px] border-blue-500/75 bg-white/20"></div>
-                <div className="absolute bottom-8 right-4 h-[7px] w-24 rotate-[-28deg] rounded-full bg-blue-500/75"></div>
-                <div className="absolute bottom-10 right-28 h-9 w-9 rotate-12 rounded-full bg-white shadow-sm">
-                  <span className="absolute left-1/2 top-1/2 h-7 w-1 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-slate-100"></span>
-                  <span className="absolute left-1/2 top-1/2 h-7 w-1 -translate-x-1/2 -translate-y-1/2 -rotate-45 rounded-full bg-slate-100"></span>
+        {activeBanner && (
+          <section className="mb-8">
+            <div className="mb-4 flex items-end justify-between px-1">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wide text-blue-600">
+                  Khuyến mãi nổi bật
                 </div>
-                <div className="relative z-10 max-w-[260px]">
-                  <div className="mb-2 flex w-max items-center gap-1 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-semibold uppercase text-white shadow-sm">
-                    <i className="fa-solid fa-tag"></i>
-                    Ưu đãi cuối tuần
-                  </div>
-                  <div className="mb-1 text-2xl font-semibold leading-tight text-slate-900">
-                    Giảm đến{" "}
-                    <span className="text-[42px] leading-none text-blue-600">
-                      30%
-                    </span>
-                  </div>
-                  <div className="mb-4 flex items-start gap-2 text-[11px] font-semibold leading-snug text-slate-600">
-                    <i className="fa-regular fa-calendar-days mt-0.5 text-blue-600"></i>
-                    <span>Đặt sân thứ 7 & chủ nhật, khung giờ 18:00 - 22:00</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="flex w-max items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-md"
-                  >
-                    Đặt ngay
-                    <i className="fa-solid fa-chevron-right text-[10px]"></i>
-                  </button>
-                </div>
+                <h1 className="mt-1 text-xl font-semibold text-slate-950 sm:text-2xl">
+                  Ưu đãi sân cầu lông hôm nay
+                </h1>
               </div>
             </div>
 
+            <div className="relative">
+              <div className="grid overflow-hidden rounded-[22px]">
+                {banners.map((banner, index) => (
+                  <div
+                    key={`${banner.co_so_id}-${banner.khuyen_mai_id}`}
+                    className={`col-start-1 row-start-1 transition-all duration-500 ease-out ${
+                      index === activeBannerIndex
+                        ? "pointer-events-auto translate-x-0 opacity-100"
+                        : "pointer-events-none translate-x-6 opacity-0"
+                    }`}
+                  >
+                    <PromoBannerCard banner={banner} featured />
+                  </div>
+                ))}
+              </div>
+
+              {banners.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveBannerIndex(
+                        (prev) => (prev - 1 + banners.length) % banners.length,
+                      )
+                    }
+                    className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-lg transition hover:bg-white hover:text-blue-600"
+                    aria-label="Banner trước"
+                  >
+                    <i className="fa-solid fa-chevron-left text-sm"></i>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveBannerIndex((prev) => (prev + 1) % banners.length)
+                    }
+                    className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-lg transition hover:bg-white hover:text-blue-600"
+                    aria-label="Banner sau"
+                  >
+                    <i className="fa-solid fa-chevron-right text-sm"></i>
+                  </button>
+
+                  <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
+                    {banners.map((banner, index) => (
+                      <button
+                        key={`banner-dot-${banner.co_so_id}-${banner.khuyen_mai_id}`}
+                        type="button"
+                        onClick={() => setActiveBannerIndex(index)}
+                        className={`h-2.5 rounded-full transition-all ${
+                          index === activeBannerIndex
+                            ? "w-8 bg-white"
+                            : "w-2.5 bg-white/55 hover:bg-white/80"
+                        }`}
+                        aria-label={`Chọn banner ${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
+        <div className="mb-10 flex flex-col gap-6 xl:flex-row">
+          <div className="flex-1">
             <div className="mb-4 flex items-center justify-between px-1">
               <h2 className="text-base font-semibold text-gray-800 lg:text-lg">
                 Gợi ý cho bạn
               </h2>
-              {filteredFacilities.length > 3 && !hasListFilter ? (
+              {filteredFacilities.length > 4 && !hasListFilter ? (
                 <button
                   type="button"
                   onClick={() => setShowAllFacilities((prev) => !prev)}
@@ -643,22 +767,25 @@ export default function HomePage() {
               )}
             </div>
 
-            <div className="space-y-3 lg:space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
               {isLoading ? (
-                <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500 shadow-sm">
+                <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500 shadow-sm md:col-span-2">
                   Đang tải danh sách cơ sở...
                 </div>
               ) : filteredFacilities.length === 0 ? (
-                <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500 shadow-sm">
+                <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500 shadow-sm md:col-span-2">
                   Không có cơ sở phù hợp với bộ lọc
                 </div>
               ) : (
-                visibleFacilities.map((facility) => (
+                visibleFacilities.map((facility) => {
+                  const facilityPosition = getFacilityPosition(facility);
+
+                  return (
                   <article
                     key={facility.id}
-                    className="flex flex-row gap-3 rounded-[18px] border border-white bg-white p-2 shadow-[0_10px_24px_rgb(15_23_42_/_0.08)] lg:items-center lg:gap-4 lg:p-4"
+                    className="flex h-full flex-row items-start gap-3 rounded-[18px] border border-white bg-white p-3 shadow-[0_10px_24px_rgb(15_23_42_/_0.08)] sm:p-4"
                   >
-                    <div className="relative h-[154px] w-[154px] flex-shrink-0 overflow-hidden rounded-[16px] bg-gray-100 max-[430px]:h-[132px] max-[430px]:w-[132px] lg:h-[140px] lg:w-[200px]">
+                    <div className="relative h-[142px] w-[142px] flex-shrink-0 overflow-hidden rounded-[16px] bg-gray-100 max-[430px]:h-[124px] max-[430px]:w-[124px] md:h-[154px] md:w-[210px] xl:w-[220px]">
                       <button
                         type="button"
                         onClick={() => setSelectedFacility(facility)}
@@ -675,12 +802,9 @@ export default function HomePage() {
                           <i className="fa-regular fa-image text-2xl"></i>
                         </div>
                       )}
-                      <div className="absolute inset-x-2 bottom-2 z-10 flex items-center justify-between gap-2">
+                      <div className="absolute bottom-2 left-2 z-10">
                         <span className="rounded-lg bg-black/55 px-3 py-1 text-xs font-semibold text-white">
                           {facility.so_san || 0} sân
-                        </span>
-                        <span className="rounded-lg bg-white/95 px-3 py-1 text-[11px] font-semibold text-blue-600 shadow-sm">
-                          Còn sân
                         </span>
                       </div>
                       </button>
@@ -697,14 +821,28 @@ export default function HomePage() {
                       </button>
                     </div>
 
-                    <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5 lg:min-h-[140px] lg:flex-row lg:items-stretch lg:gap-5">
-                      <div className="min-w-0 lg:flex-1">
-                        <Link
-                          to={`/dat-san/${facility.id}`}
-                          className="mb-1 line-clamp-2 text-lg font-semibold leading-tight text-gray-950 hover:text-blue-600 max-[430px]:text-base lg:line-clamp-1 lg:text-base"
-                        >
-                          {facility.ten}
-                        </Link>
+                    <div className="min-w-0 flex-1 py-0.5">
+                      <div className="min-w-0">
+                        <div className="mb-1 flex items-start justify-between gap-3">
+                          <Link
+                            to={`/dat-san/${facility.id}`}
+                            className="line-clamp-2 text-lg font-semibold leading-tight text-gray-950 hover:text-blue-600 max-[430px]:text-base lg:line-clamp-1 lg:text-base"
+                          >
+                            {facility.ten}
+                          </Link>
+                          {facilityPosition && (
+                            <a
+                              href={getDirectionsUrl(facilityPosition)}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Chỉ đường"
+                              className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700 shadow-sm transition hover:bg-blue-100"
+                              aria-label="Chỉ đường"
+                            >
+                              <i className="fa-solid fa-route text-xs"></i>
+                            </a>
+                          )}
+                        </div>
                         <div className="mb-1 flex items-center gap-1 text-xs text-gray-500 lg:text-sm">
                           <i className="fa-solid fa-star text-blue-600"></i>
                           <span>Chưa tải đánh giá</span>
@@ -717,42 +855,28 @@ export default function HomePage() {
                               .join(", ") || facility.dia_chi}
                           </span>
                         </div>
-                        <div className="mb-1 hidden items-center gap-1.5 text-[10px] font-medium text-blue-600 lg:flex lg:text-sm">
+                        <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-blue-600 lg:text-sm">
                           <i className="fa-solid fa-route w-3 text-center"></i>
                           <span>
                             {Number.isFinite(facility.distanceKm)
                               ? `Cách bạn ${formatDistance(facility.distanceKm)}`
                               : userLocation
                                 ? "Chưa có tọa độ để tính khoảng cách"
-                                : "Bật vị trí để xem khoảng cách"}
+                            : "Bật vị trí để xem khoảng cách"}
                           </span>
                         </div>
-                        <div className="mb-2 hidden items-center gap-1.5 text-[10px] text-gray-500 lg:flex lg:text-sm">
+                        <div className="mb-2 flex items-center gap-1.5 text-xs text-gray-500 lg:text-sm">
                           <i className="fa-regular fa-clock w-3 text-center"></i>
                           <span>05:00 - 23:00</span>
                         </div>
-                      </div>
-
-                      <div className="flex items-end justify-end lg:flex-shrink-0 lg:self-end">
-                        <div className="text-right">
-                          <div className="mb-2 text-[10px] font-semibold text-gray-900 lg:text-xs">
-                            {facility.gia_thap_nhat ? (
-                              <>
-                                Chỉ từ{" "}
-                                <span className="text-xs font-semibold text-blue-600 lg:text-sm">
-                                  {Number(facility.gia_thap_nhat).toLocaleString("vi-VN")}đ
-                                  <span className="font-normal text-gray-800">
-                                    /giờ
-                                  </span>
-                                </span>
-                              </>
-                            ) : (
-                              <span className="font-semibold text-gray-500">Chưa có giá</span>
-                            )}
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <div className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600">
+                            <i className="fa-solid fa-circle-check text-[10px]"></i>
+                            <span>Còn sân</span>
                           </div>
                           <Link
                             to={`/dat-san/${facility.id}`}
-                            className="inline-flex rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-md hover:bg-blue-700 lg:px-6 lg:text-sm"
+                            className="inline-flex flex-shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
                           >
                             Đặt Sân
                           </Link>
@@ -760,33 +884,12 @@ export default function HomePage() {
                       </div>
                     </div>
                   </article>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
 
-          <div className="hidden w-full max-w-[360px] flex-shrink-0 xl:block">
-            <div className="relative overflow-hidden rounded-2xl border border-[#dce6fa] bg-gradient-to-br from-[#f8fbff] to-[#d9e7ff] p-6 shadow-sm">
-              <div className="mb-4 flex w-max items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
-                <i className="fa-solid fa-tag"></i>
-                Ưu đãi cuối tuần
-              </div>
-              <div className="mb-3 text-4xl font-semibold leading-tight text-slate-900">
-                Giảm đến <span className="text-blue-600">30%</span>
-              </div>
-              <p className="mb-8 text-sm leading-relaxed text-gray-600">
-                Đặt sân thứ 7 & chủ nhật, khung giờ 18:00 - 22:00.
-              </p>
-
-              <button
-                type="button"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0d6efd] py-3 text-sm font-medium text-white shadow-md hover:bg-blue-700"
-              >
-                Đặt ngay
-                <i className="fa-solid fa-chevron-right text-[10px]"></i>
-              </button>
-            </div>
-          </div>
         </div>
       </main>
 
