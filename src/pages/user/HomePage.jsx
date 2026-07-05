@@ -1103,11 +1103,6 @@ export default function HomePage() {
 
               {activePopup === "sort" && (
                 <>
-                  <div className="rounded-xl bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-700">
-                    {userLocation
-                      ? "Đã có vị trí hiện tại, có thể sắp xếp theo khoảng cách."
-                      : "Chọn gần bạn nhất sẽ cần quyền truy cập vị trí hiện tại."}
-                  </div>
                   <div className="grid gap-2">
                     {[
                       { value: "pho_bien", label: "Phổ biến nhất" },
