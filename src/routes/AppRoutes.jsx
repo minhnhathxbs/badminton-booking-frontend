@@ -11,6 +11,7 @@ import ChangePasswordPage from "../pages/user/ChangePasswordPage";
 import VerifyOtpPage from "../pages/auth/VerifyOtpPage";
 import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
 import MapPage from "../pages/user/MapPage";
+import NotFoundPage from "../pages/NotFoundPage";
 
 import OwnerLayout from "../layouts/OwnerLayout";
 import OwnerDashboard from "../pages/owner/OwnerDashboard";
@@ -22,7 +23,7 @@ import ManageCourts from "../pages/owner/ManageCourts";
 import ManageCourtCategories from "../pages/owner/ManageCourtCategories";
 import ManagePromotions from "../pages/owner/ManagePromotions";
 import ManageReviews from "../pages/owner/ManageReviews";
-import ManageRefunds from "../pages/owner/ManageRefunds";
+import ManageRefunds from "../pages/admin/ManageRefunds";
 import OwnerComplaints from "../pages/owner/OwnerComplaints";
 
 import AdminLayout from "../layouts/AdminLayout";
@@ -105,6 +106,7 @@ export default function AppRoutes() {
           <Route path="nhat-ky" element={<SystemLogs />} />
         </Route>
       </Route>
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
