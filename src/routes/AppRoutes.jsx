@@ -84,7 +84,6 @@ export default function AppRoutes() {
           <Route path="khuyen-mai" element={<ManagePromotions />} />
           <Route path="doanh-thu" element={<RevenueReport />} />
           <Route path="bang-gia" element={<ManagePrices />} />
-          <Route path="hoan-tien" element={<ManageRefunds />} />
           <Route path="danh-gia" element={<ManageReviews />} />
           <Route path="khieu-nai" element={<OwnerComplaints />} />
         </Route>
@@ -97,6 +96,7 @@ export default function AppRoutes() {
           <Route path="co-so" element={<ManageAllFacilities />} />
           <Route path="khuyen-mai" element={<ManageAllPromotions />} />
           <Route path="rut-tien" element={<ManageWithdrawRequests />} />
+          <Route path="hoan-tien" element={<ManageRefunds />} />
           <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
           <Route path="khieu-nai" element={<ManageComplaints />} />

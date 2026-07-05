@@ -81,7 +81,7 @@ export default function OwnerLayout() {
       icon: "fa-flag",
       label: "Khiếu nại từ khách",
     },
-  ];
+  ].filter((item) => item.path !== "/chu-san/hoan-tien");
 
   const handleLogout = () => {
     localStorage.removeItem("user");

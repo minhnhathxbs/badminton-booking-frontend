@@ -69,6 +69,11 @@ export default function AdminLayout() {
       label: "Duyệt rút tiền",
     },
     {
+      path: "/admin/hoan-tien",
+      icon: "fa-receipt",
+      label: "Duyệt hoàn tiền",
+    },
+    {
       path: "/admin/danh-muc-san",
       icon: "fa-list",
       label: "Danh mục sân",
