@@ -7,12 +7,13 @@ import { showToast } from "../../components/common/ToastMessage";
 
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
-const getPriceRange = (row) => {
-  if (Number(row.gia_thap_nhat) === Number(row.gia_cao_nhat)) {
-    return formatCurrency(row.gia_thap_nhat);
-  }
-  return `${formatCurrency(row.gia_thap_nhat)} - ${formatCurrency(row.gia_cao_nhat)}`;
-};
+
+const PRICE_ROW_ORDER = [
+  { loai_ngay_id: 1, loai_gio_id: 1, ten_loai_ngay: "Trong tuần", ten_loai_gio: "Thấp điểm" },
+  { loai_ngay_id: 1, loai_gio_id: 2, ten_loai_ngay: "Trong tuần", ten_loai_gio: "Cao điểm" },
+  { loai_ngay_id: 2, loai_gio_id: 1, ten_loai_ngay: "Cuối tuần", ten_loai_gio: "Thấp điểm" },
+  { loai_ngay_id: 2, loai_gio_id: 2, ten_loai_ngay: "Cuối tuần", ten_loai_gio: "Cao điểm" },
+];
 
 const getTodayInputValue = () => {
   const now = new Date();
@@ -105,6 +106,7 @@ export default function FacilityDetailPage() {
   const [courts, setCourts] = useState([]);
   const [timeSlots, setTimeSlots] = useState([]);
   const [priceSummary, setPriceSummary] = useState([]);
+  const [priceCategories, setPriceCategories] = useState([]);
   const [selectedDate, setSelectedDate] = useState(getTodayInputValue());
   const [draftDate, setDraftDate] = useState(getTodayInputValue());
   const [selectedSlots, setSelectedSlots] = useState(new Set());
@@ -184,6 +186,7 @@ export default function FacilityDetailPage() {
         setCourts(scheduleRes.data?.san || []);
         setTimeSlots(scheduleRes.data?.khung_gio || []);
         setPriceSummary(priceRes.data?.bang_gia || []);
+        setPriceCategories(priceRes.data?.danh_muc_san || []);
         lastScheduleQueryRef.current = { id, selectedDate };
       } catch (err) {
         if (shouldResetPage) {
@@ -191,6 +194,7 @@ export default function FacilityDetailPage() {
           setCourts([]);
           setTimeSlots([]);
           setPriceSummary([]);
+          setPriceCategories([]);
           setError(
             err.response?.data?.message ||
               "Kh\u00f4ng th\u1ec3 t\u1ea3i th\u00f4ng tin c\u01a1 s\u1edf",
@@ -290,6 +294,26 @@ export default function FacilityDetailPage() {
     ],
     [courts],
   );
+
+  const priceRows = useMemo(() => {
+    const priceMap = new Map(
+      priceSummary.map((item) => [
+        `${Number(item.loai_ngay_id)}-${Number(item.loai_gio_id)}-${Number(item.danh_muc_san_id)}`,
+        Number(item.gia || 0),
+      ]),
+    );
+
+    return PRICE_ROW_ORDER.map((row) => ({
+      ...row,
+      prices: priceCategories.map((category) => ({
+        danh_muc_san_id: Number(category.id),
+        ten_danh_muc_san: category.ten,
+        gia: priceMap.get(
+          `${row.loai_ngay_id}-${row.loai_gio_id}-${Number(category.id)}`,
+        ),
+      })),
+    }));
+  }, [priceCategories, priceSummary]);
 
   useEffect(() => {
     const promoBaseTotal = Number(holdInfo?.tong_tien ?? 0);
@@ -1363,8 +1387,8 @@ export default function FacilityDetailPage() {
               </button>
             </div>
 
-            <div className="p-6 overflow-x-auto max-h-[70vh] custom-scrollbar">
-              <table className="w-full min-w-[500px] border-collapse text-left text-sm">
+            <div className="p-6 max-h-[70vh] custom-scrollbar">
+              <table className="w-full border-collapse text-left text-sm">
                 <thead>
                   <tr>
                     <th className="border-b-2 border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-700">
@@ -1373,16 +1397,21 @@ export default function FacilityDetailPage() {
                     <th className="border-b-2 border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-700">
                       {"Khung gi\u1edd"}
                     </th>
-                    <th className="border-b-2 border-slate-200 bg-slate-50 px-4 py-3 font-bold text-right text-slate-700">
-                      {"M\u1ee9c gi\u00e1"}
-                    </th>
+                    {priceCategories.map((category) => (
+                      <th
+                        key={category.id}
+                        className="border-b-2 border-slate-200 bg-slate-50 px-4 py-3 text-right font-bold text-slate-700"
+                      >
+                        {category.ten}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {priceSummary.length === 0 ? (
+                  {priceSummary.length === 0 || priceCategories.length === 0 ? (
                     <tr>
                       <td
-                        colSpan="3"
+                        colSpan={2 + Math.max(priceCategories.length, 1)}
                         className="px-4 py-10 text-center text-slate-500 font-medium"
                       >
                         {
@@ -1391,14 +1420,14 @@ export default function FacilityDetailPage() {
                       </td>
                     </tr>
                   ) : (
-                    priceSummary.map((row, index) => (
+                    priceRows.map((row, index) => (
                       <tr
                         key={`${row.loai_ngay_id}-${row.loai_gio_id}`}
                         className="hover:bg-slate-50/50 transition-colors"
                       >
                         <td className="px-4 py-3 font-medium text-slate-800">
                           {index > 0 &&
-                          priceSummary[index - 1].ten_loai_ngay ===
+                          priceRows[index - 1].ten_loai_ngay ===
                             row.ten_loai_ngay
                             ? ""
                             : row.ten_loai_ngay}
@@ -1406,9 +1435,14 @@ export default function FacilityDetailPage() {
                         <td className="px-4 py-3 text-slate-600">
                           {row.ten_loai_gio}
                         </td>
-                        <td className="px-4 py-3 font-semibold text-indigo-700 text-right">
-                          {getPriceRange(row)}
-                        </td>
+                        {row.prices.map((price) => (
+                          <td
+                            key={price.danh_muc_san_id}
+                            className="px-4 py-3 text-right font-semibold text-indigo-700"
+                          >
+                            {price.gia === undefined ? "-" : formatCurrency(price.gia)}
+                          </td>
+                        ))}
                       </tr>
                     ))
                   )}
