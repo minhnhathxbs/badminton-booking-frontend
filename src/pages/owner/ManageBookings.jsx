@@ -602,7 +602,7 @@ function ScheduleGrid({
         <div className="border-b border-slate-100 bg-blue-50 px-4 py-3 text-sm font-bold text-[#0a192f]">
           <span className="text-slate-500">Đang xem: </span>
           <span>{facilityName || "Chưa chọn cơ sở"}</span>
-          <span className="mx-2 text-slate-400">â€¢</span>
+          <span className="mx-2 text-slate-400">-</span>
           <span>{formatDate(selectedDate)}</span>
         </div>
 
