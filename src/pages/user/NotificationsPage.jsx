@@ -22,8 +22,16 @@ const iconTheoLoai = (loai) => {
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { danhSach, soChuaDoc, dangTai, taiThongBao, danhDauDaDoc, danhDauTatCa } =
-    useNotifications();
+  const {
+    danhSach,
+    soChuaDoc,
+    dangTai,
+    taiThongBao,
+    danhDauDaDoc,
+    danhDauTatCa,
+    xoaThongBao,
+    xoaTatCaDaDoc,
+  } = useNotifications();
 
   useEffect(() => {
     if (!localStorage.getItem("token")) {
@@ -38,6 +46,8 @@ export default function NotificationsPage() {
     if (tb.duong_dan) navigate(tb.duong_dan);
   };
 
+  const coDaDoc = danhSach.some((tb) => tb.da_doc);
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
@@ -51,15 +61,26 @@ export default function NotificationsPage() {
               </span>
             )}
           </h1>
-          {soChuaDoc > 0 && (
-            <button
-              type="button"
-              onClick={danhDauTatCa}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              Đánh dấu tất cả đã đọc
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {soChuaDoc > 0 && (
+              <button
+                type="button"
+                onClick={danhDauTatCa}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Đánh dấu tất cả đã đọc
+              </button>
+            )}
+            {coDaDoc && (
+              <button
+                type="button"
+                onClick={xoaTatCaDaDoc}
+                className="text-sm text-red-500 hover:underline"
+              >
+                Xóa đã đọc
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-50 overflow-hidden">
@@ -72,28 +93,40 @@ export default function NotificationsPage() {
             </div>
           ) : (
             danhSach.map((tb) => (
-              <button
+              <div
                 key={tb.id}
-                type="button"
-                onClick={() => xuLyClick(tb)}
-                className={`w-full text-left flex gap-3 px-4 py-4 hover:bg-gray-50 transition-colors ${
+                className={`w-full flex gap-3 px-4 py-4 hover:bg-gray-50 transition-colors ${
                   tb.da_doc ? "bg-white" : "bg-blue-50/60"
                 }`}
               >
-                <div className="w-10 h-10 rounded-full bg-[#eef3ff] text-blue-600 flex items-center justify-center flex-shrink-0">
-                  <i className={iconTheoLoai(tb.loai_thong_bao)}></i>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-gray-800">{tb.tieu_de}</p>
-                  <p className="text-sm text-gray-500">{tb.noi_dung}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {thoiGianTuongDoi(tb.ngay_tao)}
-                  </p>
-                </div>
-                {!tb.da_doc && (
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></span>
-                )}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => xuLyClick(tb)}
+                  className="flex gap-3 flex-1 text-left min-w-0"
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#eef3ff] text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <i className={iconTheoLoai(tb.loai_thong_bao)}></i>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-800">{tb.tieu_de}</p>
+                    <p className="text-sm text-gray-500">{tb.noi_dung}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {thoiGianTuongDoi(tb.ngay_tao)}
+                    </p>
+                  </div>
+                  {!tb.da_doc && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => xoaThongBao(tb.id)}
+                  className="ml-1 flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors self-center p-1 rounded"
+                  title="Xóa thông báo"
+                >
+                  <i className="fa-solid fa-xmark text-base"></i>
+                </button>
+              </div>
             ))
           )}
         </div>

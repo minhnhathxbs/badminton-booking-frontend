@@ -115,6 +115,36 @@ export function NotificationProvider({ children }) {
     }
   }, []);
 
+  const xoaThongBao = useCallback(async (id) => {
+    setDanhSach((truoc) => {
+      const tb = truoc.find((t) => t.id === id);
+      if (tb && !tb.da_doc) {
+        setSoChuaDoc((c) => Math.max(0, c - 1));
+      }
+      return truoc.filter((t) => t.id !== id);
+    });
+    try {
+      const res = await api.delete(`/thong-bao/${id}`);
+      if (typeof res.data?.so_chua_doc === "number") {
+        setSoChuaDoc(res.data.so_chua_doc);
+      }
+    } catch {
+      // bỏ qua
+    }
+  }, []);
+
+  const xoaTatCaDaDoc = useCallback(async () => {
+    setDanhSach((truoc) => truoc.filter((tb) => !tb.da_doc));
+    try {
+      const res = await api.delete("/thong-bao/xoa-da-doc");
+      if (typeof res.data?.so_chua_doc === "number") {
+        setSoChuaDoc(res.data.so_chua_doc);
+      }
+    } catch {
+      // bỏ qua
+    }
+  }, []);
+
   return (
     <NotificationContext.Provider
       value={{
@@ -124,6 +154,8 @@ export function NotificationProvider({ children }) {
         taiThongBao,
         danhDauDaDoc,
         danhDauTatCa,
+        xoaThongBao,
+        xoaTatCaDaDoc,
       }}
     >
       {children}

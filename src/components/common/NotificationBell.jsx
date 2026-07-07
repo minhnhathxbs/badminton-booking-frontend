@@ -19,7 +19,7 @@ const iconTheoLoai = (loai) => {
 };
 
 export default function NotificationBell({ className = "" }) {
-  const { danhSach, soChuaDoc, danhDauDaDoc, danhDauTatCa } =
+  const { danhSach, soChuaDoc, danhDauDaDoc, danhDauTatCa, xoaThongBao, xoaTatCaDaDoc } =
     useNotifications();
   const [moMenu, setMoMenu] = useState(false);
   const ref = useRef(null);
@@ -41,6 +41,13 @@ export default function NotificationBell({ className = "" }) {
     if (tb.duong_dan) navigate(tb.duong_dan);
   };
 
+  const xuLyXoa = (e, id) => {
+    e.stopPropagation();
+    xoaThongBao(id);
+  };
+
+  const coDaDoc = danhSach.some((tb) => tb.da_doc);
+
   return (
     <div className={`relative ${className}`} ref={ref}>
       <button
@@ -61,15 +68,26 @@ export default function NotificationBell({ className = "" }) {
         <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <p className="font-bold text-gray-800">Thông báo</p>
-            {soChuaDoc > 0 && (
-              <button
-                type="button"
-                onClick={danhDauTatCa}
-                className="text-xs text-blue-600 hover:underline"
-              >
-                Đánh dấu tất cả đã đọc
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {soChuaDoc > 0 && (
+                <button
+                  type="button"
+                  onClick={danhDauTatCa}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Đánh dấu tất cả đã đọc
+                </button>
+              )}
+              {coDaDoc && (
+                <button
+                  type="button"
+                  onClick={xoaTatCaDaDoc}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Xóa đã đọc
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto">
@@ -80,32 +98,44 @@ export default function NotificationBell({ className = "" }) {
               </div>
             ) : (
               danhSach.map((tb) => (
-                <button
+                <div
                   key={tb.id}
-                  type="button"
-                  onClick={() => xuLyClick(tb)}
-                  className={`w-full text-left flex gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
+                  className={`w-full flex gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
                     tb.da_doc ? "bg-white" : "bg-blue-50/60"
                   }`}
                 >
-                  <div className="w-9 h-9 rounded-full bg-[#eef3ff] text-blue-600 flex items-center justify-center flex-shrink-0">
-                    <i className={iconTheoLoai(tb.loai_thong_bao)}></i>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-800 truncate">
-                      {tb.tieu_de}
-                    </p>
-                    <p className="text-xs text-gray-500 line-clamp-2">
-                      {tb.noi_dung}
-                    </p>
-                    <p className="text-[11px] text-gray-400 mt-1">
-                      {thoiGianTuongDoi(tb.ngay_tao)}
-                    </p>
-                  </div>
-                  {!tb.da_doc && (
-                    <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></span>
-                  )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => xuLyClick(tb)}
+                    className="flex gap-3 flex-1 text-left min-w-0"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-[#eef3ff] text-blue-600 flex items-center justify-center flex-shrink-0">
+                      <i className={iconTheoLoai(tb.loai_thong_bao)}></i>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-800 truncate">
+                        {tb.tieu_de}
+                      </p>
+                      <p className="text-xs text-gray-500 line-clamp-2">
+                        {tb.noi_dung}
+                      </p>
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        {thoiGianTuongDoi(tb.ngay_tao)}
+                      </p>
+                    </div>
+                    {!tb.da_doc && (
+                      <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => xuLyXoa(e, tb.id)}
+                    className="flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors self-center p-1 rounded"
+                    title="Xóa thông báo"
+                  >
+                    <i className="fa-solid fa-xmark text-sm"></i>
+                  </button>
+                </div>
               ))
             )}
           </div>
