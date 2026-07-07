@@ -56,11 +56,22 @@ export default function AdminLayout() {
       path: "/admin/co-so",
       icon: "fa-building-circle-check",
       label: "Quản lý cơ sở",
+      activePaths: ["/admin/co-so", "/admin/duyet-co-so"],
     },
     {
       path: "/admin/khuyen-mai",
       icon: "fa-ticket",
       label: "Quản lý khuyến mãi",
+    },
+    {
+      path: "/admin/rut-tien",
+      icon: "fa-money-bill-transfer",
+      label: "Duyệt rút tiền",
+    },
+    {
+      path: "/admin/hoan-tien",
+      icon: "fa-receipt",
+      label: "Duyệt hoàn tiền",
     },
     {
       path: "/admin/danh-muc-san",
@@ -73,6 +84,11 @@ export default function AdminLayout() {
       label: "Quản lý khiếu nại",
     },
     {
+      path: "/admin/danh-gia-bao-cao",
+      icon: "fa-star",
+      label: "Đánh giá bị báo cáo",
+    },
+    {
       path: "/admin/cau-hinh",
       icon: "fa-gear",
       label: "Cấu hình hệ thống",
@@ -81,11 +97,6 @@ export default function AdminLayout() {
       path: "/admin/nhat-ky",
       icon: "fa-clipboard-list",
       label: "Nhật ký hệ thống",
-    },
-    {
-      path: "/admin/thong-ke",
-      icon: "fa-chart-pie",
-      label: "Thống kê hệ thống",
     },
   ];
 
@@ -126,7 +137,10 @@ export default function AdminLayout() {
 
         <nav className="flex lg:flex-1 gap-2 lg:block px-4 py-3 lg:py-6 lg:space-y-2 overflow-x-auto lg:overflow-y-auto">
           {navItems.map((item) => {
-            const isActive = location.pathname.includes(item.path);
+            const activePaths = item.activePaths || [item.path];
+            const isActive = activePaths.some((path) =>
+              location.pathname.includes(path),
+            );
             return (
               <Link
                 key={item.path}

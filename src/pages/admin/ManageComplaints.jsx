@@ -3,49 +3,49 @@ import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
 
 const TXT = {
-  title: "Qu\u1ea3n l\u00fd khi\u1ebfu n\u1ea1i",
-  desc: "Xem x\u00e9t v\u00e0 x\u1eed l\u00fd khi\u1ebfu n\u1ea1i t\u1eeb kh\u00e1ch h\u00e0ng.",
-  all: "T\u1ea5t c\u1ea3 tr\u1ea1ng th\u00e1i",
-  pending: "Ch\u1edd x\u1eed l\u00fd",
-  accepted: "\u0110\u00e3 ch\u1ea5p nh\u1eadn",
-  rejected: "\u0110\u00e3 t\u1eeb ch\u1ed1i",
-  search: "T\u00ecm theo kh\u00e1ch, S\u0110T, email, c\u01a1 s\u1edf ho\u1eb7c l\u00fd do",
-  loading: "\u0110ang t\u1ea3i khi\u1ebfu n\u1ea1i...",
-  empty: "Ch\u01b0a c\u00f3 khi\u1ebfu n\u1ea1i n\u00e0o",
-  customer: "Kh\u00e1ch h\u00e0ng",
-  facility: "C\u01a1 s\u1edf",
-  owner: "Ch\u1ee7 s\u00e2n",
-  booking: "\u0110\u01a1n",
-  amount: "S\u1ed1 ti\u1ec1n \u0111\u01a1n",
-  reason: "L\u00fd do khi\u1ebfu n\u1ea1i",
-  evidence: "H\u00ecnh \u1ea3nh ch\u1ee9ng minh",
-  status: "Tr\u1ea1ng th\u00e1i",
-  createdAt: "Ng\u00e0y g\u1eedi",
-  action: "Thao t\u00e1c",
-  accept: "Ch\u1ea5p nh\u1eadn & Ho\u00e0n ti\u1ec1n",
-  reject: "B\u00e1c b\u1ecf",
-  close: "\u0110\u00f3ng",
-  note: "Ghi ch\u00fa x\u1eed l\u00fd",
-  notePlaceholder: "Nh\u1eadp l\u00fd do gi\u1ea3i quy\u1ebft...",
-  acceptTitle: "Ch\u1ea5p nh\u1eadn khi\u1ebfu n\u1ea1i",
-  acceptDesc: "Ti\u1ec1n s\u1ebd \u0111\u01b0\u1ee3c ho\u00e0n l\u1ea1i cho kh\u00e1ch v\u00e0 ch\u1ee7 s\u00e2n nh\u1eadn 1 c\u1ea3nh b\u00e1o vi ph\u1ea1m.",
-  rejectTitle: "B\u00e1c b\u1ecf khi\u1ebfu n\u1ea1i",
-  rejectDesc: "Ti\u1ec1n v\u1eabn v\u1ec1 tay ch\u1ee7 s\u00e2n, kh\u00e1ch h\u00e0ng s\u1ebd nh\u1eadn th\u00f4ng b\u00e1o.",
-  processing: "\u0110ang x\u1eed l\u00fd",
-  processFail: "Kh\u00f4ng th\u1ec3 x\u1eed l\u00fd khi\u1ebfu n\u1ea1i",
-  loadFail: "Kh\u00f4ng th\u1ec3 t\u1ea3i danh s\u00e1ch khi\u1ebfu n\u1ea1i",
-  noData: "Ch\u01b0a c\u00f3",
-  viewDetail: "Xem chi ti\u1ebft",
-  detailTitle: "Chi ti\u1ebft khi\u1ebfu n\u1ea1i",
-  paid: "\u0110\u00e3 thanh to\u00e1n",
-  phone: "S\u0110T",
+  title: "Quản lý khiếu nại",
+  desc: "Xem xét và xử lý khiếu nại từ khách hàng.",
+  all: "Tất cả trạng thái",
+  pending: "Chờ xử lý",
+  accepted: "Đã chấp nhận",
+  rejected: "Đã từ chối",
+  search: "Tìm theo khách, SĐT, email, cơ sở hoặc lý do",
+  loading: "Đang tải khiếu nại...",
+  empty: "Chưa có khiếu nại nào",
+  customer: "Khách hàng",
+  facility: "Cơ sở",
+  owner: "Chủ sân",
+  booking: "Đơn",
+  amount: "Số tiền đơn",
+  reason: "Lý do khiếu nại",
+  evidence: "Hình ảnh chứng minh",
+  status: "Trạng thái",
+  createdAt: "Ngày gửi",
+  action: "Thao tác",
+  accept: "Chấp nhận & Hoàn tiền",
+  reject: "Bác bỏ",
+  close: "Đóng",
+  note: "Ghi chú xử lý",
+  notePlaceholder: "Nhập lý do giải quyết...",
+  acceptTitle: "Chấp nhận khiếu nại",
+  acceptDesc: "Tiền sẽ được hoàn lại cho khách và chủ sân nhận 1 cảnh báo vi phạm.",
+  rejectTitle: "Bác bỏ khiếu nại",
+  rejectDesc: "Tiền vẫn về tay chủ sân, khách hàng sẽ nhận thông báo.",
+  processing: "Đang xử lý",
+  processFail: "Không thể xử lý khiếu nại",
+  loadFail: "Không thể tải danh sách khiếu nại",
+  noData: "Chưa có",
+  viewDetail: "Xem chi tiết",
+  detailTitle: "Chi tiết khiếu nại",
+  paid: "Đã thanh toán",
+  phone: "SĐT",
   email: "Email",
-  ownerPhone: "S\u0110T ch\u1ee7 s\u00e2n",
-  adminNote: "Ghi ch\u00fa Admin",
-  processedAt: "Ng\u00e0y x\u1eed l\u00fd",
-  totalComplaints: "T\u1ed5ng khi\u1ebfu n\u1ea1i",
-  pendingCount: "Ch\u1edd x\u1eed l\u00fd",
-  frozenAmount: "Ti\u1ec1n \u0111\u00f3ng b\u0103ng",
+  ownerPhone: "SĐT chủ sân",
+  adminNote: "Ghi chú Admin",
+  processedAt: "Ngày xử lý",
+  totalComplaints: "Tổng khiếu nại",
+  pendingCount: "Chờ xử lý",
+  frozenAmount: "Tiền đóng băng",
 };
 
 const STATUS_OPTIONS = [
@@ -56,7 +56,7 @@ const STATUS_OPTIONS = [
 ];
 
 const formatCurrency = (value) =>
-  `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
+  `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 
 const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString("vi-VN") : TXT.noData;
@@ -153,7 +153,7 @@ export default function ManageComplaints() {
         ghi_chu_admin: note.trim(),
       });
 
-      showToast(res.data?.message || "X\u1eed l\u00fd khi\u1ebfu n\u1ea1i th\u00e0nh c\u00f4ng");
+      showToast(res.data?.message || "Xử lý khiếu nại thành công");
       closeDecision();
       setDetail(null);
       await fetchComplaints();
@@ -179,7 +179,9 @@ export default function ManageComplaints() {
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative">
-            <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400"></i>
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <i className="fa-solid fa-magnifying-glass text-sm leading-none"></i>
+            </span>
             <input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
@@ -541,7 +543,7 @@ function DecisionModal({ decision, note, loading, onNoteChange, onClose, onConfi
           {isAccept && (
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
               <div className="text-xs font-bold uppercase text-blue-600">
-                S\u1ed1 ti\u1ec1n ho\u00e0n cho kh\u00e1ch
+                Số tiền hoàn cho khách
               </div>
               <div className="mt-1 text-xl font-extrabold text-blue-800">
                 {formatCurrency(complaint.dat_san?.da_thanh_toan)}

@@ -11,6 +11,7 @@ import ChangePasswordPage from "../pages/user/ChangePasswordPage";
 import VerifyOtpPage from "../pages/auth/VerifyOtpPage";
 import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
 import MapPage from "../pages/user/MapPage";
+import NotFoundPage from "../pages/NotFoundPage";
 
 import OwnerLayout from "../layouts/OwnerLayout";
 import OwnerDashboard from "../pages/owner/OwnerDashboard";
@@ -22,7 +23,7 @@ import ManageCourts from "../pages/owner/ManageCourts";
 import ManageCourtCategories from "../pages/owner/ManageCourtCategories";
 import ManagePromotions from "../pages/owner/ManagePromotions";
 import ManageReviews from "../pages/owner/ManageReviews";
-import ManageRefunds from "../pages/owner/ManageRefunds";
+import ManageRefunds from "../pages/admin/ManageRefunds";
 import OwnerComplaints from "../pages/owner/OwnerComplaints";
 
 import AdminLayout from "../layouts/AdminLayout";
@@ -34,7 +35,9 @@ import AdminRoute from "./AdminRoute";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import SystemConfig from "../pages/admin/SystemConfig";
 import SystemLogs from "../pages/admin/SystemLogs";
+import ManageWithdrawRequests from "../pages/admin/ManageWithdrawRequests";
 import ManageComplaints from "../pages/admin/ManageComplaints";
+import ManageReportedReviews from "../pages/admin/ManageReportedReviews";
 
 function RedirectFacilityToBooking() {
   const { id } = useParams();
@@ -82,7 +85,6 @@ export default function AppRoutes() {
           <Route path="khuyen-mai" element={<ManagePromotions />} />
           <Route path="doanh-thu" element={<RevenueReport />} />
           <Route path="bang-gia" element={<ManagePrices />} />
-          <Route path="hoan-tien" element={<ManageRefunds />} />
           <Route path="danh-gia" element={<ManageReviews />} />
           <Route path="khieu-nai" element={<OwnerComplaints />} />
         </Route>
@@ -94,13 +96,17 @@ export default function AppRoutes() {
           <Route path="nguoi-dung" element={<ManageUsers />} />
           <Route path="co-so" element={<ManageAllFacilities />} />
           <Route path="khuyen-mai" element={<ManageAllPromotions />} />
+          <Route path="rut-tien" element={<ManageWithdrawRequests />} />
+          <Route path="hoan-tien" element={<ManageRefunds />} />
           <Route path="danh-muc-san" element={<ManageCourtCategories />} />
           <Route path="duyet-co-so" element={<ManageAllFacilities />} />
           <Route path="khieu-nai" element={<ManageComplaints />} />
+          <Route path="danh-gia-bao-cao" element={<ManageReportedReviews />} />
           <Route path="cau-hinh" element={<SystemConfig />} />
           <Route path="nhat-ky" element={<SystemLogs />} />
         </Route>
       </Route>
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

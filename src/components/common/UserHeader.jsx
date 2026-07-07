@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../../api/axios";
+import { useNotifications } from "../../contexts/notificationStore";
 
 export default function UserHeader() {
   const [user, setUser] = useState(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { soChuaDoc } = useNotifications();
 
   const fetchMe = useCallback(async () => {
     if (!localStorage.getItem("token")) {
@@ -44,7 +46,12 @@ export default function UserHeader() {
     { to: "/trang-chu", icon: "fa-solid fa-house", label: "Trang chủ" },
     { to: "/ban-do", icon: "fa-regular fa-map", label: "Bản đồ" },
     { to: "/yeu-thich", icon: "fa-solid fa-heart", label: "Yêu thích" },
-    { to: "/notifications", icon: "fa-regular fa-bell", label: "Thông báo" },
+    {
+      to: "/notifications",
+      icon: "fa-regular fa-bell",
+      label: "Thông báo",
+      notification: true,
+    },
   ];
 
   const isActive = (to) => {
@@ -52,7 +59,7 @@ export default function UserHeader() {
     return location.pathname === to;
   };
 
-  const displayName = user?.ho_ten || "Khách";
+  const displayName = user?.ho_ten;
 
   return (
     <header className="border-b border-gray-200 bg-white">
@@ -88,9 +95,14 @@ export default function UserHeader() {
                 <span
                   className={`grid h-9 w-9 place-items-center rounded-full text-xl sm:h-11 sm:w-11 sm:text-2xl ${
                     active ? "bg-blue-100 text-blue-600" : "text-gray-400"
-                  }`}
+                  } relative`}
                 >
                   <i className={item.icon}></i>
+                  {item.notification && user && soChuaDoc > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white sm:h-[18px] sm:min-w-[18px] sm:text-[10px]">
+                      {soChuaDoc > 99 ? "99+" : soChuaDoc}
+                    </span>
+                  )}
                 </span>
                 <span>{item.label}</span>
               </Link>
@@ -99,27 +111,58 @@ export default function UserHeader() {
         </nav>
 
         <div className="relative hidden min-w-[220px] justify-end sm:flex">
-          <ProfileButton
-            user={user}
-            displayName={displayName}
-            isProfileOpen={isProfileOpen}
-            setIsProfileOpen={setIsProfileOpen}
-            handleLogout={handleLogout}
-          />
+          {user ? (
+            <ProfileButton
+              user={user}
+              displayName={displayName}
+              isProfileOpen={isProfileOpen}
+              setIsProfileOpen={setIsProfileOpen}
+              handleLogout={handleLogout}
+            />
+          ) : (
+            <AuthButtons />
+          )}
         </div>
 
         <div className="relative justify-self-end sm:hidden">
-          <ProfileButton
-            compact
-            user={user}
-            displayName={displayName}
-            isProfileOpen={isProfileOpen}
-            setIsProfileOpen={setIsProfileOpen}
-            handleLogout={handleLogout}
-          />
+          {user ? (
+            <ProfileButton
+              compact
+              user={user}
+              displayName={displayName}
+              isProfileOpen={isProfileOpen}
+              setIsProfileOpen={setIsProfileOpen}
+              handleLogout={handleLogout}
+            />
+          ) : (
+            <AuthButtons compact />
+          )}
         </div>
       </div>
     </header>
+  );
+}
+
+function AuthButtons({ compact = false }) {
+  return (
+    <div className={`flex items-center ${compact ? "gap-2" : "gap-3"}`}>
+      <Link
+        to="/dang-ky"
+        className={`rounded-xl border border-blue-600 font-bold text-blue-600 transition hover:bg-blue-50 ${
+          compact ? "px-3 py-2 text-xs" : "px-5 py-2 text-sm"
+        }`}
+      >
+        Đăng ký
+      </Link>
+      <Link
+        to="/dang-nhap"
+        className={`rounded-xl bg-blue-600 font-bold text-white transition hover:bg-blue-700 ${
+          compact ? "px-3 py-2 text-xs" : "px-5 py-2 text-sm"
+        }`}
+      >
+        Đăng nhập
+      </Link>
+    </div>
   );
 }
 

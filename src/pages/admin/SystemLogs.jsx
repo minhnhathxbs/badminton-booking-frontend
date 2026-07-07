@@ -126,7 +126,9 @@ export default function SystemLogs() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="relative">
-          <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+            <i className="fa-solid fa-magnifying-glass text-sm leading-none"></i>
+          </span>
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}

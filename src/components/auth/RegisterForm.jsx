@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 import api from "../../api/axios";
 
+const PASSWORD_MESSAGE =
+  "Mật khẩu phải có ít nhất 8 ký tự, gồm ít nhất 1 chữ và 1 số";
+
+const isValidPassword = (value) =>
+  value.length >= 8 && /[A-Za-zÀ-ỹ]/.test(value) && /\d/.test(value);
+
 export default function RegisterForm({ setActiveForm }) {
   const [formData, setFormData] = useState({
     ho_ten: "",
@@ -22,6 +28,10 @@ export default function RegisterForm({ setActiveForm }) {
 
     if (formData.mat_khau !== formData.xac_nhan_mat_khau) {
       return setError("Mật khẩu xác nhận không khớp");
+    }
+
+    if (!isValidPassword(formData.mat_khau)) {
+      return setError(PASSWORD_MESSAGE);
     }
 
     setLoading(true);
@@ -109,10 +119,12 @@ export default function RegisterForm({ setActiveForm }) {
             value={formData.mat_khau}
             onChange={handleChange}
             placeholder="Mật khẩu"
+            minLength={8}
             className="w-full bg-transparent outline-none text-sm text-gray-800 placeholder-gray-400"
             required
           />
         </div>
+        <p className="-mt-3 text-xs text-gray-500">{PASSWORD_MESSAGE}</p>
 
         <div className="flex items-center border-b-2 border-gray-200 py-2 focus-within:border-[#349DFF] transition-colors">
           <i className="fa-solid fa-shield-halved text-gray-500 text-lg w-6 text-center mr-3"></i>

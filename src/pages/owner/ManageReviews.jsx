@@ -1,89 +1,125 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
-import toast from "react-hot-toast";
+import { showToast } from "../../components/common/ToastMessage";
+
+const PAGE_SIZE = 10;
+
+const formatDateTime = (value) => {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+};
+
+const getCustomerName = (review) =>
+  review.ten_khach || review.ten_khach_hang || "Khách hàng";
 
 export default function ManageReviews() {
   const [reviews, setReviews] = useState([]);
-  const [thongKe, setThongKe] = useState({
+  const [facilities, setFacilities] = useState([]);
+  const [facilityFilter, setFacilityFilter] = useState("");
+  const [replyFilter, setReplyFilter] = useState("");
+  const [stats, setStats] = useState({
     tong_danh_gia: 0,
     diem_trung_binh: 0,
     chua_phan_hoi: 0,
   });
-  const [danhSachCoSo, setDanhSachCoSo] = useState([]);
-  const [trang, setTrang] = useState(1);
-  const [tong, setTong] = useState(0);
-  const [loading, setLoading] = useState(false);
-
-  // Bộ lọc
-  const [coSoId, setCoSoId] = useState("");
-  const [trangThaiPhanHoi, setTrangThaiPhanHoi] = useState("");
-
-  // Modal phản hồi
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
   const [replyContent, setReplyContent] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  // Modal báo cáo
+  const [isSavingReply, setIsSavingReply] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportReview, setReportReview] = useState(null);
   const [reportReason, setReportReason] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
 
-  const gioiHan = 10;
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    [total],
+  );
 
-  const fetchCoSo = useCallback(async () => {
+  const fetchFacilities = useCallback(async () => {
     try {
       const res = await api.get("/danh-gia/chu-san/co-so");
-      setDanhSachCoSo(res.data);
+      setFacilities(Array.isArray(res.data) ? res.data : []);
     } catch {
-      // ignore
+      try {
+        const fallback = await api.get("/co-so/cua-toi?trang_thai=1");
+        setFacilities(Array.isArray(fallback.data) ? fallback.data : []);
+      } catch {
+        setFacilities([]);
+      }
     }
   }, []);
 
-  const fetchThongKe = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const params = {};
-      if (coSoId) params.co_so_id = coSoId;
+      if (facilityFilter) params.co_so_id = facilityFilter;
+
       const res = await api.get("/danh-gia/chu-san/thong-ke", { params });
-      setThongKe(res.data);
+      setStats({
+        tong_danh_gia: Number(res.data?.tong_danh_gia || 0),
+        diem_trung_binh: Number(res.data?.diem_trung_binh || 0),
+        chua_phan_hoi: Number(res.data?.chua_phan_hoi || 0),
+      });
     } catch {
-      // ignore
+      setStats({
+        tong_danh_gia: 0,
+        diem_trung_binh: 0,
+        chua_phan_hoi: 0,
+      });
     }
-  }, [coSoId]);
+  }, [facilityFilter]);
 
   const fetchReviews = useCallback(async () => {
-    setLoading(true);
+    setIsLoading(true);
+    setError("");
+
     try {
-      const params = { trang, gioi_han: gioiHan };
-      if (coSoId) params.co_so_id = coSoId;
-      if (trangThaiPhanHoi) params.trang_thai_phan_hoi = trangThaiPhanHoi;
+      const params = { trang: page, gioi_han: PAGE_SIZE };
+      if (facilityFilter) params.co_so_id = facilityFilter;
+      if (replyFilter) params.trang_thai_phan_hoi = replyFilter;
 
       const res = await api.get("/danh-gia/chu-san", { params });
-      setReviews(res.data.danh_sach);
-      setTong(res.data.tong);
-    } catch {
-      toast.error("Không thể tải danh sách đánh giá");
+      setReviews(Array.isArray(res.data?.danh_sach) ? res.data.danh_sach : []);
+      setTotal(Number(res.data?.tong || 0));
+    } catch (err) {
+      setError(err.response?.data?.message || "Không thể tải đánh giá");
+      setReviews([]);
+      setTotal(0);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, [trang, coSoId, trangThaiPhanHoi]);
+  }, [facilityFilter, page, replyFilter]);
 
   useEffect(() => {
-    fetchCoSo();
-  }, [fetchCoSo]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchFacilities();
+  }, [fetchFacilities]);
 
   useEffect(() => {
-    fetchThongKe();
-  }, [fetchThongKe]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchStats();
+  }, [fetchStats]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchReviews();
   }, [fetchReviews]);
 
-  // Reset trang khi đổi bộ lọc
   useEffect(() => {
-    setTrang(1);
-  }, [coSoId, trangThaiPhanHoi]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [facilityFilter, replyFilter]);
 
   const handleOpenReplyModal = (review) => {
     setSelectedReview(review);
@@ -91,24 +127,33 @@ export default function ManageReviews() {
     setIsModalOpen(true);
   };
 
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedReview(null);
+    setReplyContent("");
+  };
+
   const handleSubmitReply = async () => {
+    if (!selectedReview) return;
+
     if (!replyContent.trim()) {
-      toast.error("Vui lòng nhập nội dung phản hồi");
+      showToast("Vui lòng nhập nội dung phản hồi", "error");
       return;
     }
-    setSubmitting(true);
+
+    setIsSavingReply(true);
     try {
-      await api.put(`/danh-gia/${selectedReview.id}/phan-hoi`, {
-        noi_dung: replyContent,
+      await api.put(`/chu-san/danh-gia/${selectedReview.id}/phan-hoi`, {
+        phan_hoi_chu_san: replyContent,
       });
-      toast.success("Phản hồi đánh giá thành công");
-      setIsModalOpen(false);
-      fetchReviews();
-      fetchThongKe();
+
+      showToast("Lưu phản hồi thành công", "success");
+      closeModal();
+      await Promise.all([fetchReviews(), fetchStats()]);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Phản hồi thất bại");
+      showToast(err.response?.data?.message || "Không thể lưu phản hồi", "error");
     } finally {
-      setSubmitting(false);
+      setIsSavingReply(false);
     }
   };
 
@@ -119,47 +164,44 @@ export default function ManageReviews() {
   };
 
   const handleSubmitReport = async () => {
-    setSubmitting(true);
+    if (!reportReview) return;
+
+    const reason = reportReason.trim();
+    if (!reason) {
+      showToast("Vui lòng nhập lý do báo cáo", "error");
+      return;
+    }
+
+    setIsReporting(true);
     try {
       await api.post(`/danh-gia/${reportReview.id}/bao-cao`, {
-        ly_do: reportReason,
+        ly_do: reason,
       });
-      toast.success("Đã báo cáo đánh giá vi phạm");
+
+      showToast("Đã báo cáo đánh giá vi phạm", "success");
       setIsReportModalOpen(false);
-      fetchReviews();
+      setReportReview(null);
+      setReportReason("");
+      await Promise.all([fetchReviews(), fetchStats()]);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Báo cáo thất bại");
+      showToast(err.response?.data?.message || "Báo cáo thất bại", "error");
     } finally {
-      setSubmitting(false);
+      setIsReporting(false);
     }
   };
 
-  const renderStars = (rating) => {
-    return Array.from({ length: 5 }).map((_, index) => (
+  const renderStars = (rating) =>
+    Array.from({ length: 5 }).map((_, index) => (
       <i
         key={index}
-        className={`fa-solid fa-star text-[13px] ${index < rating ? "text-yellow-400" : "text-gray-300"}`}
+        className={`fa-solid fa-star text-[13px] ${
+          index < Number(rating || 0) ? "text-yellow-400" : "text-gray-300"
+        }`}
       ></i>
     ));
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "";
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const tongTrang = Math.ceil(tong / gioiHan);
 
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-[#0a192f]">
@@ -169,22 +211,22 @@ export default function ManageReviews() {
             Theo dõi và phản hồi nhận xét từ khách hàng
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <select
-            value={coSoId}
-            onChange={(e) => setCoSoId(e.target.value)}
+            value={facilityFilter}
+            onChange={(e) => setFacilityFilter(e.target.value)}
             className="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF] transition-all bg-white"
           >
             <option value="">Tất cả cơ sở</option>
-            {danhSachCoSo.map((cs) => (
-              <option key={cs.id} value={cs.id}>
-                {cs.ten}
+            {facilities.map((facility) => (
+              <option key={facility.id} value={facility.id}>
+                {facility.ten}
               </option>
             ))}
           </select>
           <select
-            value={trangThaiPhanHoi}
-            onChange={(e) => setTrangThaiPhanHoi(e.target.value)}
+            value={replyFilter}
+            onChange={(e) => setReplyFilter(e.target.value)}
             className="px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF] transition-all bg-white"
           >
             <option value="">Mọi trạng thái</option>
@@ -194,7 +236,12 @@ export default function ManageReviews() {
         </div>
       </div>
 
-      {/* Thống kê nhanh */}
+      {error && (
+        <div className="bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
+          {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-yellow-50 text-yellow-500 flex items-center justify-center text-xl">
@@ -205,7 +252,7 @@ export default function ManageReviews() {
               Điểm trung bình
             </div>
             <div className="text-2xl font-bold text-[#0a192f]">
-              {thongKe.diem_trung_binh}{" "}
+              {isLoading ? "..." : stats.diem_trung_binh}{" "}
               <span className="text-sm font-normal text-gray-500">/ 5.0</span>
             </div>
           </div>
@@ -219,7 +266,7 @@ export default function ManageReviews() {
               Tổng đánh giá
             </div>
             <div className="text-2xl font-bold text-[#0a192f]">
-              {thongKe.tong_danh_gia}
+              {isLoading ? "..." : stats.tong_danh_gia}
             </div>
           </div>
         </div>
@@ -232,47 +279,50 @@ export default function ManageReviews() {
               Chưa phản hồi
             </div>
             <div className="text-2xl font-bold text-red-500">
-              {thongKe.chua_phan_hoi}
+              {isLoading ? "..." : stats.chua_phan_hoi}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Danh sách đánh giá */}
-      {loading ? (
-        <div className="text-center py-12 text-gray-400">
-          Đang tải dữ liệu...
-        </div>
-      ) : reviews.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          Chưa có đánh giá nào
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {reviews.map((review) => (
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center text-gray-500">
+            Đang tải đánh giá...
+          </div>
+        ) : reviews.length > 0 ? (
+          reviews.map((review) => (
             <div
               key={review.id}
               className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
             >
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold">
-                    {review.ten_khach_hang?.charAt(0) || "?"}
+              <div className="flex justify-between items-start mb-4 gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold shrink-0">
+                    {getCustomerName(review).charAt(0)}
                   </div>
-                  <div>
-                    <div className="font-bold text-[#0a192f]">
-                      {review.ten_khach_hang}
+                  <div className="min-w-0">
+                    <div className="font-bold text-[#0a192f] truncate">
+                      {getCustomerName(review)}
                     </div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      {formatDate(review.ngay_tao)} • {review.ten_co_so}
+                      {formatDateTime(review.ngay_tao)} · {review.ten_co_so}
+                      {review.dat_san_id ? ` · Đơn #${review.dat_san_id}` : ""}
                     </div>
+                    {review.so_dien_thoai && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {review.so_dien_thoai}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex gap-1">{renderStars(review.so_sao)}</div>
+                <div className="flex gap-1 shrink-0">
+                  {renderStars(review.so_sao)}
+                </div>
               </div>
 
               <div className="text-gray-700 text-sm mb-4">
-                {review.noi_dung}
+                {review.noi_dung || "Khách hàng không để lại nội dung."}
               </div>
 
               {review.phan_hoi_chu_san ? (
@@ -283,8 +333,8 @@ export default function ManageReviews() {
                       Phản hồi của bạn
                     </span>
                     {review.ngay_phan_hoi && (
-                      <span className="text-xs text-gray-400 ml-2">
-                        {formatDate(review.ngay_phan_hoi)}
+                      <span className="text-xs text-gray-400">
+                        {formatDateTime(review.ngay_phan_hoi)}
                       </span>
                     )}
                   </div>
@@ -316,26 +366,29 @@ export default function ManageReviews() {
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center text-gray-500">
+            Chưa có đánh giá phù hợp
+          </div>
+        )}
+      </div>
 
-      {/* Phân trang */}
-      {tongTrang > 1 && (
-        <div className="flex justify-center items-center gap-2 pt-4">
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 pt-2">
           <button
-            onClick={() => setTrang((p) => Math.max(1, p - 1))}
-            disabled={trang === 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={page === 1}
             className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             Trước
           </button>
           <span className="text-sm text-gray-600">
-            Trang {trang} / {tongTrang}
+            Trang {page} / {totalPages}
           </span>
           <button
-            onClick={() => setTrang((p) => Math.min(tongTrang, p + 1))}
-            disabled={trang === tongTrang}
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            disabled={page === totalPages}
             className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             Sau
@@ -343,16 +396,15 @@ export default function ManageReviews() {
         </div>
       )}
 
-      {/* Modal Phản hồi */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f8fafc]">
               <h3 className="text-lg font-bold text-[#0a192f]">
                 Phản hồi đánh giá
               </h3>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 className="text-gray-400 hover:text-red-500 transition-colors"
               >
                 <i className="fa-solid fa-xmark text-lg"></i>
@@ -361,13 +413,13 @@ export default function ManageReviews() {
             <div className="p-6">
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 mb-4">
                 <div className="font-medium text-sm text-[#0a192f] mb-1">
-                  {selectedReview?.ten_khach_hang}
+                  {selectedReview ? getCustomerName(selectedReview) : "Khách hàng"}
                 </div>
                 <div className="flex gap-1 mb-2">
                   {renderStars(selectedReview?.so_sao)}
                 </div>
                 <div className="text-sm text-gray-600">
-                  {selectedReview?.noi_dung}
+                  {selectedReview?.noi_dung || "Không có nội dung."}
                 </div>
               </div>
               <textarea
@@ -378,17 +430,18 @@ export default function ManageReviews() {
               ></textarea>
               <div className="flex justify-end gap-3 mt-4">
                 <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                  onClick={closeModal}
+                  disabled={isSavingReply}
+                  className="px-5 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-70"
                 >
                   Hủy
                 </button>
                 <button
                   onClick={handleSubmitReply}
-                  disabled={submitting}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-[#349DFF] hover:bg-blue-600 transition-colors shadow-md disabled:opacity-50"
+                  disabled={isSavingReply}
+                  className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-[#349DFF] hover:bg-blue-600 transition-colors shadow-md disabled:opacity-70"
                 >
-                  {submitting ? "Đang gửi..." : "Lưu phản hồi"}
+                  {isSavingReply ? "Đang lưu..." : "Lưu phản hồi"}
                 </button>
               </div>
             </div>
@@ -396,9 +449,8 @@ export default function ManageReviews() {
         </div>
       )}
 
-      {/* Modal Báo cáo */}
       {isReportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-[#f8fafc]">
               <h3 className="text-lg font-bold text-[#0a192f]">
@@ -414,35 +466,36 @@ export default function ManageReviews() {
             <div className="p-6">
               <div className="bg-red-50 p-4 rounded-xl border border-red-100 mb-4">
                 <div className="font-medium text-sm text-[#0a192f] mb-1">
-                  Đánh giá của: {reportReview?.ten_khach_hang}
+                  Đánh giá của:{" "}
+                  {reportReview ? getCustomerName(reportReview) : "Khách hàng"}
                 </div>
                 <div className="text-sm text-gray-600">
-                  "{reportReview?.noi_dung}"
+                  "{reportReview?.noi_dung || "Không có nội dung."}"
                 </div>
               </div>
               <p className="text-sm text-gray-500 mb-3">
-                Bạn muốn báo cáo đánh giá này vì chứa nội dung không phù hợp.
-                Hệ thống sẽ gửi cảnh báo tới Admin để xử lý.
+                Hệ thống sẽ gửi cảnh báo tới Admin để xử lý đánh giá này.
               </p>
               <textarea
                 value={reportReason}
                 onChange={(e) => setReportReason(e.target.value)}
-                placeholder="Lý do báo cáo (không bắt buộc)..."
+                placeholder="Lý do báo cáo (bắt buộc)..."
                 className="w-full h-24 px-4 py-3 border border-gray-300 rounded-xl outline-none focus:border-red-400 text-sm resize-none"
               ></textarea>
               <div className="flex justify-end gap-3 mt-4">
                 <button
                   onClick={() => setIsReportModalOpen(false)}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                  disabled={isReporting}
+                  className="px-5 py-2 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-70"
                 >
                   Hủy
                 </button>
                 <button
                   onClick={handleSubmitReport}
-                  disabled={submitting}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors shadow-md disabled:opacity-50"
+                  disabled={isReporting}
+                  className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors shadow-md disabled:opacity-70"
                 >
-                  {submitting ? "Đang gửi..." : "Gửi báo cáo"}
+                  {isReporting ? "Đang gửi..." : "Gửi báo cáo"}
                 </button>
               </div>
             </div>

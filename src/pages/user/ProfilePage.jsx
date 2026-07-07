@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../../api/axios";
 import UserHeader from "../../components/common/UserHeader";
@@ -33,7 +33,6 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Lấy dữ liệu user
   const fetchProfile = useCallback(async () => {
     try {
       const res = await api.get("/user/me");
@@ -61,24 +60,35 @@ export default function ProfilePage() {
     return () => window.clearTimeout(timeoutId);
   }, [fetchProfile]);
 
-  const handleChange = (e) => {
+  const handleChange = (event) => {
     setProfileData({
       ...profileData,
-      [e.target.name]: e.target.value,
+      [event.target.name]: event.target.value,
     });
   };
 
-  // Chỉ preview avatar, chưa upload
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0];
+  const handleAvatarChange = (event) => {
+    const file = event.target.files[0];
     if (!file) return;
+
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
   };
 
-  // Gộp cập nhật thông tin + avatar vào 1 request
-  const handleUpdate = async (e) => {
-    e.preventDefault();
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
+
+  const handleUpdate = async (event) => {
+    event.preventDefault();
     setLoading(true);
 
     try {
@@ -87,8 +97,9 @@ export default function ProfilePage() {
       formData.append("so_dien_thoai", profileData.so_dien_thoai);
       formData.append("ngay_sinh", profileData.ngay_sinh);
       formData.append("gioi_tinh", profileData.gioi_tinh);
+
       if (avatarFile) {
-        formData.append("avatar", avatarFile); // đúng tên field backend expect
+        formData.append("avatar", avatarFile);
       }
 
       await api.put("/user/profile", formData, {
@@ -102,8 +113,7 @@ export default function ProfilePage() {
         },
       });
 
-      // Dispatch sau navigate để Header fetch lại sau khi DB đã lưu xong
-      setTimeout(() => {
+      window.setTimeout(() => {
         window.dispatchEvent(new Event("userUpdated"));
       }, 300);
     } catch (err) {
@@ -118,29 +128,28 @@ export default function ProfilePage() {
       <UserHeader />
 
       <main className="mx-auto mb-12 mt-8 w-full max-w-[900px] px-4">
-        <h1 className="text-2xl font-bold mb-6 text-[#0a192f]">
+        <h1 className="mb-6 text-2xl font-bold text-[#0a192f]">
           Quản lý tài khoản
         </h1>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="h-32 bg-gradient-to-r from-blue-100 to-indigo-100"></div>
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="h-32 bg-gradient-to-r from-blue-100 to-indigo-100" />
 
-          {/* Avatar */}
-          <div className="px-6 md:px-10 relative flex justify-between items-end -mt-12 mb-8">
-            <div className="relative group">
-              <div className="w-24 h-24 bg-white rounded-full p-1.5 shadow-md overflow-hidden">
-                <div className="w-full h-full bg-[#eef3ff] rounded-full flex items-center justify-center text-blue-500 font-bold text-2xl overflow-hidden">
+          <div className="relative -mt-12 mb-8 flex items-end justify-between px-6 md:px-10">
+            <div className="group relative">
+              <div className="h-24 w-24 overflow-hidden rounded-full bg-white p-1.5 shadow-md">
+                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#eef3ff] text-2xl font-bold text-blue-500">
                   {avatarPreview ? (
                     <img
                       src={avatarPreview}
-                      alt="avatar"
-                      className="w-full h-full object-cover"
+                      alt="Avatar"
+                      className="h-full w-full object-cover"
                     />
                   ) : profileData.anh_dai_dien ? (
                     <img
                       src={getAssetUrl(profileData.anh_dai_dien)}
-                      alt="avatar"
-                      className="w-full h-full object-cover"
+                      alt="Avatar"
+                      className="h-full w-full object-cover"
                     />
                   ) : (
                     profileData.ho_ten.charAt(0).toUpperCase()
@@ -158,8 +167,9 @@ export default function ProfilePage() {
 
               <button
                 type="button"
-                onClick={() => fileInputRef.current.click()}
-                className="absolute bottom-1 right-1 bg-blue-500 text-white w-8 h-8 rounded-full shadow-md hover:bg-blue-600 border-2 border-white"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-1 right-1 h-8 w-8 rounded-full border-2 border-white bg-blue-500 text-white shadow-md hover:bg-blue-600"
+                aria-label="Chọn ảnh đại diện"
               >
                 <i className="fa-solid fa-camera text-xs"></i>
               </button>
@@ -167,71 +177,65 @@ export default function ProfilePage() {
 
             <Link
               to="/doi-mat-khau"
-              className="bg-white border border-gray-300 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
+              className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
             >
               <i className="fa-solid fa-key"></i>
               Đổi mật khẩu
             </Link>
           </div>
 
-          {/* Form */}
-          <div className="px-6 md:px-10 pb-10">
+          <div className="px-6 pb-10 md:px-10">
             <form
               onSubmit={handleUpdate}
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              className="grid grid-cols-1 gap-6 md:grid-cols-2"
             >
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Họ và tên</label>
-
                 <input
                   name="ho_ten"
                   value={profileData.ho_ten}
                   onChange={handleChange}
-                  className="w-full border rounded-xl px-4 py-2.5 outline-none focus:border-blue-500"
+                  className="w-full rounded-xl border px-4 py-2.5 outline-none focus:border-blue-500"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Email</label>
-
                 <input
                   value={profileData.email}
                   readOnly
-                  className="w-full border rounded-xl px-4 py-2.5 bg-gray-50 text-gray-500"
+                  className="w-full rounded-xl border bg-gray-50 px-4 py-2.5 text-gray-500"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Số điện thoại</label>
-
                 <input
                   name="so_dien_thoai"
                   value={profileData.so_dien_thoai}
                   onChange={handleChange}
-                  className="w-full border rounded-xl px-4 py-2.5 outline-none focus:border-blue-500"
+                  className="w-full rounded-xl border px-4 py-2.5 outline-none focus:border-blue-500"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Ngày sinh</label>
-
                 <input
                   type="date"
                   name="ngay_sinh"
                   value={profileData.ngay_sinh}
                   onChange={handleChange}
-                  className="w-full border rounded-xl px-4 py-2.5 outline-none focus:border-blue-500"
+                  className="w-full rounded-xl border px-4 py-2.5 outline-none focus:border-blue-500"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Giới tính</label>
-
                 <select
                   name="gioi_tinh"
                   value={profileData.gioi_tinh}
                   onChange={handleChange}
-                  className="w-full border rounded-xl px-4 py-2.5 outline-none focus:border-blue-500"
+                  className="w-full rounded-xl border px-4 py-2.5 outline-none focus:border-blue-500"
                 >
                   <option value="male">Nam</option>
                   <option value="female">Nữ</option>
@@ -239,11 +243,11 @@ export default function ProfilePage() {
                 </select>
               </div>
 
-              <div className="col-span-1 md:col-span-2 flex justify-end pt-6">
+              <div className="col-span-1 flex justify-end pt-6 md:col-span-2">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-colors"
+                  className="rounded-xl bg-blue-600 px-8 py-2.5 font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
                 >
                   {loading ? "Đang lưu..." : "Lưu thay đổi"}
                 </button>
@@ -252,7 +256,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
-
     </div>
   );
 }

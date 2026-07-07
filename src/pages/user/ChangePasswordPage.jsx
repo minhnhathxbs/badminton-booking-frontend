@@ -3,6 +3,12 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import UserHeader from "../../components/common/UserHeader";
 
+const PASSWORD_MESSAGE =
+  "Mật khẩu phải có ít nhất 8 ký tự, gồm ít nhất 1 chữ và 1 số";
+
+const isValidPassword = (value) =>
+  value.length >= 8 && /[A-Za-zÀ-ỹ]/.test(value) && /\d/.test(value);
+
 export default function ChangePasswordPage() {
   const navigate = useNavigate();
   const [passwordData, setPasswordData] = useState({
@@ -23,6 +29,10 @@ export default function ChangePasswordPage() {
 
     if (passwordData.mat_khau_moi !== passwordData.xac_nhan_mat_khau_moi) {
       return setError("Mật khẩu xác nhận không khớp");
+    }
+
+    if (!isValidPassword(passwordData.mat_khau_moi)) {
+      return setError(PASSWORD_MESSAGE);
     }
 
     setLoading(true);
@@ -94,10 +104,12 @@ export default function ChangePasswordPage() {
                     value={passwordData.mat_khau_moi}
                     onChange={handleChange}
                     placeholder="Nhập mật khẩu mới"
+                    minLength={8}
                     className="w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-800 outline-none transition-all focus:border-[#349DFF] focus:ring-1 focus:ring-[#349DFF]"
                     required
                   />
                 </div>
+                <p className="text-xs text-gray-500">{PASSWORD_MESSAGE}</p>
               </div>
 
               <div className="space-y-1.5">

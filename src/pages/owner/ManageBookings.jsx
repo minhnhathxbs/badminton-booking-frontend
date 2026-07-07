@@ -1,274 +1,1104 @@
-import React, { useState } from "react";
+﻿import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import api from "../../api/axios";
+import { getSocket } from "../../api/socket";
+import { showToast } from "../../components/common/ToastMessage";
+
+const TXT = {
+  title: "Lịch đặt sân",
+  desc: "Theo dõi các đơn đặt sân tại cơ sở của bạn theo ngày.",
+  today: "Hôm nay",
+  allFacilities: "Tất cả cơ sở",
+  allStatus: "Tất cả trạng thái",
+  search: "Tìm theo khách, SĐT, email, cơ sở hoặc mã đơn",
+  reload: "Tải lại",
+  loading: "Đang tải lịch đặt sân...",
+  empty: "Chưa có lịch đặt sân trong ngày này",
+  customer: "Khách hàng",
+  facility: "Cơ sở",
+  booking: "Đơn",
+  court: "Sân",
+  time: "Thời gian",
+  payment: "Thanh toán",
+  total: "Thành tiền",
+  status: "Trạng thái",
+  createdAt: "Ngày tạo",
+  detail: "Chi tiết đơn",
+  close: "Đóng",
+  noData: "Chưa có",
+};
+
+const STATUS_OPTIONS = [
+  { value: "", label: TXT.allStatus },
+  { value: "0", label: "Giữ chỗ" },
+  { value: "1", label: "Đã đặt" },
+  { value: "2", label: "Đã hủy" },
+  { value: "4", label: "Hoàn thành" },
+  { value: "5", label: "Đang khiếu nại" },
+  { value: "6", label: "Đã hoàn tiền" },
+];
+
+const formatInputDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const todayValue = () => formatInputDate(new Date());
+
+const addDays = (dateValue, days) => {
+  const date = new Date(`${dateValue}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return formatInputDate(date);
+};
+
+const formatCurrency = (value) =>
+  `${Number(value || 0).toLocaleString("vi-VN")}đ`;
+
+const formatDate = (value) =>
+  value ? new Date(value).toLocaleDateString("vi-VN") : TXT.noData;
+
+const formatDateTime = (value) =>
+  value ? new Date(value).toLocaleString("vi-VN") : TXT.noData;
+
+const getLocalDateKey = (value) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return formatInputDate(date);
+  }
+
+  return String(value).slice(0, 10);
+};
+
+const getSlotInfo = (status) => {
+  switch (status) {
+    case "trong":
+      return {
+        label: "Trống",
+        icon: "fa-circle-check",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+      };
+    case "giu_cho":
+      return {
+        label: "Giữ chỗ",
+        icon: "fa-clock",
+        className: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+      };
+    case "da_dat":
+      return {
+        label: "Đã đặt",
+        icon: "fa-calendar-check",
+        className: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100",
+      };
+    case "da_dat_qua_gio":
+      return {
+        label: "Đã đặt",
+        icon: "fa-calendar-check",
+        className: "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200",
+      };
+    case "qua_gio":
+      return {
+        label: "Qua giờ",
+        icon: "fa-circle-minus",
+        className: "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100",
+      };
+    case "khong_co_gia":
+      return {
+        label: "Chưa có giá",
+        icon: "fa-tag",
+        className: "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100",
+      };
+    default:
+      return {
+        label: TXT.noData,
+        icon: "fa-circle-question",
+        className: "border-gray-200 bg-white text-gray-500",
+      };
+  }
+};
+
+const getSlotCellClass = (status) => {
+  switch (status) {
+    case "trong":
+      return "border-[#9a9a9a] bg-white";
+    case "giu_cho":
+      return "border-[#9a9a9a] bg-[#ff4d4d]";
+    case "da_dat":
+      return "border-[#9a9a9a] bg-[#ff1010]";
+    case "da_dat_qua_gio":
+      return "border-[#9a9a9a] bg-[#ff4d4d]";
+    case "qua_gio":
+    case "khong_co_gia":
+      return "border-[#9a9a9a] bg-[#b9b9b9]";
+    default:
+      return "border-[#9a9a9a] bg-white";
+  }
+};
+
+const getStatusInfo = (bookingOrStatus) => {
+  const booking =
+    typeof bookingOrStatus === "object" && bookingOrStatus !== null
+      ? bookingOrStatus
+      : null;
+  const status = Number(booking ? booking.trang_thai : bookingOrStatus);
+  const isExpiredHold =
+    booking &&
+    status === 2 &&
+    Number(booking.da_thanh_toan || 0) === 0 &&
+    String(booking.ly_do_huy || "").toLowerCase().includes("hết hạn");
+
+  switch (status) {
+    case 0:
+      return {
+        label: "Giữ chỗ",
+        className: "border-amber-200 bg-amber-50 text-amber-700",
+        blockClass: "border-amber-300 bg-amber-100 text-amber-900",
+      };
+    case 1:
+      return {
+        label: "Đã đặt",
+        className: "border-blue-200 bg-blue-50 text-blue-700",
+        blockClass: "border-blue-500 bg-blue-600 text-white",
+      };
+    case 2:
+      return {
+        label: isExpiredHold ? "Hết hạn giữ chỗ" : "Đã hủy",
+        className: "border-rose-200 bg-rose-50 text-rose-700",
+        blockClass: "border-rose-300 bg-rose-100 text-rose-800",
+      };
+    case 4:
+      return {
+        label: "Hoàn thành",
+        className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        blockClass: "border-emerald-500 bg-emerald-600 text-white",
+      };
+    case 5:
+      return {
+        label: "Đang khiếu nại",
+        className: "border-orange-200 bg-orange-50 text-orange-700",
+        blockClass: "border-orange-300 bg-orange-100 text-orange-800",
+      };
+    case 6:
+      return {
+        label: "Đã hoàn tiền",
+        className: "border-purple-200 bg-purple-50 text-purple-700",
+        blockClass: "border-purple-300 bg-purple-100 text-purple-800",
+      };
+    default:
+      return {
+        label: TXT.noData,
+        className: "border-slate-200 bg-slate-50 text-slate-600",
+        blockClass: "border-slate-300 bg-slate-100 text-slate-700",
+      };
+  }
+};
 
 export default function ManageBookings() {
-  const [selectedDate, setSelectedDate] = useState("2026-06-01");
+  const [selectedDate, setSelectedDate] = useState(todayValue());
+  const [status, setStatus] = useState("");
+  const [facilityId, setFacilityId] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [bookings, setBookings] = useState([]);
+  const [facilities, setFacilities] = useState([]);
+  const [schedule, setSchedule] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [focusedBookingId, setFocusedBookingId] = useState(null);
+  const [confirmingOnsitePaymentId, setConfirmingOnsitePaymentId] =
+    useState(null);
+  const scheduleRef = useRef(null);
 
-  const courts = [
-    { id: 1, name: "Sân 1" },
-    { id: 2, name: "Sân 2" },
-    { id: 3, name: "Sân 3" },
-    { id: 4, name: "Sân 4" },
-    { id: 5, name: "Sân 5" },
-    { id: 6, name: "Sân 6" },
-  ];
+  const fetchFacilities = useCallback(async () => {
+    try {
+      const res = await api.get("/co-so/cua-toi?trang_thai=1");
+      setFacilities(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      showToast(
+        error.response?.data?.message || "Không thể tải danh sách cơ sở",
+        "error",
+      );
+    }
+  }, []);
 
-  const bookings = [
-    {
-      id: "BK1",
-      courtId: 1,
-      startTime: "07:00",
-      endTime: "09:00",
-      status: "Đã cọc",
-      customer: "Nguyễn Văn A",
-    },
-    {
-      id: "BK2",
-      courtId: 2,
-      startTime: "18:00",
-      endTime: "20:00",
-      status: "Đã đặt",
-      customer: "Trần B",
-    },
-    {
-      id: "BK3",
-      courtId: 1,
-      startTime: "17:00",
-      endTime: "19:00",
-      status: "Đang sử dụng",
-      customer: "Lê C",
-    },
-    {
-      id: "BK4",
-      courtId: 3,
-      startTime: "06:00",
-      endTime: "07:00",
-      status: "Đã hủy",
-      customer: "Phạm D",
-    },
-    {
-      id: "BK5",
-      courtId: 4,
-      startTime: "19:00",
-      endTime: "21:00",
-      status: "Đã cọc",
-      customer: "Hoàng E",
-    },
-    {
-      id: "BK6",
-      courtId: 5,
-      startTime: "15:00",
-      endTime: "17:00",
-      status: "Đã đặt",
-      customer: "Vũ F",
-    },
-    {
-      id: "BK7",
-      courtId: 6,
-      startTime: "20:00",
-      endTime: "22:00",
-      status: "Đang sử dụng",
-      customer: "Ngô G",
-    },
-  ];
+  const fetchBookings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = {
+        tu_ngay: selectedDate,
+        den_ngay: selectedDate,
+        gioi_han: 100,
+      };
 
-  const START_HOUR = 5;
-  const END_HOUR = 23;
-  const TOTAL_HOURS = END_HOUR - START_HOUR;
+      if (status !== "") params.trang_thai = status;
+      if (facilityId !== "") params.co_so_id = facilityId;
+      if (keyword.trim()) params.tu_khoa = keyword.trim();
 
-  const CELL_WIDTH = 140;
-  const COURT_COL_WIDTH = 100;
-  const TIMELINE_WIDTH = TOTAL_HOURS * CELL_WIDTH;
+      const res = await api.get("/chu-san/lich-dat", { params });
+      setBookings(res.data?.data || []);
+    } catch (error) {
+      showToast(
+        error.response?.data?.message || "Không thể tải lịch đặt sân",
+        "error",
+      );
+      setBookings([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [facilityId, keyword, selectedDate, status]);
 
-  const getPositionAndWidth = (startTime, endTime) => {
-    const parseTime = (timeStr) => {
-      const [h, m] = timeStr.split(":").map(Number);
-      return h + m / 60;
+  const fetchSchedule = useCallback(async () => {
+    if (!facilityId) {
+      setSchedule(null);
+      setScheduleError("");
+      return;
+    }
+
+    if (selectedDate < todayValue()) {
+      setSchedule(null);
+      setScheduleError("Tình trạng sân chỉ hỗ trợ từ hôm nay trở đi.");
+      return;
+    }
+
+    setScheduleLoading(true);
+    setScheduleError("");
+    try {
+      const res = await api.get("/dat-san/lich", {
+        params: { co_so_id: facilityId, ngay: selectedDate },
+      });
+      setSchedule(res.data || null);
+    } catch (error) {
+      setSchedule(null);
+      setScheduleError(
+        error.response?.data?.message || "Không thể tải tình trạng sân",
+      );
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [facilityId, selectedDate]);
+
+  useEffect(() => {
+    fetchFacilities();
+  }, [fetchFacilities]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return undefined;
+
+    const roomFacilityIds = facilityId
+      ? [Number(facilityId)]
+      : facilities.map((facility) => Number(facility.id)).filter(Boolean);
+
+    if (roomFacilityIds.length === 0) return undefined;
+
+    const payloads = roomFacilityIds.map((coSoId) => ({
+      co_so_id: coSoId,
+      ngay: selectedDate,
+    }));
+
+    const joinRooms = () => {
+      payloads.forEach((payload) => {
+        socket.emit("booking:schedule-join", payload);
+      });
     };
 
-    const startH = parseTime(startTime);
-    const endH = parseTime(endTime);
+    const leaveRooms = () => {
+      payloads.forEach((payload) => {
+        socket.emit("booking:schedule-leave", payload);
+      });
+    };
 
-    const left = (startH - START_HOUR) * CELL_WIDTH;
-    const width = (endH - startH) * CELL_WIDTH;
+    const handleScheduleUpdated = (event) => {
+      const eventFacilityId = Number(event?.co_so_id);
+      const eventDate = String(event?.ngay || "").slice(0, 10);
 
-    return { left: `${left}px`, width: `${width}px` };
-  };
+      if (
+        roomFacilityIds.includes(eventFacilityId) &&
+        eventDate === selectedDate
+      ) {
+        fetchBookings();
+        if (!facilityId || Number(facilityId) === eventFacilityId) {
+          fetchSchedule();
+        }
+      }
+    };
 
-  const getColorClass = (status) => {
-    switch (status) {
-      case "Đã đặt":
-        return "bg-[#3b82f6] text-white border border-[#2563eb]";
-      case "Đang sử dụng":
-        return "bg-[#22c55e] text-white border border-[#16a34a]";
-      case "Đã hủy":
-        return "bg-[#ef4444] text-white border border-[#dc2626]";
-      case "Đã cọc":
-        return "bg-[#fde047] text-[#0a192f] border border-[#eab308]";
-      default:
-        return "bg-gray-300 text-gray-800";
+    joinRooms();
+    socket.on("connect", joinRooms);
+    socket.on("booking:schedule-updated", handleScheduleUpdated);
+
+    return () => {
+      leaveRooms();
+      socket.off("connect", joinRooms);
+      socket.off("booking:schedule-updated", handleScheduleUpdated);
+    };
+  }, [facilities, facilityId, fetchBookings, fetchSchedule, selectedDate]);
+
+  const stats = useMemo(() => {
+    return bookings.reduce(
+      (acc, booking) => {
+        acc.total += 1;
+        acc.revenue += Number(booking.da_thanh_toan || 0);
+        if (Number(booking.trang_thai) === 1) acc.active += 1;
+        if (Number(booking.trang_thai) === 4) acc.completed += 1;
+        return acc;
+      },
+      { total: 0, active: 0, completed: 0, revenue: 0 },
+    );
+  }, [bookings]);
+
+  const selectedFacilityName = useMemo(() => {
+    return facilities.find((facility) => String(facility.id) === String(facilityId))
+      ?.ten;
+  }, [facilities, facilityId]);
+
+  const viewBookingOnSchedule = useCallback((booking) => {
+    const firstDetail = booking?.chi_tiet?.[0];
+    const bookingFacilityId = booking?.co_so?.id;
+    const bookingDate = getLocalDateKey(firstDetail?.ngay);
+
+    if (!bookingFacilityId || !bookingDate) {
+      showToast("Đơn này chưa có đủ thông tin sân/ngày để xem trên lịch", "error");
+      return;
     }
-  };
+
+    setFacilityId(String(bookingFacilityId));
+    setSelectedDate(bookingDate);
+    setFocusedBookingId(Number(booking.id));
+
+    setTimeout(() => {
+      scheduleRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 120);
+  }, []);
+
+  const confirmOnsiteRemainingPayment = useCallback(
+    async (booking) => {
+      if (!booking?.id || Number(booking.con_lai || 0) <= 0) return;
+
+      setConfirmingOnsitePaymentId(Number(booking.id));
+      try {
+        const res = await api.post(
+          `/chu-san/lich-dat/${booking.id}/xac-nhan-thu-con-lai`,
+        );
+        const updatedBooking = res.data?.data;
+
+        if (updatedBooking) {
+          setBookings((current) =>
+            current.map((item) =>
+              Number(item.id) === Number(updatedBooking.id)
+                ? updatedBooking
+                : item,
+            ),
+          );
+          setSelectedBooking(updatedBooking);
+        } else {
+          await fetchBookings();
+          setSelectedBooking(null);
+        }
+
+        showToast(
+          res.data?.message || "Đã xác nhận thu phần còn lại tại sân",
+          "success",
+        );
+      } catch (error) {
+        showToast(
+          error.response?.data?.message ||
+            "Không thể xác nhận thu phần còn lại",
+          "error",
+        );
+      } finally {
+        setConfirmingOnsitePaymentId(null);
+      }
+    },
+    [fetchBookings],
+  );
 
   return (
-    <div className="space-y-6 w-full h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold text-[#0a192f] mr-4">
-            Lịch đặt sân
-          </h2>
-          <button className="bg-blue-100 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-200 transition">
-            Hôm nay
-          </button>
-          <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden h-9">
-            <div className="px-3 text-gray-500 bg-gray-50 border-r border-gray-300 flex items-center justify-center h-full">
-              <i className="fa-regular fa-calendar"></i>
-            </div>
+    <div className="mx-auto max-w-[1400px] space-y-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-[#0a192f]">{TXT.title}</h2>
+          <p className="mt-1 text-sm font-medium text-gray-500">{TXT.desc}</p>
+        </div>
+
+        <div className="flex flex-col gap-3 xl:flex-row">
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+              <i className="fa-solid fa-magnifying-glass text-sm leading-none"></i>
+            </span>
             <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-1.5 text-sm outline-none text-gray-700 font-medium bg-white"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") fetchBookings();
+              }}
+              placeholder={TXT.search}
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm font-medium outline-none focus:border-[#349DFF] xl:w-80"
             />
           </div>
-          <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden h-9">
-            <button className="px-3 hover:bg-gray-100 border-r border-gray-300 h-full flex items-center justify-center transition">
-              <i className="fa-solid fa-chevron-left text-xs"></i>
-            </button>
-            <button className="px-3 hover:bg-gray-100 h-full flex items-center justify-center transition">
-              <i className="fa-solid fa-chevron-right text-xs"></i>
-            </button>
-          </div>
-          <select className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm outline-none h-9 bg-white">
-            <option>Chọn sân</option>
-            {courts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+
+          <select
+            value={facilityId}
+            onChange={(event) => setFacilityId(event.target.value)}
+            className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium outline-none focus:border-[#349DFF]"
+          >
+            <option value="">{TXT.allFacilities}</option>
+            {facilities.map((facility) => (
+              <option key={facility.id} value={facility.id}>
+                {facility.ten}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium outline-none focus:border-[#349DFF]"
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
         </div>
+      </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded-full bg-blue-600 inline-block"></span>
-            <span className="text-sm font-medium">Chủ sân</span>
-          </div>
-          <button className="bg-[#349DFF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition shadow-sm">
-            + Tạo đặt sân
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard icon="fa-calendar-check" label="Tổng đơn" value={stats.total} />
+        <StatCard icon="fa-circle-check" label="Đang đặt" value={stats.active} />
+        <StatCard icon="fa-flag-checkered" label="Hoàn thành" value={stats.completed} />
+        <StatCard
+          icon="fa-money-bill-wave"
+          label="Đã thanh toán"
+          value={formatCurrency(stats.revenue)}
+        />
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedDate(todayValue())}
+            className="h-10 rounded-xl bg-blue-50 px-4 text-sm font-bold text-[#349DFF] hover:bg-blue-100"
+          >
+            {TXT.today}
           </button>
+          <button
+            type="button"
+            onClick={() => setSelectedDate((value) => addDays(value, -1))}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50"
+            title="Ngày trước"
+          >
+            <i className="fa-solid fa-chevron-left text-xs"></i>
+          </button>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold outline-none focus:border-[#349DFF]"
+          />
+          <button
+            type="button"
+            onClick={() => setSelectedDate((value) => addDays(value, 1))}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50"
+            title="Ngày sau"
+          >
+            <i className="fa-solid fa-chevron-right text-xs"></i>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={fetchBookings}
+          disabled={loading}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#349DFF] px-4 text-sm font-bold text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+        >
+          <i
+            className={`fa-solid ${loading ? "fa-circle-notch fa-spin" : "fa-rotate-right"}`}
+          ></i>
+          {TXT.reload}
+        </button>
+      </div>
+
+      <div ref={scheduleRef}>
+        <ScheduleGrid
+          facilityId={facilityId}
+          facilityName={selectedFacilityName}
+          selectedDate={selectedDate}
+          schedule={schedule}
+          bookings={bookings}
+          focusedBookingId={focusedBookingId}
+          onSelectBooking={setSelectedBooking}
+          loading={scheduleLoading}
+          error={scheduleError}
+        />
+      </div>
+
+      <BookingTable
+        bookings={bookings}
+        loading={loading}
+        onSelect={setSelectedBooking}
+        onViewSchedule={viewBookingOnSchedule}
+      />
+
+      {selectedBooking && (
+        <BookingDetail
+          booking={selectedBooking}
+          onClose={() => setSelectedBooking(null)}
+          onConfirmOnsitePayment={confirmOnsiteRemainingPayment}
+          confirmingPaymentId={confirmingOnsitePaymentId}
+        />
+      )}
+    </div>
+  );
+}
+
+function ScheduleGrid({
+  facilityId,
+  facilityName,
+  selectedDate,
+  schedule,
+  bookings,
+  focusedBookingId,
+  onSelectBooking,
+  loading,
+  error,
+}) {
+  const timeSlots = schedule?.khung_gio || [];
+  const courts = schedule?.san || [];
+  const groupedCourts = useMemo(() => {
+    const groups = new Map();
+
+    courts.forEach((court) => {
+      const categoryName = court.ten_danh_muc || "Sân cầu lông";
+      if (!groups.has(categoryName)) {
+        groups.set(categoryName, []);
+      }
+      groups.get(categoryName).push(court);
+    });
+
+    return Array.from(groups.entries()).map(([categoryName, items]) => ({
+      categoryName,
+      courts: items,
+    }));
+  }, [courts]);
+
+  const bookingSlotMap = useMemo(() => {
+    const map = new Map();
+
+    bookings.forEach((booking) => {
+      (booking.chi_tiet || []).forEach((detail) => {
+        const key = [
+          Number(detail.san_id),
+          Number(detail.khung_gio_mau_id),
+          getLocalDateKey(detail.ngay),
+        ].join("-");
+
+        if (!map.has(key)) {
+          map.set(key, booking);
+        }
+      });
+    });
+
+    return map;
+  }, [bookings]);
+
+  const legendItems = [
+    { label: "Trống", className: "border-[#9a9a9a] bg-white" },
+    { label: "Đơn đang xem", className: "border-[#9a9a9a] bg-[#ff1010] ring-2 ring-amber-300 ring-inset" },
+    { label: "Đã đặt", className: "border-[#ff1010] bg-[#ff1010]" },
+    { label: "Đã qua giờ", className: "border-[#ff4d4d] bg-[#ff4d4d]" },
+    { label: "Khóa", className: "border-[#9a9a9a] bg-[#b9b9b9]" },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
+        <div className="flex flex-col gap-2 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-extrabold uppercase text-gray-500">
+              Tình trạng sân trong ngày
+            </h3>
+            {!facilityName && (
+              <p className="mt-1 text-sm font-bold text-[#0a192f]">
+              {facilityName || "Chọn một cơ sở để xem sân trống/đã đặt"}
+              </p>
+            )}
+          </div>
+          <div className="text-xs font-bold text-gray-500">
+            {formatDate(selectedDate)}
+          </div>
+        </div>
+
+        <div className="border-b border-slate-100 bg-blue-50 px-4 py-3 text-sm font-bold text-[#0a192f]">
+          <span className="text-slate-500">Đang xem: </span>
+          <span>{facilityName || "Chưa chọn cơ sở"}</span>
+          <span className="mx-2 text-slate-400">-</span>
+          <span>{formatDate(selectedDate)}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3 text-xs font-medium text-slate-700">
+          {legendItems.map((item) => (
+            <span key={item.label} className="inline-flex items-center gap-2">
+              <span className={`h-3.5 w-4 border ${item.className}`}></span>
+              {item.label}
+            </span>
+          ))}
         </div>
       </div>
 
-      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-        <div className="flex-1 overflow-auto relative custom-scrollbar">
+      {!facilityId ? (
+        <div className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
+          <EmptyState
+            icon="fa-building-circle-exclamation"
+            text="Chọn cơ sở để xem tình trạng từng sân"
+          />
+        </div>
+      ) : loading ? (
+        <div className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
+          <EmptyState icon="fa-circle-notch fa-spin" text="Đang tải tình trạng sân..." />
+        </div>
+      ) : error ? (
+        <div className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
+          <EmptyState icon="fa-circle-exclamation" text={error} />
+        </div>
+      ) : courts.length === 0 || timeSlots.length === 0 ? (
+        <div className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
+          <EmptyState icon="fa-calendar-xmark" text="Chưa có dữ liệu sân trong ngày này" />
+        </div>
+      ) : (
+        groupedCourts.map((group) => (
           <div
-            style={{ width: `${COURT_COL_WIDTH + TIMELINE_WIDTH}px` }}
-            className="border-b border-gray-200"
+            key={group.categoryName}
+            className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm"
           >
-            <div className="flex h-12 border-b border-gray-300 bg-[#f8fafc] sticky top-0 z-30">
+            <div className="border-b border-[#9a9a9a] bg-[#f8fafc] px-4 py-3 text-base font-black uppercase tracking-wide text-[#0a192f]">
+              {group.categoryName}
+            </div>
+            <div>
               <div
-                style={{ width: `${COURT_COL_WIDTH}px` }}
-                className="flex-shrink-0 border-r border-gray-300 sticky left-0 z-40 bg-[#f8fafc]"
-              ></div>
-              <div
-                className="relative"
-                style={{ width: `${TIMELINE_WIDTH}px` }}
+                className="grid w-full bg-white"
+                style={{
+                  gridTemplateColumns: `108px repeat(${timeSlots.length}, minmax(0, 1fr))`,
+                }}
               >
-                {Array.from({ length: TOTAL_HOURS }).map((_, i) => {
-                  const hour = START_HOUR + i;
-                  return (
-                    <div
-                      key={hour}
-                      className="absolute top-0 bottom-0 border-l border-gray-300 flex items-center justify-center"
-                      style={{
-                        left: `${i * CELL_WIDTH}px`,
-                        width: `${CELL_WIDTH}px`,
-                      }}
-                    >
-                      <span className="text-[13px] font-bold text-[#0a192f]">
-                        {hour}:00
-                      </span>
+                <div className="flex items-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-2 text-xs font-semibold text-emerald-900">
+                  Sân
+                </div>
+                {timeSlots.map((timeSlot) => (
+                  <div
+                    key={timeSlot.id}
+                    className="border-b border-r border-[#9a9a9a] bg-white px-0.5 py-2 text-center text-[11px] font-semibold text-slate-700 last:border-r-0"
+                    title={`${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}`}
+                  >
+                    {timeSlot.gio_bat_dau}
+                  </div>
+                ))}
+
+                {group.courts.map((court) => (
+                  <Fragment key={court.id}>
+                    <div className="flex min-h-[42px] items-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-1">
+                      <div
+                        className="truncate text-[11px] font-bold text-emerald-950"
+                        title={court.ten}
+                      >
+                        {court.ten}
+                      </div>
                     </div>
-                  );
-                })}
+
+                    {timeSlots.map((timeSlot) => {
+                      const slot = court.slots?.find(
+                        (item) =>
+                          Number(item.khung_gio_mau_id) === Number(timeSlot.id),
+                      );
+                      const booking = bookingSlotMap.get(
+                        [Number(court.id), Number(timeSlot.id), selectedDate].join("-"),
+                      );
+                      const isFocused =
+                        booking && Number(booking.id) === Number(focusedBookingId);
+                      const cellClass = getSlotCellClass(slot?.trang_thai);
+                      const focusedClass = isFocused
+                        ? "ring-4 ring-amber-300 ring-inset shadow-[inset_0_0_0_1px_rgba(120,53,15,0.55)]"
+                        : "";
+                      const cellTitle = booking
+                        ? `Đơn #${booking.id} | ${booking.khach_hang?.ho_ten || TXT.noData} | ${court.ten} | ${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}`
+                        : `${court.ten} | ${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}`;
+
+                      return (
+                        <div
+                          key={`${court.id}-${timeSlot.id}`}
+                          className="group relative min-h-[42px]"
+                        >
+                          {booking ? (
+                            <button
+                              type="button"
+                              onClick={() => onSelectBooking(booking)}
+                              className={`block h-full min-h-[42px] w-full cursor-pointer border-b border-r transition hover:ring-2 hover:ring-amber-300 hover:ring-inset ${cellClass} ${focusedClass}`}
+                              title={cellTitle}
+                              aria-label={`Xem chi tiết đơn ${booking.id}`}
+                            />
+                          ) : (
+                            <div
+                              className={`h-full min-h-[42px] border-b border-r transition ${cellClass} ${focusedClass}`}
+                              title={cellTitle}
+                            />
+                          )}
+
+                          {booking && (
+                            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-64 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-3 text-xs shadow-xl group-hover:block">
+                              <div className="font-black text-[#0a192f]">
+                                Đơn #{booking.id}
+                              </div>
+                              <div className="mt-2 space-y-1 font-semibold text-gray-600">
+                                <div>
+                                  Khách:{" "}
+                                  <span className="font-bold text-gray-900">
+                                    {booking.khach_hang?.ho_ten || TXT.noData}
+                                  </span>
+                                </div>
+                                <div>
+                                  SĐT:{" "}
+                                  <span className="font-bold text-gray-900">
+                                    {booking.khach_hang?.so_dien_thoai || TXT.noData}
+                                  </span>
+                                </div>
+                                <div>
+                                  Thanh toán:{" "}
+                                  <span className="font-bold text-gray-900">
+                                    {formatCurrency(booking.da_thanh_toan)}
+                                  </span>
+                                </div>
+                                <div>
+                                  Trạng thái:{" "}
+                                  <span className="font-bold text-gray-900">
+                                    {getStatusInfo(booking).label}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </Fragment>
+                ))}
               </div>
             </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
 
-            <div className="relative">
-              {courts.map((court, index) => (
-                <div
-                  key={court.id}
-                  className={`flex h-24 ${index !== courts.length - 1 ? "border-b border-gray-200" : ""} bg-white hover:bg-gray-50/50 transition-colors group`}
-                >
-                  <div
-                    style={{ width: `${COURT_COL_WIDTH}px` }}
-                    className="flex-shrink-0 flex items-center justify-center font-bold text-sm text-[#0a192f] border-r border-gray-300 sticky left-0 z-20 bg-white group-hover:bg-gray-50/50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
-                  >
-                    {court.name}
-                  </div>
 
-                  <div
-                    className="relative"
-                    style={{ width: `${TIMELINE_WIDTH}px` }}
-                  >
-                    {Array.from({ length: TOTAL_HOURS }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="absolute top-0 bottom-0 border-l border-gray-200 pointer-events-none"
-                        style={{
-                          left: `${i * CELL_WIDTH}px`,
-                          width: `${CELL_WIDTH}px`,
-                        }}
-                      ></div>
-                    ))}
+function BookingTable({ bookings, loading, onSelect, onViewSchedule }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="min-w-[1100px] w-full text-left text-sm">
+          <thead className="bg-[#f8fafc] text-xs font-bold uppercase text-gray-500">
+            <tr>
+              <Th>{TXT.booking}</Th>
+              <Th>{TXT.customer}</Th>
+              <Th>{TXT.facility}</Th>
+              <Th>{TXT.time}</Th>
+              <Th>{TXT.payment}</Th>
+              <Th>{TXT.total}</Th>
+              <Th>{TXT.status}</Th>
+              <Th>{TXT.createdAt}</Th>
+              <Th></Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {loading ? (
+              <tr>
+                <td colSpan={9}>
+                  <EmptyState icon="fa-circle-notch fa-spin" text={TXT.loading} />
+                </td>
+              </tr>
+            ) : bookings.length === 0 ? (
+              <tr>
+                <td colSpan={9}>
+                  <EmptyState icon="fa-calendar-xmark" text={TXT.empty} />
+                </td>
+              </tr>
+            ) : (
+              bookings.map((booking) => {
+                const statusInfo = getStatusInfo(booking);
+                const firstDetail = booking.chi_tiet?.[0];
+                const detailCount = booking.chi_tiet?.length || 0;
 
-                    {bookings
-                      .filter((b) => b.courtId === court.id)
-                      .map((booking) => {
-                        const { left, width } = getPositionAndWidth(
-                          booking.startTime,
-                          booking.endTime,
-                        );
-                        return (
-                          <div
-                            key={booking.id}
-                            className={`absolute top-2.5 bottom-2.5 rounded-lg px-3 py-2 shadow-sm overflow-hidden flex flex-col justify-center cursor-pointer transition-transform hover:scale-[1.01] hover:shadow-md z-10 ${getColorClass(booking.status)}`}
-                            style={{ left, width }}
-                            title={`${booking.customer} (${booking.startTime} - ${booking.endTime})`}
-                          >
-                            <div className="font-bold text-[14px] truncate leading-tight">
-                              {booking.customer}
-                            </div>
+                return (
+                  <tr key={booking.id} className="hover:bg-gray-50/70">
+                    <Td strong>#{booking.id}</Td>
+                    <Td strong>
+                      <div>{booking.khach_hang?.ho_ten || TXT.noData}</div>
+                      <div className="mt-1 text-xs font-medium text-gray-500">
+                        {booking.khach_hang?.so_dien_thoai ||
+                          booking.khach_hang?.email ||
+                          TXT.noData}
+                      </div>
+                    </Td>
+                    <Td>{booking.co_so?.ten || TXT.noData}</Td>
+                    <Td>
+                      {firstDetail ? (
+                        <>
+                          <div>{formatDate(firstDetail.ngay)}</div>
+                          <div className="mt-1 text-xs font-bold text-gray-500">
+                            {firstDetail.gio_bat_dau} - {firstDetail.gio_ket_thuc}
+                            {detailCount > 1 ? ` Â· ${detailCount} khung` : ""}
                           </div>
-                        );
-                      })}
+                        </>
+                      ) : (
+                        TXT.noData
+                      )}
+                    </Td>
+                    <Td>
+                      <div>{formatCurrency(booking.da_thanh_toan)}</div>
+                      <div className="mt-1 text-xs font-medium text-gray-500">
+                        Còn lại {formatCurrency(booking.con_lai)}
+                      </div>
+                    </Td>
+                    <Td strong>{formatCurrency(booking.thanh_tien)}</Td>
+                    <Td>
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusInfo.className}`}
+                      >
+                        {statusInfo.label}
+                      </span>
+                    </Td>
+                    <Td>{formatDateTime(booking.ngay_tao)}</Td>
+                    <Td>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onViewSchedule(booking)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-[#349DFF] hover:bg-blue-100"
+                          title="Xem trên lịch"
+                        >
+                          <i className="fa-regular fa-calendar-days"></i>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onSelect(booking)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                          title={TXT.detail}
+                        >
+                          <i className="fa-regular fa-eye"></i>
+                        </button>
+                      </div>
+                    </Td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function BookingDetail({
+  booking,
+  onClose,
+  onConfirmOnsitePayment,
+  confirmingPaymentId,
+}) {
+  const statusInfo = getStatusInfo(booking);
+  const canConfirmOnsitePayment =
+    [1, 4].includes(Number(booking.trang_thai)) &&
+    Number(booking.con_lai || 0) > 0;
+  const isConfirmingPayment =
+    Number(confirmingPaymentId) === Number(booking.id);
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/50 p-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4">
+          <div>
+            <h3 className="text-lg font-extrabold text-[#0a192f]">
+              {TXT.detail} #{booking.id}
+            </h3>
+            <p className="mt-1 text-sm font-bold text-[#349DFF]">
+              {booking.co_so?.ten || TXT.noData}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+            aria-label={TXT.close}
+          >
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <section className="grid gap-3 rounded-2xl bg-gray-50 p-4 sm:grid-cols-2">
+            <InfoLine label={TXT.customer} value={booking.khach_hang?.ho_ten} />
+            <InfoLine
+              label="SĐT"
+              value={booking.khach_hang?.so_dien_thoai}
+            />
+            <InfoLine label="Email" value={booking.khach_hang?.email} />
+            <div>
+              <div className="text-xs font-bold uppercase text-gray-500">
+                {TXT.status}
+              </div>
+              <span
+                className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusInfo.className}`}
+              >
+                {statusInfo.label}
+              </span>
+            </div>
+          </section>
+
+          <section className="grid gap-3 rounded-2xl bg-gray-50 p-4 sm:grid-cols-3">
+            <InfoLine label="Tổng tiền" value={formatCurrency(booking.tong_tien)} />
+            <InfoLine label="Giảm giá" value={formatCurrency(booking.tien_giam)} />
+            <InfoLine
+              label="Thành tiền"
+              value={formatCurrency(booking.thanh_tien)}
+            />
+            <InfoLine
+              label="Tiền cọc"
+              value={formatCurrency(booking.tien_coc)}
+            />
+            <InfoLine
+              label="Đã thanh toán"
+              value={formatCurrency(booking.da_thanh_toan)}
+            />
+            <InfoLine label="Còn lại" value={formatCurrency(booking.con_lai)} />
+          </section>
+
+          <section className="rounded-2xl border border-gray-200">
+            <div className="border-b border-gray-100 px-4 py-3 text-xs font-bold uppercase text-gray-500">
+              Chi tiết sân
+            </div>
+            <div className="divide-y divide-gray-100">
+              {(booking.chi_tiet || []).map((item) => (
+                <div
+                  key={`${item.san_id}-${item.khung_gio_mau_id}-${item.ngay}`}
+                  className="grid gap-2 px-4 py-3 text-sm font-medium text-gray-700 sm:grid-cols-4"
+                >
+                  <div className="font-bold text-[#0a192f]">{item.ten_san}</div>
+                  <div>{formatDate(item.ngay)}</div>
+                  <div>
+                    {item.gio_bat_dau} - {item.gio_ket_thuc}
                   </div>
+                  <div className="font-bold">{formatCurrency(item.gia)}</div>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          </section>
 
-        <div className="h-16 bg-[#f8fafc] border-t border-gray-200 flex items-center justify-center gap-8 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded bg-[#3b82f6] border border-[#2563eb] inline-block shadow-sm"></span>
-            <span className="text-sm font-medium text-[#0a192f]">Đã đặt</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded bg-[#22c55e] border border-[#16a34a] inline-block shadow-sm"></span>
-            <span className="text-sm font-medium text-[#0a192f]">
-              Đang sử dụng
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded bg-[#fde047] border border-[#eab308] inline-block shadow-sm"></span>
-            <span className="text-sm font-medium text-[#0a192f]">Đã cọc</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-5 h-5 rounded bg-[#ef4444] border border-[#dc2626] inline-block shadow-sm"></span>
-            <span className="text-sm font-medium text-[#0a192f]">Đã hủy</span>
+          {booking.ghi_chu && (
+            <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+              <InfoLine label="Ghi chú" value={booking.ghi_chu} />
+            </section>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {canConfirmOnsitePayment && (
+              <button
+                type="button"
+                onClick={() => onConfirmOnsitePayment(booking)}
+                disabled={isConfirmingPayment}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                {isConfirmingPayment ? (
+                  <>
+                    <i className="fa-solid fa-circle-notch fa-spin"></i>
+                    Đang xác nhận
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-money-bill-wave"></i>
+                    Xác nhận đã thu {formatCurrency(booking.con_lai)} tại sân
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50"
+            >
+              {TXT.close}
+            </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value }) {
+  return (
+    <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#349DFF]">
+        <i className={`fa-solid ${icon}`}></i>
+      </div>
+      <div>
+        <div className="text-xs font-bold uppercase text-gray-500">{label}</div>
+        <div className="mt-1 text-xl font-extrabold text-[#0a192f]">
+          {value}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ icon, text }) {
+  return (
+    <div className="flex min-h-[220px] items-center justify-center p-8">
+      <div className="flex flex-col items-center gap-3 text-sm font-bold text-gray-500">
+        <i className={`fa-solid ${icon} text-3xl text-[#349DFF]`}></i>
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function Th({ children }) {
+  return <th className="whitespace-nowrap px-4 py-3">{children}</th>;
+}
+
+function Td({ children, strong = false }) {
+  return (
+    <td
+      className={`max-w-[220px] px-4 py-3 align-top ${
+        strong ? "font-extrabold text-[#0a192f]" : "font-medium text-gray-600"
+      }`}
+    >
+      <div className="line-clamp-3">{children}</div>
+    </td>
+  );
+}
+
+function InfoLine({ label, value }) {
+  return (
+    <div>
+      <div className="text-xs font-bold uppercase text-gray-500">{label}</div>
+      <div className="mt-1 break-words text-sm font-bold text-[#0a192f]">
+        {value || TXT.noData}
       </div>
     </div>
   );

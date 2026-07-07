@@ -45,18 +45,18 @@ export default function ToastMessage() {
   if (!toast.show) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-[9999] flex justify-end pointer-events-none">
+    <div className="fixed left-4 right-4 top-4 z-[9999] flex justify-center pointer-events-none sm:left-auto sm:justify-end">
       <div
-        className={`flex items-center px-10 py-5 rounded-2xl shadow-2xl transition-all duration-300 animate-slide-down border-2 pointer-events-auto ${
+        className={`flex w-full max-w-sm items-start px-4 py-3 rounded-2xl shadow-2xl transition-all duration-300 animate-slide-down border-2 pointer-events-auto sm:w-auto sm:max-w-md sm:items-center sm:px-10 sm:py-5 ${
           toast.type === "success"
             ? "bg-[#10B981] text-white border-green-400"
             : "bg-[#EF4444] text-white border-red-400"
         }`}
       >
         <i
-          className={`mr-4 text-2xl ${toast.type === "success" ? "fa-regular fa-circle-check" : "fa-solid fa-circle-exclamation"}`}
+          className={`mr-3 mt-0.5 shrink-0 text-xl sm:mr-4 sm:mt-0 sm:text-2xl ${toast.type === "success" ? "fa-regular fa-circle-check" : "fa-solid fa-circle-exclamation"}`}
         ></i>
-        <span className="font-bold text-base tracking-wide whitespace-nowrap">
+        <span className="min-w-0 break-words text-sm font-bold tracking-wide sm:text-base">
           {toast.message}
         </span>
       </div>

@@ -9,6 +9,50 @@ const initialNewConfig = {
   mo_ta: "",
 };
 
+const systemConfigKeys = new Set([
+  "THOI_GIAN_GIU_CHO_PHUT",
+  "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY",
+  "PHAN_TRAM_HOAN_TIEN_MAC_DINH",
+  "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA",
+]);
+
+const getConfigValidationMessage = (keyName, value) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return `Giá trị cấu hình "${keyName}" là bắt buộc`;
+  }
+
+  const rawValue = String(value).trim();
+  const numberValue = Number(rawValue);
+
+  if (systemConfigKeys.has(keyName) && !Number.isFinite(numberValue)) {
+    return `Giá trị cấu hình "${keyName}" phải là số hợp lệ`;
+  }
+
+  if (
+    keyName === "THOI_GIAN_GIU_CHO_PHUT" &&
+    (!Number.isInteger(numberValue) || numberValue <= 0)
+  ) {
+    return "THOI_GIAN_GIU_CHO_PHUT phải là số nguyên lớn hơn 0";
+  }
+
+  if (keyName === "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY" && numberValue < 0) {
+    return "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY phải lớn hơn hoặc bằng 0";
+  }
+
+  if (
+    keyName === "PHAN_TRAM_HOAN_TIEN_MAC_DINH" &&
+    (numberValue < 0 || numberValue > 100)
+  ) {
+    return "PHAN_TRAM_HOAN_TIEN_MAC_DINH phải nằm trong khoảng 0-100";
+  }
+
+  if (keyName === "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA" && numberValue < 0) {
+    return "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA phải lớn hơn hoặc bằng 0";
+  }
+
+  return "";
+};
+
 export default function SystemConfig() {
   const [configs, setConfigs] = useState([]);
   const [values, setValues] = useState({});
@@ -58,7 +102,7 @@ export default function SystemConfig() {
     const keyword = searchText.trim().toLowerCase();
     if (!keyword) return configs;
     return configs.filter((config) =>
-      [config.key_name, config.mo_ta]
+      [config.key_name, config.key_value, config.mo_ta]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -79,6 +123,20 @@ export default function SystemConfig() {
   const handleSave = () => {
     if (changedConfigs.length === 0) {
       showToast("Chưa có thay đổi nào để lưu", "error");
+      return;
+    }
+
+    const invalidConfig = changedConfigs.find((config) =>
+      getConfigValidationMessage(config.key_name, values[config.key_name]),
+    );
+    if (invalidConfig) {
+      showToast(
+        getConfigValidationMessage(
+          invalidConfig.key_name,
+          values[invalidConfig.key_name],
+        ),
+        "error",
+      );
       return;
     }
 
@@ -140,9 +198,27 @@ export default function SystemConfig() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    const keyName = newConfig.key_name.trim();
+    if (!/^[A-Z0-9_]+$/.test(keyName)) {
+      showToast(
+        "Tên khóa chỉ được chứa chữ in hoa, số và dấu gạch dưới (vd: THOI_GIAN_GIU_CHO_PHUT)",
+        "error",
+      );
+      return;
+    }
+
+    const validationMessage = getConfigValidationMessage(
+      keyName,
+      newConfig.key_value,
+    );
+    if (validationMessage) {
+      showToast(validationMessage, "error");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      await api.post("/cau-hinh", newConfig);
+      await api.post("/cau-hinh", { ...newConfig, key_name: keyName });
       showToast("Thêm cấu hình thành công", "success");
       closeCreateModal();
       fetchConfigs();
@@ -204,9 +280,32 @@ export default function SystemConfig() {
         </button>
       </div>
 
+      <div className="bg-blue-50 rounded-2xl border border-blue-200 p-4 text-sm text-blue-900">
+        <div className="font-semibold mb-2 flex items-center gap-2">
+          <i className="fa-solid fa-circle-info"></i>
+          Các khóa cấu hình đang được hệ thống sử dụng
+        </div>
+        <ul className="list-disc list-inside space-y-1 text-blue-800">
+          <li>
+            <strong>THOI_GIAN_GIU_CHO_PHUT</strong> — Thời gian giữ chỗ tạm thời (phút)
+          </li>
+          <li>
+            <strong>SO_GIO_TOI_THIEU_TRUOC_KHI_HUY</strong> — Số giờ tối thiểu trước giờ chơi được phép hủy
+          </li>
+          <li>
+            <strong>PHAN_TRAM_HOAN_TIEN_MAC_DINH</strong> — Phần trăm hoàn tiền khi hủy đơn (0-100)
+          </li>
+          <li>
+            <strong>SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA</strong> — Số giờ sau khi kết thúc giờ chơi mới được đánh giá
+          </li>
+        </ul>
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
         <div className="relative max-w-md">
-          <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
+            <i className="fa-solid fa-magnifying-glass text-sm leading-none"></i>
+          </span>
           <input
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -234,6 +333,7 @@ export default function SystemConfig() {
         ) : (
           filteredConfigs.map((config) => {
             const isChanged = values[config.key_name] !== config.key_value;
+            const isSystemConfig = systemConfigKeys.has(config.key_name);
             return (
               <div
                 key={config.key_name}
@@ -262,14 +362,16 @@ export default function SystemConfig() {
                       isChanged ? "border-amber-400 bg-amber-50" : "border-gray-200"
                     }`}
                   />
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(config)}
-                    title="Xóa cấu hình"
-                    className="w-10 h-10 shrink-0 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <i className="fa-solid fa-trash"></i>
-                  </button>
+                  {!isSystemConfig && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(config)}
+                      title="Xóa cấu hình"
+                      className="w-10 h-10 shrink-0 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <i className="fa-solid fa-trash"></i>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -322,7 +424,7 @@ export default function SystemConfig() {
                     value={newConfig.key_name}
                     onChange={handleNewConfigChange}
                     required
-                    placeholder="vd: thoi_gian_giu_cho_phut"
+                    placeholder="vd: THOI_GIAN_GIU_CHO_PHUT"
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF]"
                   />
                 </div>
