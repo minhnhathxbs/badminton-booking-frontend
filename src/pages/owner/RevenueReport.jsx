@@ -60,6 +60,17 @@ const paymentTypeLabel = (value) => {
   }
 };
 
+const paymentMethodLabel = (value) => {
+  switch (String(value || "").toUpperCase()) {
+    case "TAI_SAN":
+      return "Tại sân";
+    case "VNPAY":
+      return "VNPAY";
+    default:
+      return value || "Chưa rõ";
+  }
+};
+
 const withdrawStatus = (value) => {
   switch (Number(value)) {
     case 1:
@@ -567,9 +578,14 @@ export default function RevenueReport() {
                         {invoice.ten_co_so}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
-                          {paymentTypeLabel(invoice.loai_thanh_toan)}
-                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="inline-flex px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
+                            {paymentTypeLabel(invoice.loai_thanh_toan)}
+                          </span>
+                          <span className="inline-flex px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-100">
+                            {paymentMethodLabel(invoice.phuong_thuc)}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-green-600">
                         {formatCurrency(invoice.so_tien)}

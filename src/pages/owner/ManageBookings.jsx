@@ -208,6 +208,8 @@ export default function ManageBookings() {
   const [scheduleError, setScheduleError] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [focusedBookingId, setFocusedBookingId] = useState(null);
+  const [confirmingOnsitePaymentId, setConfirmingOnsitePaymentId] =
+    useState(null);
   const scheduleRef = useRef(null);
 
   const fetchFacilities = useCallback(async () => {
@@ -383,6 +385,48 @@ export default function ManageBookings() {
     }, 120);
   }, []);
 
+  const confirmOnsiteRemainingPayment = useCallback(
+    async (booking) => {
+      if (!booking?.id || Number(booking.con_lai || 0) <= 0) return;
+
+      setConfirmingOnsitePaymentId(Number(booking.id));
+      try {
+        const res = await api.post(
+          `/chu-san/lich-dat/${booking.id}/xac-nhan-thu-con-lai`,
+        );
+        const updatedBooking = res.data?.data;
+
+        if (updatedBooking) {
+          setBookings((current) =>
+            current.map((item) =>
+              Number(item.id) === Number(updatedBooking.id)
+                ? updatedBooking
+                : item,
+            ),
+          );
+          setSelectedBooking(updatedBooking);
+        } else {
+          await fetchBookings();
+          setSelectedBooking(null);
+        }
+
+        showToast(
+          res.data?.message || "Đã xác nhận thu phần còn lại tại sân",
+          "success",
+        );
+      } catch (error) {
+        showToast(
+          error.response?.data?.message ||
+            "Không thể xác nhận thu phần còn lại",
+          "error",
+        );
+      } finally {
+        setConfirmingOnsitePaymentId(null);
+      }
+    },
+    [fetchBookings],
+  );
+
   return (
     <div className="mx-auto max-w-[1400px] space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -516,6 +560,8 @@ export default function ManageBookings() {
         <BookingDetail
           booking={selectedBooking}
           onClose={() => setSelectedBooking(null)}
+          onConfirmOnsitePayment={confirmOnsiteRemainingPayment}
+          confirmingPaymentId={confirmingOnsitePaymentId}
         />
       )}
     </div>
@@ -869,8 +915,18 @@ function BookingTable({ bookings, loading, onSelect, onViewSchedule }) {
   );
 }
 
-function BookingDetail({ booking, onClose }) {
+function BookingDetail({
+  booking,
+  onClose,
+  onConfirmOnsitePayment,
+  confirmingPaymentId,
+}) {
   const statusInfo = getStatusInfo(booking);
+  const canConfirmOnsitePayment =
+    [1, 4].includes(Number(booking.trang_thai)) &&
+    Number(booking.con_lai || 0) > 0;
+  const isConfirmingPayment =
+    Number(confirmingPaymentId) === Number(booking.id);
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/50 p-4">
@@ -959,13 +1015,35 @@ function BookingDetail({ booking, onClose }) {
             </section>
           )}
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50"
-          >
-            {TXT.close}
-          </button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {canConfirmOnsitePayment && (
+              <button
+                type="button"
+                onClick={() => onConfirmOnsitePayment(booking)}
+                disabled={isConfirmingPayment}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                {isConfirmingPayment ? (
+                  <>
+                    <i className="fa-solid fa-circle-notch fa-spin"></i>
+                    Đang xác nhận
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-money-bill-wave"></i>
+                    Xác nhận đã thu {formatCurrency(booking.con_lai)} tại sân
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50"
+            >
+              {TXT.close}
+            </button>
+          </div>
         </div>
       </div>
     </div>
