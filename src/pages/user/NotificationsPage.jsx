@@ -87,11 +87,13 @@ export default function NotificationsPage() {
 
         <div className="mx-auto max-w-3xl overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm divide-y divide-gray-50">
           {dangTai && danhSach.length === 0 ? (
-            <div className="px-4 py-12 text-center text-gray-400">Đang tải...</div>
+            <div className="px-4 py-12 text-center text-gray-400">
+              Đang tải...
+            </div>
           ) : danhSach.length === 0 ? (
             <div className="px-4 py-12 text-center text-gray-400">
               <i className="fa-regular fa-bell-slash text-3xl mb-2 block"></i>
-              Chưa có thông báo nào
+              Chưa có thông báo nào!
             </div>
           ) : (
             danhSach.map((tb) => (
