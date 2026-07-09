@@ -45,7 +45,11 @@ const TXT = {
   paying: "Đang tạo thanh toán",
   cancel: "Hủy sân",
   cancelTitle: "Hủy đặt sân",
-  cancelDesc: "Nhập lý do hủy để chủ sân xem xét hoàn tiền nếu đơn đã thanh toán.",
+  cancelDesc: "Nhập lý do hủy. Hệ thống sẽ tự tính số tiền hoàn theo thời điểm hủy so với giờ chơi.",
+  cancelPolicyTitle: "Chính sách hoàn tiền",
+  cancelPolicy24h: "Trước giờ chơi từ 24 giờ: hoàn 100% số tiền đã thanh toán.",
+  cancelPolicy12h: "Trước giờ chơi từ 12 đến dưới 24 giờ: hoàn 50%.",
+  cancelPolicyLate: "Dưới 12 giờ nhưng chưa tới giờ chơi: vẫn được hủy, không hoàn tiền.",
   cancelPlaceholder: "VD: Bận việc đột xuất, không thể đến sân...",
   cancelReasonRequired: "Vui lòng nhập lý do hủy",
   cancelSuccess: "Hủy đặt sân thành công",
@@ -1001,6 +1005,17 @@ function CancelBookingModal({
           <p className="text-sm font-medium leading-6 text-slate-600">
             {TXT.cancelDesc}
           </p>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <div className="mb-2 flex items-center gap-2 font-extrabold">
+              <i className="fa-solid fa-circle-info"></i>
+              {TXT.cancelPolicyTitle}
+            </div>
+            <ul className="space-y-1 font-medium">
+              <li>{TXT.cancelPolicy24h}</li>
+              <li>{TXT.cancelPolicy12h}</li>
+              <li>{TXT.cancelPolicyLate}</li>
+            </ul>
+          </div>
           <textarea
             value={reason}
             onChange={(event) => onReasonChange(event.target.value)}

@@ -13,6 +13,11 @@ const systemConfigKeys = new Set([
   "THOI_GIAN_GIU_CHO_PHUT",
   "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY",
   "PHAN_TRAM_HOAN_TIEN_MAC_DINH",
+  "HOAN_TIEN_MOC_24H_GIO",
+  "HOAN_TIEN_MOC_24H_PHAN_TRAM",
+  "HOAN_TIEN_MOC_12H_GIO",
+  "HOAN_TIEN_MOC_12H_PHAN_TRAM",
+  "HOAN_TIEN_DUOI_12H_PHAN_TRAM",
   "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA",
 ]);
 
@@ -44,6 +49,24 @@ const getConfigValidationMessage = (keyName, value) => {
     (numberValue < 0 || numberValue > 100)
   ) {
     return "PHAN_TRAM_HOAN_TIEN_MAC_DINH phải nằm trong khoảng 0-100";
+  }
+
+  if (
+    ["HOAN_TIEN_MOC_24H_GIO", "HOAN_TIEN_MOC_12H_GIO"].includes(keyName) &&
+    numberValue < 0
+  ) {
+    return `${keyName} phai lon hon hoac bang 0`;
+  }
+
+  if (
+    [
+      "HOAN_TIEN_MOC_24H_PHAN_TRAM",
+      "HOAN_TIEN_MOC_12H_PHAN_TRAM",
+      "HOAN_TIEN_DUOI_12H_PHAN_TRAM",
+    ].includes(keyName) &&
+    (numberValue < 0 || numberValue > 100)
+  ) {
+    return `${keyName} phai nam trong khoang 0-100`;
   }
 
   if (keyName === "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA" && numberValue < 0) {
@@ -294,6 +317,15 @@ export default function SystemConfig() {
           </li>
           <li>
             <strong>PHAN_TRAM_HOAN_TIEN_MAC_DINH</strong> — Phần trăm hoàn tiền khi hủy đơn (0-100)
+          </li>
+          <li>
+            <strong>HOAN_TIEN_MOC_24H_GIO / HOAN_TIEN_MOC_24H_PHAN_TRAM</strong> — Mốc hủy sớm và phần trăm hoàn cao nhất
+          </li>
+          <li>
+            <strong>HOAN_TIEN_MOC_12H_GIO / HOAN_TIEN_MOC_12H_PHAN_TRAM</strong> — Mốc hủy trung gian và phần trăm hoàn tương ứng
+          </li>
+          <li>
+            <strong>HOAN_TIEN_DUOI_12H_PHAN_TRAM</strong> — Phần trăm hoàn khi hủy sát giờ nhưng chưa tới giờ chơi
           </li>
           <li>
             <strong>SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA</strong> — Số giờ sau khi kết thúc giờ chơi mới được đánh giá
