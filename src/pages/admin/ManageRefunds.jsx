@@ -3,8 +3,8 @@ import api from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
 
 const TXT = {
-  title: "Quản lý hoàn tiền",
-  desc: "Xem và xử lý yêu cầu hoàn tiền từ các đơn đã hủy.",
+  title: "Lịch sử hoàn tiền",
+  desc: "Theo dõi các giao dịch hoàn tiền tự động từ những đơn đã hủy.",
   all: "Tất cả trạng thái",
   pending: "Chờ xử lý",
   approved: "Đã hoàn tiền",
@@ -21,15 +21,10 @@ const TXT = {
   status: "Trạng thái",
   requestedAt: "Ngày yêu cầu",
   action: "Thao tác",
-  approve: "Duyệt",
-  reject: "Từ chối",
+  detail: "Chi tiết",
   close: "Đóng",
-  note: "Ghi chú xử lý",
-  notePlaceholder: "Nhập ghi chú cho khách hàng...",
-  approveTitle: "Duyệt hoàn tiền",
-  rejectTitle: "Từ chối hoàn tiền",
-  processing: "Đang xử lý",
-  processFail: "Không thể xử lý yêu cầu hoàn tiền",
+  detailTitle: "Chi tiết hoàn tiền",
+  note: "Ghi chú hoàn tiền",
   loadFail: "Không thể tải yêu cầu hoàn tiền",
   noData: "Chưa có",
 };
@@ -74,12 +69,10 @@ const getStatusInfo = (status) => {
 
 export default function ManageRefunds() {
   const [refunds, setRefunds] = useState([]);
-  const [status, setStatus] = useState("0");
+  const [status, setStatus] = useState("");
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [processingId, setProcessingId] = useState(null);
-  const [decision, setDecision] = useState(null);
-  const [note, setNote] = useState("");
+  const [detailRefund, setDetailRefund] = useState(null);
 
   const fetchRefunds = async () => {
     setLoading(true);
@@ -114,37 +107,6 @@ export default function ManageRefunds() {
       { total: 0, pending: 0, amount: 0 },
     );
   }, [refunds]);
-
-  const openDecision = (refund, action) => {
-    setDecision({ refund, action });
-    setNote(refund.ghi_chu_admin || "");
-  };
-
-  const closeDecision = () => {
-    setDecision(null);
-    setNote("");
-  };
-
-  const submitDecision = async () => {
-    if (!decision) return;
-
-    const { refund, action } = decision;
-    setProcessingId(refund.id);
-    try {
-      const res = await api.patch(`/hoan-tien/${refund.id}/xu-ly`, {
-        trang_thai: action === "approve" ? 1 : 2,
-        ghi_chu_admin: note.trim(),
-      });
-
-      showToast(res.data?.message || "Xử lý hoàn tiền thành công");
-      closeDecision();
-      await fetchRefunds();
-    } catch (error) {
-      showToast(error.response?.data?.message || TXT.processFail, "error");
-    } finally {
-      setProcessingId(null);
-    }
-  };
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-5">
@@ -238,7 +200,6 @@ export default function ManageRefunds() {
               ) : (
                 refunds.map((refund) => {
                   const statusInfo = getStatusInfo(refund.trang_thai);
-                  const canProcess = Number(refund.trang_thai) === 0;
                   return (
                     <tr key={refund.id} className="hover:bg-gray-50/70">
                       <Td strong>
@@ -268,30 +229,14 @@ export default function ManageRefunds() {
                       </Td>
                       <Td>{formatDateTime(refund.ngay_yeu_cau)}</Td>
                       <Td>
-                        {canProcess ? (
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => openDecision(refund, "approve")}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                              title={TXT.approve}
-                            >
-                              <i className="fa-solid fa-check"></i>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openDecision(refund, "reject")}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
-                              title={TXT.reject}
-                            >
-                              <i className="fa-solid fa-xmark"></i>
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs font-bold text-gray-400">
-                            {refund.ghi_chu_admin || TXT.noData}
-                          </span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setDetailRefund(refund)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+                          title={TXT.detail}
+                        >
+                          <i className="fa-solid fa-eye"></i>
+                        </button>
                       </Td>
                     </tr>
                   );
@@ -302,14 +247,10 @@ export default function ManageRefunds() {
         </div>
       </div>
 
-      {decision && (
-        <DecisionModal
-          decision={decision}
-          note={note}
-          loading={processingId === decision.refund.id}
-          onNoteChange={setNote}
-          onClose={closeDecision}
-          onConfirm={submitDecision}
+      {detailRefund && (
+        <RefundDetailModal
+          refund={detailRefund}
+          onClose={() => setDetailRefund(null)}
         />
       )}
     </div>
@@ -327,6 +268,87 @@ function StatCard({ icon, label, value }) {
         <div className="mt-1 text-xl font-extrabold text-[#0a192f]">
           {value}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function RefundDetailModal({ refund, onClose }) {
+  const statusInfo = getStatusInfo(refund.trang_thai);
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <div>
+            <h3 className="text-lg font-bold text-[#0a192f]">
+              {TXT.detailTitle}
+            </h3>
+            <p className="mt-1 text-sm font-medium text-gray-500">
+              Đơn #{refund.dat_san_id} - {formatCurrency(refund.so_tien_hoan)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+          >
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailItem label={TXT.customer} value={refund.khach_hang?.ho_ten || TXT.noData} />
+            <DetailItem
+              label="Liên hệ"
+              value={
+                refund.khach_hang?.so_dien_thoai ||
+                refund.khach_hang?.email ||
+                TXT.noData
+              }
+            />
+            <DetailItem label={TXT.facility} value={refund.co_so?.ten || TXT.noData} />
+            <DetailItem label={TXT.booking} value={`#${refund.dat_san_id}`} />
+            <DetailItem label="Mã giao dịch" value={refund.thanh_toan?.ma_giao_dich || TXT.noData} />
+            <DetailItem label="Tiền thanh toán" value={formatCurrency(refund.thanh_toan?.so_tien)} />
+            <DetailItem label={TXT.amount} value={formatCurrency(refund.so_tien_hoan)} />
+            <DetailItem label={TXT.requestedAt} value={formatDateTime(refund.ngay_yeu_cau)} />
+            <DetailItem label="Ngày xử lý" value={formatDateTime(refund.ngay_xu_ly)} />
+            <div>
+              <div className="text-xs font-bold uppercase text-gray-500">{TXT.status}</div>
+              <span
+                className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusInfo.className}`}
+              >
+                {statusInfo.label}
+              </span>
+            </div>
+          </div>
+
+          <DetailItem label={TXT.reason} value={refund.ly_do || TXT.noData} />
+          <DetailItem label={TXT.note} value={refund.ghi_chu_admin || TXT.noData} />
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50"
+            >
+              {TXT.close}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailItem({ label, value }) {
+  return (
+    <div>
+      <div className="text-xs font-bold uppercase text-gray-500">{label}</div>
+      <div className="mt-1 rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold text-[#0a192f]">
+        {value}
       </div>
     </div>
   );

@@ -71,7 +71,7 @@ export default function AdminLayout() {
     {
       path: "/admin/hoan-tien",
       icon: "fa-receipt",
-      label: "Duyệt hoàn tiền",
+      label: "Lịch sử hoàn tiền",
     },
     {
       path: "/admin/danh-muc-san",

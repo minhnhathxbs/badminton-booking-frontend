@@ -183,7 +183,7 @@ export default function AdminDashboard() {
       to: "/admin/khieu-nai",
     },
     {
-      label: "Hoàn tiền chờ duyệt",
+      label: "Hoàn tiền chờ xử lý",
       value: tongQuan.hoan_tien_cho_duyet,
       icon: "fa-money-bill-wave",
       to: "/admin/khieu-nai",
