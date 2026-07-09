@@ -2,6 +2,15 @@ import { io } from "socket.io-client";
 import { ASSET_BASE_URL } from "./axios";
 
 let socket;
+let currentToken = null;
+
+const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+    currentToken = null;
+  }
+};
 
 export const getSocket = () => {
   const socketUrl =
@@ -12,11 +21,23 @@ export const getSocket = () => {
     return null;
   }
 
+  const token = localStorage.getItem("token");
+
+  if (socket && currentToken !== token) {
+    disconnectSocket();
+  }
+
   if (!socket) {
+    currentToken = token;
     socket = io(socketUrl, {
       transports: ["websocket", "polling"],
+      auth: token ? { token } : {},
     });
   }
 
   return socket;
+};
+
+export const resetSocket = () => {
+  disconnectSocket();
 };

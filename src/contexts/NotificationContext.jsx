@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
-import { getSocket } from "../api/socket";
+import { getSocket, resetSocket } from "../api/socket";
 import { NotificationContext } from "./notificationStore";
 
 const docUserHienTai = () => {
@@ -56,9 +56,11 @@ export function NotificationProvider({ children }) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDanhSach([]);
       setSoChuaDoc(0);
+      resetSocket();
       return;
     }
 
+    resetSocket();
     taiThongBao();
 
     const socket = getSocket();
@@ -79,7 +81,6 @@ export function NotificationProvider({ children }) {
     socket.on("notification:new", onNewNotification);
 
     return () => {
-      socket.emit("notification:leave", { nguoi_dung_id: userId });
       socket.off("connect", onConnect);
       socket.off("notification:new", onNewNotification);
     };
