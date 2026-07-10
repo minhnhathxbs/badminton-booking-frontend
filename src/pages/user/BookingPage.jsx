@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { getSocket } from "../../api/socket";
@@ -6,7 +6,7 @@ import promoBannerImage from "../../assets/promo-badminton-banner.png";
 import { showToast } from "../../components/common/ToastMessage";
 
 const formatCurrency = (value) =>
-  `${Number(value || 0).toLocaleString("vi-VN")}\u0111`;
+  `${Number(value || 0).toLocaleString("vi-VN")}đ`;
 
 const PRICE_ROW_ORDER = [
   { loai_ngay_id: 1, loai_gio_id: 1, ten_loai_ngay: "Trong tuần", ten_loai_gio: "Thấp điểm" },
@@ -197,7 +197,7 @@ export default function FacilityDetailPage() {
           setPriceCategories([]);
           setError(
             err.response?.data?.message ||
-              "Kh\u00f4ng th\u1ec3 t\u1ea3i th\u00f4ng tin c\u01a1 s\u1edf",
+              "Không thể tải thông tin cơ sở",
           );
         }
       } finally {
@@ -284,11 +284,11 @@ export default function FacilityDetailPage() {
   const courtSections = useMemo(
     () => [
       {
-        title: "S\u00e2n th\u01b0\u1eddng",
+        title: "Sân thường",
         courts: courts.filter((court) => !isVipCourt(court)),
       },
       {
-        title: "S\u00e2n VIP",
+        title: "Sân VIP",
         courts: courts.filter(isVipCourt),
       },
     ],
@@ -382,7 +382,7 @@ export default function FacilityDetailPage() {
     if (value < minBookingDate) {
       setSelectedDate(minBookingDate);
       showToast(
-        "Ch\u1ec9 \u0111\u01b0\u1ee3c xem l\u1ecbch t\u1eeb h\u00f4m nay",
+        "Chỉ được xem lịch từ hôm nay",
         "error",
       );
       return;
@@ -391,7 +391,7 @@ export default function FacilityDetailPage() {
     if (value > maxBookingDate) {
       setSelectedDate(maxBookingDate);
       showToast(
-        "Ch\u1ec9 \u0111\u01b0\u1ee3c \u0111\u1eb7t s\u00e2n \u0111\u1ebfn cu\u1ed1i th\u00e1ng sau",
+        "Chỉ được đặt sân đến cuối tháng sau",
         "error",
       );
       return;
@@ -452,14 +452,14 @@ export default function FacilityDetailPage() {
       setBookingStep("confirm");
       setPaymentType("deposit");
       showToast(
-        res.data?.message || "Gi\u1eef ch\u1ed7 th\u00e0nh c\u00f4ng",
+        res.data?.message || "Giữ chỗ thành công",
         "success",
       );
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       const message =
         err.response?.data?.message ||
-        "Kh\u00f4ng th\u1ec3 gi\u1eef ch\u1ed7, vui l\u00f2ng th\u1eed l\u1ea1i";
+        "Không thể giữ chỗ, vui lòng thử lại";
       showToast(message, "error");
 
       if (err.response?.status === 409) {
@@ -483,13 +483,13 @@ export default function FacilityDetailPage() {
         `/dat-san/${holdInfo.dat_san_id}/huy-giu-cho`,
       );
       showToast(
-        res.data?.message || "\u0110\u00e3 h\u1ee7y gi\u1eef ch\u1ed7",
+        res.data?.message || "Đã hủy giữ chỗ",
         "success",
       );
     } catch (err) {
       showToast(
         err.response?.data?.message ||
-          "Kh\u00f4ng th\u1ec3 h\u1ee7y gi\u1eef ch\u1ed7",
+          "Không thể hủy giữ chỗ",
         "error",
       );
     } finally {
@@ -549,7 +549,7 @@ export default function FacilityDetailPage() {
   const createVnpayPayment = async () => {
     if (!holdInfo?.dat_san_id) {
       showToast(
-        "Kh\u00f4ng t\u00ecm th\u1ea5y \u0111\u01a1n gi\u1eef ch\u1ed7",
+        "Không tìm thấy đơn giữ chỗ",
         "error",
       );
       return;
@@ -567,7 +567,7 @@ export default function FacilityDetailPage() {
 
       if (!res.data?.payment_url) {
         throw new Error(
-          "Kh\u00f4ng nh\u1eadn \u0111\u01b0\u1ee3c URL thanh to\u00e1n",
+          "Không nhận được URL thanh toán",
         );
       }
 
@@ -576,7 +576,7 @@ export default function FacilityDetailPage() {
       showToast(
         err.response?.data?.message ||
           err.message ||
-          "Kh\u00f4ng th\u1ec3 t\u1ea1o thanh to\u00e1n VNPay",
+          "Không thể tạo thanh toán VNPay",
         "error",
       );
     } finally {
@@ -589,7 +589,7 @@ export default function FacilityDetailPage() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 font-sans text-slate-800">
         <div className="flex flex-col items-center gap-3 text-sm font-medium text-slate-500">
           <i className="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-600"></i>
-          {"\u0110ang t\u1ea3i d\u1eef li\u1ec7u..."}
+          {"Đang tải dữ liệu..."}
         </div>
       </div>
     );
@@ -603,14 +603,14 @@ export default function FacilityDetailPage() {
             <i className="fa-regular fa-circle-xmark"></i>
           </div>
           <h1 className="text-xl font-bold text-slate-900">
-            {"Kh\u00f4ng t\u00ecm th\u1ea5y c\u01a1 s\u1edf"}
+            {"Không tìm thấy cơ sở"}
           </h1>
           <p className="mt-2 text-sm text-slate-500">{error}</p>
           <Link
             to="/trang-chu"
             className="mt-6 inline-flex w-full justify-center rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-indigo-700"
           >
-            {"V\u1ec1 trang ch\u1ee7"}
+            {"Về trang chủ"}
           </Link>
         </div>
       </div>
@@ -628,14 +628,14 @@ export default function FacilityDetailPage() {
               onClick={cancelHoldAndBack}
               disabled={isCancelingHold}
               className="flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-              title="H\u1ee7y thanh to\u00e1n"
+              title="Hủy thanh toán"
             >
               <i
                 className={`fa-solid ${isCancelingHold ? "fa-circle-notch fa-spin" : "fa-chevron-left"}`}
               ></i>
             </button>
             <h1 className="text-lg font-bold text-slate-900">
-              {"X\u00e1c nh\u1eadn \u0111\u1eb7t s\u00e2n"}
+              {"Xác nhận đặt sân"}
             </h1>
             <div className="w-10"></div>
           </div>
@@ -646,19 +646,19 @@ export default function FacilityDetailPage() {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               <i className="fa-solid fa-location-dot text-indigo-600"></i>
-              {"Th\u00f4ng tin c\u01a1 s\u1edf"}
+              {"Thông tin cơ sở"}
             </h2>
             <div className="space-y-2 text-sm">
               <p className="flex justify-between">
-                <span className="text-slate-500">{"T\u00ean CLB"}</span>
+                <span className="text-slate-500">{"Tên CLB"}</span>
                 <span className="font-bold text-slate-900">{facility.ten}</span>
               </p>
               <p className="flex justify-between text-right">
                 <span className="text-slate-500">
-                  {"\u0110\u1ecba ch\u1ec9"}
+                  {"Địa chỉ"}
                 </span>
                 <span className="font-medium text-slate-800 max-w-[60%] leading-relaxed">
-                  {address || "Ch\u01b0a c\u1eadp nh\u1eadt"}
+                  {address || "Chưa cập nhật"}
                 </span>
               </p>
             </div>
@@ -668,11 +668,11 @@ export default function FacilityDetailPage() {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               <CalendarIcon className="h-5 w-5 text-indigo-600" />
-              {"Chi ti\u1ebft l\u1ecbch \u0111\u1eb7t"}
+              {"Chi tiết lịch đặt"}
             </h2>
 
             <div className="mb-4 text-sm font-medium text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-100">
-              {"Ng\u00e0y \u0111\u1eb7t"}:{" "}
+              {"Ngày đặt"}:{" "}
               <span className="font-bold text-indigo-700">
                 {new Date(selectedDate).toLocaleDateString("vi-VN")}
               </span>
@@ -681,10 +681,10 @@ export default function FacilityDetailPage() {
               <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <span className="font-bold">
-                    {"M\u00e3 gi\u1eef ch\u1ed7"}: #{holdInfo.dat_san_id}
+                    {"Mã giữ chỗ"}: #{holdInfo.dat_san_id}
                   </span>
                   <span className="font-medium">
-                    {"H\u1ebft h\u1ea1n sau"}:{" "}
+                    {"Hết hạn sau"}:{" "}
                     {holdInfo.thoi_gian_het_han
                       ? new Date(holdInfo.thoi_gian_het_han).toLocaleString(
                           "vi-VN",
@@ -719,13 +719,13 @@ export default function FacilityDetailPage() {
 
             <div className="space-y-3 border-t border-slate-100 pt-4 text-sm">
               <div className="flex justify-between text-slate-500">
-                <span>{"T\u1ed5ng th\u1eddi gian"}</span>
+                <span>{"Tổng thời gian"}</span>
                 <span className="font-semibold text-slate-800">
-                  {totalHours} {"gi\u1edd"}
+                  {totalHours} {"giờ"}
                 </span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>{"T\u1ed5ng ti\u1ec1n s\u00e2n"}</span>
+                <span>{"Tổng tiền sân"}</span>
                 <span className="font-semibold text-slate-800">
                   {formatCurrency(bookingTotal)}
                 </span>
@@ -801,12 +801,12 @@ export default function FacilityDetailPage() {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               <i className="fa-regular fa-user text-indigo-600"></i>
-              {"Th\u00f4ng tin li\u00ean h\u1ec7"}
+              {"Thông tin liên hệ"}
             </h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">
-                  {"T\u00ean ng\u01b0\u1eddi \u0111\u1eb7t"}
+                  {"Tên người đặt"}
                 </label>
                 <input
                   type="text"
@@ -822,7 +822,7 @@ export default function FacilityDetailPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-500 mb-1.5">
-                  {"S\u1ed1 \u0111i\u1ec7n tho\u1ea1i"}
+                  {"Số điện thoại"}
                 </label>
                 <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus-within:border-indigo-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100 transition-all">
                   <span className="mr-3 font-semibold text-slate-400">
@@ -860,7 +860,7 @@ export default function FacilityDetailPage() {
           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
               <i className="fa-solid fa-wallet text-indigo-600"></i>
-              {"Ph\u01b0\u01a1ng th\u1ee9c thanh to\u00e1n"}
+              {"Phương thức thanh toán"}
             </h2>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 mb-5">
@@ -876,7 +876,7 @@ export default function FacilityDetailPage() {
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-bold text-slate-900">
-                    {"Thanh to\u00e1n c\u1ecdc"} ({depositRate}%)
+                    {"Thanh toán cọc"} ({depositRate}%)
                   </span>
                   <div
                     className={`h-4 w-4 rounded-full border-[5px] ${paymentType === "deposit" ? "border-indigo-600 bg-white" : "border-slate-200 bg-transparent"}`}
@@ -899,7 +899,7 @@ export default function FacilityDetailPage() {
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-bold text-slate-900">
-                    {"Thanh to\u00e1n to\u00e0n b\u1ed9"}
+                    {"Thanh toán toàn bộ"}
                   </span>
                   <div
                     className={`h-4 w-4 rounded-full border-[5px] ${paymentType === "full" ? "border-indigo-600 bg-white" : "border-slate-200 bg-transparent"}`}
@@ -913,13 +913,13 @@ export default function FacilityDetailPage() {
 
             <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 text-sm">
               <div className="flex justify-between font-semibold text-slate-700 mb-2">
-                <span>{"S\u1ed1 ti\u1ec1n c\u1ea7n thanh to\u00e1n ngay"}</span>
+                <span>{"Số tiền cần thanh toán ngay"}</span>
                 <span className="text-indigo-700 text-base">
                   {formatCurrency(paymentAmount)}
                 </span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>{"S\u1ed1 ti\u1ec1n c\u00f2n l\u1ea1i"}</span>
+                <span>{"Số tiền còn lại"}</span>
                 <span className="font-medium text-slate-800">
                   {formatCurrency(remainingAmount)}
                 </span>
@@ -1071,12 +1071,12 @@ export default function FacilityDetailPage() {
               {isCancelingHold ? (
                 <>
                   <i className="fa-solid fa-circle-notch fa-spin"></i>
-                  {"\u0110ang h\u1ee7y"}
+                  {"Đang hủy"}
                 </>
               ) : (
                 <>
                   <i className="fa-solid fa-xmark"></i>
-                  {"H\u1ee7y thanh to\u00e1n"}
+                  {"Hủy thanh toán"}
                 </>
               )}
             </button>
@@ -1089,14 +1089,14 @@ export default function FacilityDetailPage() {
               {isCreatingPayment ? (
                 <>
                   <i className="fa-solid fa-circle-notch fa-spin"></i>
-                  {"\u0110ang t\u1ea1o thanh to\u00e1n"}
+                  {"Đang tạo thanh toán"}
                 </>
               ) : (
                 <>
                   <i className="fa-solid fa-credit-card"></i>
                   {paymentType === "full"
-                    ? "Thanh to\u00e1n to\u00e0n b\u1ed9"
-                    : "Thanh to\u00e1n ti\u1ec1n c\u1ecdc"}
+                    ? "Thanh toán toàn bộ"
+                    : "Thanh toán tiền cọc"}
                 </>
               )}
             </button>
@@ -1127,7 +1127,7 @@ export default function FacilityDetailPage() {
               </h1>
               <p className="mt-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-500">
                 <i className="fa-solid fa-location-dot"></i>
-                {address || "Ch\u01b0a c\u00f3 \u0111\u1ecba ch\u1ec9"}
+                {address || "Chưa có địa chỉ"}
               </p>
             </div>
 
@@ -1138,7 +1138,7 @@ export default function FacilityDetailPage() {
                 className="flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-bold text-indigo-700 transition hover:bg-indigo-100 hover:border-indigo-300"
               >
                 <i className="fa-solid fa-tags"></i>
-                {"B\u1ea3ng gi\u00e1"}
+                {"Bảng giá"}
               </button>
               <button
                 type="button"
@@ -1159,23 +1159,23 @@ export default function FacilityDetailPage() {
             <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-600">
               <span className="flex items-center gap-2">
                 <span className="h-3 w-4 border border-[#9a9a9a] bg-white"></span>{" "}
-                {"Tr\u1ed1ng"}
+                {"Trống"}
               </span>
               <span className="flex items-center gap-2">
                 <span className="h-3 w-4 rounded-sm border border-[#2447c6] bg-[#2f57e8]"></span>{" "}
-                {"\u0110ang ch\u1ecdn"}
+                {"Đang chọn"}
               </span>
               <span className="flex items-center gap-2">
                 <span className="h-3 w-4 rounded-sm border border-[#d40000] bg-[#ff0000]"></span>{" "}
-                {"\u0110\u00e3 \u0111\u1eb7t"}
+                {"Đã đặt"}
               </span>
               <span className="flex items-center gap-2">
                 <span className="h-3 w-4 rounded-sm border border-[#e03131] bg-[#ff4d4d]"></span>{" "}
-                {"\u0110\u00e3 qua gi\u1edd"}
+                {"Đã qua giờ"}
               </span>
               <span className="flex items-center gap-2">
                 <span className="h-3 w-4 rounded-sm border border-[#8f8f8f] bg-[#b9b9b9]"></span>{" "}
-                {"Kh\u00f3a"}
+                {"Khóa"}
               </span>
             </div>
           </div>
@@ -1195,7 +1195,7 @@ export default function FacilityDetailPage() {
                 <div className="m-4 rounded-xl border-2 border-dashed border-slate-200 py-10 text-center text-slate-500">
                   <i className="fa-regular fa-folder-open text-3xl mb-3 text-slate-300"></i>
                   <p className="text-sm font-medium">
-                    {"Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u"}{" "}
+                    {"Chưa có dữ liệu"}{" "}
                     {section.title.toLowerCase()}.
                   </p>
                 </div>
@@ -1208,7 +1208,7 @@ export default function FacilityDetailPage() {
                     }}
                   >
                     <div className="sticky left-0 z-20 flex items-center border-b border-r border-[#9a9a9a] bg-[#d8f5e4] px-2 py-2 text-xs font-semibold text-emerald-900">
-                      {"S\u00e2n"}
+                      {"Sân"}
                     </div>
                     {timeSlots.map((slot) => (
                       <div
@@ -1270,15 +1270,15 @@ export default function FacilityDetailPage() {
         <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div className="hidden sm:block">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              {"\u0110\u00e3 ch\u1ecdn"}
+              {"Đã chọn"}
             </p>
             <p className="text-sm font-bold text-slate-900">
-              {totalHours} {"khung gi\u1edd"}
+              {totalHours} {"khung giờ"}
             </p>
           </div>
           <div className="flex-1 sm:text-right">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              {"T\u1ed5ng t\u1ea1m t\u00ednh"}
+              {"Tổng tạm tính"}
             </p>
             {estimatedDiscount > 0 && (
               <p className="text-xs font-bold text-emerald-600">
@@ -1298,11 +1298,11 @@ export default function FacilityDetailPage() {
             {isHolding ? (
               <>
                 <i className="fa-solid fa-circle-notch fa-spin"></i>
-                {"\u0110ang gi\u1eef ch\u1ed7"}
+                {"Đang giữ chỗ"}
               </>
             ) : (
               <>
-                {"Ti\u1ebfp t\u1ee5c"}{" "}
+                {"Tiếp tục"}{" "}
                 <i className="fa-solid fa-arrow-right"></i>
               </>
             )}
@@ -1316,11 +1316,11 @@ export default function FacilityDetailPage() {
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-900">
-                  {"Ch\u1ecdn ng\u00e0y \u0111\u1eb7t s\u00e2n"}
+                  {"Chọn ngày đặt sân"}
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   {
-                    "Ch\u1ec9 xem \u0111\u01b0\u1ee3c t\u1eeb h\u00f4m nay \u0111\u1ebfn cu\u1ed1i th\u00e1ng sau."
+                    "Chỉ xem được từ hôm nay đến cuối tháng sau."
                   }
                 </p>
               </div>
@@ -1349,14 +1349,14 @@ export default function FacilityDetailPage() {
                 onClick={() => setShowDateModal(false)}
                 className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
               >
-                {"H\u1ee7y"}
+                {"Hủy"}
               </button>
               <button
                 type="button"
                 onClick={applyDraftDate}
                 className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-700"
               >
-                {"\u00c1p d\u1ee5ng"}
+                {"Áp dụng"}
               </button>
             </div>
           </div>
@@ -1370,11 +1370,11 @@ export default function FacilityDetailPage() {
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-6 py-4">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-900">
-                  {"B\u1ea3ng gi\u00e1 d\u1ecbch v\u1ee5"}
+                  {"Bảng giá dịch vụ"}
                 </h2>
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   {
-                    "Tham kh\u1ea3o m\u1ee9c gi\u00e1 theo lo\u1ea1i ng\u00e0y v\u00e0 khung gi\u1edd."
+                    "Tham khảo mức giá theo loại ngày và khung giờ."
                   }
                 </p>
               </div>
@@ -1392,10 +1392,10 @@ export default function FacilityDetailPage() {
                 <thead>
                   <tr>
                     <th className="border-b-2 border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-700">
-                      {"Lo\u1ea1i ng\u00e0y"}
+                      {"Loại ngày"}
                     </th>
                     <th className="border-b-2 border-slate-200 bg-slate-50 px-4 py-3 font-bold text-slate-700">
-                      {"Khung gi\u1edd"}
+                      {"Khung giờ"}
                     </th>
                     {priceCategories.map((category) => (
                       <th
@@ -1415,7 +1415,7 @@ export default function FacilityDetailPage() {
                         className="px-4 py-10 text-center text-slate-500 font-medium"
                       >
                         {
-                          "C\u01a1 s\u1edf n\u00e0y hi\u1ec7n ch\u01b0a thi\u1ebft l\u1eadp b\u1ea3ng gi\u00e1."
+                          "Cơ sở này hiện chưa thiết lập bảng giá."
                         }
                       </td>
                     </tr>

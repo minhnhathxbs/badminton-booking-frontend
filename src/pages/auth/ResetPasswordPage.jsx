@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import { showToast } from "../../components/common/ToastMessage";
 
 const PASSWORD_MESSAGE =
   "Mật khẩu phải có ít nhất 8 ký tự, gồm ít nhất 1 chữ và 1 số";
@@ -13,7 +14,6 @@ export default function ResetPasswordPage() {
     newPassword: "",
     confirmPassword: "",
   });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,14 +30,15 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      return setError("Mật khẩu xác nhận không khớp");
+      showToast("Mật khẩu xác nhận không khớp", "error");
+      return;
     }
 
     if (!isValidPassword(passwordData.newPassword)) {
-      return setError(PASSWORD_MESSAGE);
+      showToast(PASSWORD_MESSAGE, "error");
+      return;
     }
 
     setLoading(true);
@@ -48,71 +49,54 @@ export default function ResetPasswordPage() {
         xac_nhan_mat_khau: passwordData.confirmPassword,
       });
 
-      alert("Đặt lại mật khẩu thành công!");
-      navigate("/login");
+      navigate("/login", {
+        state: {
+          toastMessage: "Đặt lại mật khẩu thành công! Vui lòng đăng nhập.",
+          toastType: "success",
+        },
+      });
     } catch (err) {
-      setError(err.response?.data?.message || "Lỗi kết nối máy chủ");
+      showToast(err.response?.data?.message || "Lỗi kết nối máy chủ", "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative text-[#0a192f] min-h-screen flex items-center justify-center p-4 sm:p-6 font-sans overflow-hidden bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100">
-      <div className="absolute top-[-10%] left-[-10%] w-[35rem] h-[35rem] bg-blue-500/30 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40rem] h-[40rem] bg-indigo-500/30 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute top-[20%] right-[10%] w-[25rem] h-[25rem] bg-cyan-400/20 rounded-full blur-[90px] pointer-events-none"></div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-blue-100 via-[#f4f7fb] to-indigo-100 p-4 font-sans text-[#0a192f] sm:p-6">
+      <div className="pointer-events-none absolute left-[-10%] top-[-10%] h-[35rem] w-[35rem] rounded-full bg-blue-500/30 blur-[100px]"></div>
+      <div className="pointer-events-none absolute bottom-[-10%] right-[-10%] h-[40rem] w-[40rem] rounded-full bg-indigo-500/30 blur-[120px]"></div>
+      <div className="pointer-events-none absolute right-[10%] top-[20%] h-[25rem] w-[25rem] rounded-full bg-cyan-400/20 blur-[90px]"></div>
 
-      <div className="relative z-10 bg-white/90 backdrop-blur-xl w-full max-w-[480px] rounded-3xl shadow-2xl border border-white p-8 sm:p-10">
-        <div className="flex justify-center items-center gap-3 mb-8 text-[#0a192f] font-bold text-2xl tracking-tight">
-          <div className="w-10 h-10 rounded-full bg-[#eef3ff] flex items-center justify-center text-[#349DFF] shadow-sm">
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M8.5 2.5a15.3 15.3 0 0 1 0 19"></path>
-              <path d="M15.5 2.5a15.3 15.3 0 0 0 0 19"></path>
-            </svg>
-          </div>
-          <div>BadmintonBooking</div>
+      <div className="relative z-10 w-full max-w-[480px] rounded-3xl border border-white bg-white/90 p-8 shadow-2xl backdrop-blur-xl sm:p-10">
+        <div className="mb-8 flex items-center justify-center gap-3 text-2xl font-bold tracking-tight text-[#0a192f]">
+          <img src="/logo.png" alt="BadmintonBooking" className="h-12 w-auto object-contain" />
+          <span>BadmintonBooking</span>
         </div>
 
         <div className="space-y-6">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-[#0a192f] mb-2">
+            <h1 className="mb-2 text-2xl font-bold text-[#0a192f]">
               Thiết lập mật khẩu mới
             </h1>
             <p className="text-sm text-gray-500">
-              Vui lòng tạo mật khẩu mới cho tài khoản của bạn.
+              Tạo mật khẩu mới cho tài khoản của bạn.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6 pt-2">
-            {error && (
-              <div className="text-red-500 text-sm text-center font-medium bg-red-50 py-2 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <div className="flex items-center border-b-2 border-gray-200 py-2 bg-gray-50 cursor-not-allowed">
-              <i className="fa-regular fa-user text-gray-400 text-lg w-6 text-center mr-3"></i>
+            <div className="flex cursor-not-allowed items-center border-b-2 border-gray-200 bg-gray-50 py-2">
+              <i className="fa-regular fa-user mr-3 w-6 text-center text-lg text-gray-400"></i>
               <input
                 type="text"
                 value={userEmail}
                 readOnly
-                className="w-full bg-transparent outline-none text-sm text-gray-500 cursor-not-allowed"
+                className="w-full cursor-not-allowed bg-transparent text-sm text-gray-500 outline-none"
               />
             </div>
 
-            <div className="flex items-center border-b-2 border-gray-200 py-2 focus-within:border-[#349DFF] transition-colors">
-              <i className="fa-solid fa-lock text-gray-500 text-lg w-6 text-center mr-3"></i>
+            <div className="flex items-center border-b-2 border-gray-200 py-2 transition-colors focus-within:border-[#349DFF]">
+              <i className="fa-solid fa-lock mr-3 w-6 text-center text-lg text-gray-500"></i>
               <input
                 type="password"
                 name="newPassword"
@@ -120,21 +104,21 @@ export default function ResetPasswordPage() {
                 value={passwordData.newPassword}
                 onChange={handleChange}
                 minLength={8}
-                className="w-full bg-transparent outline-none text-sm text-gray-800 placeholder-gray-400"
+                className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder-gray-400"
                 required
               />
             </div>
             <p className="-mt-4 text-xs text-gray-500">{PASSWORD_MESSAGE}</p>
 
-            <div className="flex items-center border-b-2 border-gray-200 py-2 focus-within:border-[#349DFF] transition-colors">
-              <i className="fa-solid fa-shield-halved text-gray-500 text-lg w-6 text-center mr-3"></i>
+            <div className="flex items-center border-b-2 border-gray-200 py-2 transition-colors focus-within:border-[#349DFF]">
+              <i className="fa-solid fa-shield-halved mr-3 w-6 text-center text-lg text-gray-500"></i>
               <input
                 type="password"
                 name="confirmPassword"
                 placeholder="Xác nhận mật khẩu mới"
                 value={passwordData.confirmPassword}
                 onChange={handleChange}
-                className="w-full bg-transparent outline-none text-sm text-gray-800 placeholder-gray-400"
+                className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder-gray-400"
                 required
               />
             </div>
@@ -142,9 +126,9 @@ export default function ResetPasswordPage() {
             <button
               disabled={loading}
               type="submit"
-              className="w-full bg-[#349DFF] text-white py-3 rounded-xl font-medium shadow-md hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 text-sm mt-6 disabled:bg-blue-300"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#349DFF] py-3 text-sm font-medium text-white shadow-md transition-colors hover:bg-blue-600 disabled:bg-blue-300"
             >
-              <i className="fa-regular fa-floppy-disk"></i>{" "}
+              <i className="fa-regular fa-floppy-disk"></i>
               {loading ? "Đang xử lý..." : "Lưu mật khẩu mới"}
             </button>
           </form>
