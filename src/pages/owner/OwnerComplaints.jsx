@@ -15,7 +15,7 @@ const TXT = {
   customer: "Khách hàng",
   facility: "Cơ sở",
   booking: "Đơn",
-  amount: "Số tiền",
+  amount: "Tiền đóng băng",
   reason: "Lý do khiếu nại",
   evidence: "Hình ảnh chứng minh",
   status: "Trạng thái",
