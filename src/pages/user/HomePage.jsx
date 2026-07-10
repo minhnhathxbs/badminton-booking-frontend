@@ -625,7 +625,7 @@ export default function HomePage() {
               className="flex min-h-[48px] items-center justify-center gap-2 rounded-[18px] bg-white px-5 text-sm font-semibold text-slate-900 shadow-[0_8px_18px_rgb(37_99_235_/_0.07)] hover:bg-blue-50"
             >
               <i className="fa-solid fa-location-dot text-blue-600"></i>
-              {selectedProvince || "TP. Hồ Chí Minh"}
+              {selectedProvince || "Tất cả tỉnh / thành"}
               <i className="fa-solid fa-chevron-down text-xs text-slate-500"></i>
             </button>
           </div>
