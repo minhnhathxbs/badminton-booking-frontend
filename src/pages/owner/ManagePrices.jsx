@@ -45,7 +45,7 @@ export default function ManagePrices() {
   const [categories, setCategories] = useState([]);
   const [selectedFacility, setSelectedFacility] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [depositPercentage, setDepositPercentage] = useState(30);
+  const [depositPercentage, setDepositPercentage] = useState("30");
   const [priceData, setPriceData] = useState(EMPTY_PRICE_DATA);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isPriceLoading, setIsPriceLoading] = useState(false);
@@ -75,7 +75,7 @@ export default function ManagePrices() {
 
         if (approvedFacilities.length > 0) {
           setSelectedFacility(String(approvedFacilities[0].id));
-          setDepositPercentage(Number(approvedFacilities[0].phan_tram_coc ?? 30));
+          setDepositPercentage(String(Number(approvedFacilities[0].phan_tram_coc ?? 30)));
         }
 
         if ((categoryRes.data || []).length > 0) {
@@ -111,7 +111,7 @@ export default function ManagePrices() {
           },
         });
 
-        setDepositPercentage(Number(res.data.co_so?.phan_tram_coc ?? 30));
+        setDepositPercentage(String(Number(res.data.co_so?.phan_tram_coc ?? 30)));
         setPriceData({
           ...EMPTY_PRICE_DATA,
           ...(res.data.bang_gia || {}),
@@ -135,7 +135,7 @@ export default function ManagePrices() {
     const facility = facilities.find((item) => String(item.id) === facilityId);
 
     setSelectedFacility(facilityId);
-    setDepositPercentage(Number(facility?.phan_tram_coc ?? 30));
+    setDepositPercentage(String(Number(facility?.phan_tram_coc ?? 30)));
   };
 
   const handlePriceChange = (e) => {
@@ -148,9 +148,38 @@ export default function ManagePrices() {
     }));
   };
 
+  const handleDepositPercentageChange = (e) => {
+    const numericValue = e.target.value.replace(/\D/g, "");
+    setDepositPercentage(numericValue);
+  };
+
+  const getValidDepositPercentage = () => {
+    if (depositPercentage === "") {
+      showToast("Vui lòng nhập tỷ lệ đặt cọc", "error");
+      return null;
+    }
+
+    const numericValue = Number(depositPercentage);
+
+    if (
+      !Number.isFinite(numericValue) ||
+      numericValue < 0 ||
+      numericValue > 100
+    ) {
+      showToast("Tỷ lệ đặt cọc phải nằm trong khoảng 0 - 100", "error");
+      return null;
+    }
+
+    return numericValue;
+  };
+
   const validateBeforeSave = () => {
     if (!selectedFacility || !selectedCategory) {
       showToast("Vui lòng chọn cơ sở và loại sân", "error");
+      return false;
+    }
+
+    if (getValidDepositPercentage() === null) {
       return false;
     }
 
@@ -171,11 +200,12 @@ export default function ManagePrices() {
 
     try {
       setIsSaving(true);
+      const validDepositPercentage = getValidDepositPercentage();
 
       const payload = {
         co_so_id: selectedFacility,
         danh_muc_san_id: selectedCategory,
-        phan_tram_coc: depositPercentage,
+        phan_tram_coc: validDepositPercentage,
         bang_gia: priceData,
       };
 
@@ -184,7 +214,7 @@ export default function ManagePrices() {
       setFacilities((prev) =>
         prev.map((facility) =>
           String(facility.id) === selectedFacility
-            ? { ...facility, phan_tram_coc: depositPercentage }
+            ? { ...facility, phan_tram_coc: validDepositPercentage }
             : facility,
         ),
       );
@@ -321,17 +351,20 @@ export default function ManagePrices() {
             Tỷ lệ đặt cọc:
           </label>
           <div className="flex w-full items-center gap-3 sm:w-auto">
-            <select
-              value={depositPercentage}
-              onChange={(e) => setDepositPercentage(Number(e.target.value))}
-              disabled={!selectedFacility}
-              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm outline-none transition-all focus:border-[#349DFF] focus:ring-1 focus:ring-[#349DFF] disabled:bg-gray-100 sm:w-48"
-            >
-              <option value={0}>0%</option>
-              <option value={30}>30%</option>
-              <option value={50}>50%</option>
-              <option value={100}>100%</option>
-            </select>
+            <div className="relative w-full sm:w-48">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={depositPercentage}
+                onChange={handleDepositPercentageChange}
+                disabled={!selectedFacility}
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 pr-9 text-sm outline-none transition-all focus:border-[#349DFF] focus:ring-1 focus:ring-[#349DFF] disabled:bg-gray-100"
+                placeholder="VD: 30"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500">
+                %
+              </span>
+            </div>
             <span className="hidden text-xs text-gray-500 sm:inline-block">
               <i className="fa-solid fa-circle-info mr-1"></i>
               Áp dụng cho {selectedFacilityData?.ten || "cơ sở đã chọn"}.
