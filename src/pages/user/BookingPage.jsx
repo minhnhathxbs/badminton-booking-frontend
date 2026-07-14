@@ -220,7 +220,9 @@ export default function FacilityDetailPage() {
         Number(event?.co_so_id) === Number(id) &&
         String(event?.ngay || "").slice(0, 10) === selectedDate
       ) {
+        setSelectedSlots(new Set());
         setRefreshKey((value) => value + 1);
+        showToast("Lịch sân vừa được cập nhật", "success");
       }
     };
 
