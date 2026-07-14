@@ -175,8 +175,8 @@ export default function ManageBookings() {
   const [walkInForm, setWalkInForm] = useState({
     ho_ten: "",
     so_dien_thoai: "",
+    email: "",
     ghi_chu: "",
-    da_thu_tien: true,
   });
   const [creatingWalkInBooking, setCreatingWalkInBooking] = useState(false);
   const scheduleRef = useRef(null);
@@ -439,6 +439,7 @@ export default function ManageBookings() {
   const createWalkInBooking = useCallback(async () => {
     const hoTen = walkInForm.ho_ten.trim();
     const soDienThoai = walkInForm.so_dien_thoai.trim();
+    const email = walkInForm.email.trim();
 
     if (!hoTen) {
       showToast("Vui lòng nhập tên khách hàng", "error");
@@ -447,6 +448,11 @@ export default function ManageBookings() {
 
     if (!/^0\d{9}$/.test(soDienThoai)) {
       showToast("Số điện thoại phải gồm 10 số và bắt đầu bằng 0", "error");
+      return;
+    }
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast("Email không hợp lệ", "error");
       return;
     }
 
@@ -462,8 +468,9 @@ export default function ManageBookings() {
         ngay: selectedDate,
         ho_ten: hoTen,
         so_dien_thoai: soDienThoai,
+        email,
         ghi_chu: walkInForm.ghi_chu.trim(),
-        da_thu_tien: Boolean(walkInForm.da_thu_tien),
+        da_thu_tien: true,
         slots: walkInSlots.map((slot) => ({
           san_id: Number(slot.san_id),
           khung_gio_mau_id: Number(slot.khung_gio_mau_id),
@@ -476,8 +483,8 @@ export default function ManageBookings() {
       setWalkInForm({
         ho_ten: "",
         so_dien_thoai: "",
+        email: "",
         ghi_chu: "",
-        da_thu_tien: true,
       });
 
       await fetchBookings();
@@ -821,7 +828,7 @@ function ScheduleGrid({
         groupedCourts.map((group) => (
           <div
             key={group.categoryName}
-            className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm"
+            className="overflow-visible rounded-xl border border-gray-300 bg-white shadow-sm"
           >
             <div className="border-b border-[#9a9a9a] bg-[#f8fafc] px-4 py-3 text-base font-black uppercase tracking-wide text-[#0a192f]">
               {group.categoryName}
@@ -1035,7 +1042,23 @@ function WalkInBookingModal({
                 }
                 maxLength={10}
                 className="mt-1 h-11 w-full rounded-xl border border-gray-200 px-3 text-sm font-bold outline-none focus:border-[#349DFF] focus:ring-2 focus:ring-blue-100"
-                placeholder="0xxxxxxxxx"
+                placeholder="Nhập SĐT"
+              />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-xs font-bold uppercase text-gray-500">
+                Email
+              </span>
+              <input
+                value={form.email}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
+                }
+                className="mt-1 h-11 w-full rounded-xl border border-gray-200 px-3 text-sm font-bold outline-none focus:border-[#349DFF] focus:ring-2 focus:ring-blue-100"
+                placeholder="Nhập email"
               />
             </label>
           </section>
@@ -1066,53 +1089,14 @@ function WalkInBookingModal({
             </div>
           </section>
 
-          <section className="grid gap-3 rounded-2xl bg-gray-50 p-4 sm:grid-cols-2">
-            <label
-              className={`cursor-pointer rounded-xl border p-4 ${
-                form.da_thu_tien
-                  ? "border-emerald-400 bg-emerald-50"
-                  : "border-gray-200 bg-white"
-              }`}
-            >
-              <input
-                type="radio"
-                checked={form.da_thu_tien}
-                onChange={() =>
-                  onChange((current) => ({ ...current, da_thu_tien: true }))
-                }
-                className="sr-only"
-              />
+          <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
               <div className="flex items-center gap-2 text-sm font-black text-[#0a192f]">
                 <i className="fa-solid fa-money-bill-wave text-emerald-600"></i>
-                Đã thu đủ tại sân
+                Thanh toán tại sân
               </div>
               <p className="mt-1 text-xs font-medium text-gray-500">
                 Ghi nhận doanh thu ngay với phương thức TAI_SAN.
               </p>
-            </label>
-            <label
-              className={`cursor-pointer rounded-xl border p-4 ${
-                !form.da_thu_tien
-                  ? "border-amber-400 bg-amber-50"
-                  : "border-gray-200 bg-white"
-              }`}
-            >
-              <input
-                type="radio"
-                checked={!form.da_thu_tien}
-                onChange={() =>
-                  onChange((current) => ({ ...current, da_thu_tien: false }))
-                }
-                className="sr-only"
-              />
-              <div className="flex items-center gap-2 text-sm font-black text-[#0a192f]">
-                <i className="fa-solid fa-clock text-amber-600"></i>
-                Chưa thu / thu sau
-              </div>
-              <p className="mt-1 text-xs font-medium text-gray-500">
-                Tạo lịch trước, doanh thu cộng khi xác nhận thu tiền.
-              </p>
-            </label>
           </section>
 
           <label className="block">
@@ -1317,7 +1301,9 @@ function BookingDetail({
               label="SĐT"
               value={booking.khach_hang?.so_dien_thoai}
             />
-            <InfoLine label="Email" value={booking.khach_hang?.email} />
+            {booking.khach_hang?.email && (
+              <InfoLine label="Email" value={booking.khach_hang.email} />
+            )}
             <div>
               <div className="text-xs font-bold uppercase text-gray-500">
                 {TXT.status}
