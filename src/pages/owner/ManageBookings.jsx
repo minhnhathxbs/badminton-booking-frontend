@@ -72,52 +72,12 @@ const getLocalDateKey = (value) => {
   return String(value).slice(0, 10);
 };
 
-const getSlotInfo = (status) => {
-  switch (status) {
-    case "trong":
-      return {
-        label: "Trống",
-        icon: "fa-circle-check",
-        className: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
-      };
-    case "giu_cho":
-      return {
-        label: "Giữ chỗ",
-        icon: "fa-clock",
-        className: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
-      };
-    case "da_dat":
-      return {
-        label: "Đã đặt",
-        icon: "fa-calendar-check",
-        className: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100",
-      };
-    case "da_dat_qua_gio":
-      return {
-        label: "Đã đặt",
-        icon: "fa-calendar-check",
-        className: "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200",
-      };
-    case "qua_gio":
-      return {
-        label: "Qua giờ",
-        icon: "fa-circle-minus",
-        className: "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100",
-      };
-    case "khong_co_gia":
-      return {
-        label: "Chưa có giá",
-        icon: "fa-tag",
-        className: "border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100",
-      };
-    default:
-      return {
-        label: TXT.noData,
-        icon: "fa-circle-question",
-        className: "border-gray-200 bg-white text-gray-500",
-      };
-  }
-};
+const getWalkInSlotKey = (slot) =>
+  [
+    Number(slot?.san_id),
+    Number(slot?.khung_gio_mau_id),
+    String(slot?.ngay || "").slice(0, 10),
+  ].join("-");
 
 const getSlotCellClass = (status) => {
   switch (status) {
@@ -210,6 +170,15 @@ export default function ManageBookings() {
   const [focusedBookingId, setFocusedBookingId] = useState(null);
   const [confirmingOnsitePaymentId, setConfirmingOnsitePaymentId] =
     useState(null);
+  const [walkInSlots, setWalkInSlots] = useState([]);
+  const [walkInModalOpen, setWalkInModalOpen] = useState(false);
+  const [walkInForm, setWalkInForm] = useState({
+    ho_ten: "",
+    so_dien_thoai: "",
+    ghi_chu: "",
+    da_thu_tien: true,
+  });
+  const [creatingWalkInBooking, setCreatingWalkInBooking] = useState(false);
   const scheduleRef = useRef(null);
 
   const fetchFacilities = useCallback(async () => {
@@ -363,6 +332,16 @@ export default function ManageBookings() {
       ?.ten;
   }, [facilities, facilityId]);
 
+  const walkInSlotKeys = useMemo(
+    () => new Set(walkInSlots.map(getWalkInSlotKey)),
+    [walkInSlots],
+  );
+
+  const walkInTotal = useMemo(
+    () => walkInSlots.reduce((sum, slot) => sum + Number(slot.gia || 0), 0),
+    [walkInSlots],
+  );
+
   const viewBookingOnSchedule = useCallback((booking) => {
     const firstDetail = booking?.chi_tiet?.[0];
     const bookingFacilityId = booking?.co_so?.id;
@@ -427,6 +406,104 @@ export default function ManageBookings() {
     [fetchBookings],
   );
 
+  const toggleWalkInSlot = useCallback((slot) => {
+    if (!slot || slot.trang_thai !== "trong") {
+      showToast("Chỉ chọn được ô sân còn trống", "error");
+      return;
+    }
+
+    const key = getWalkInSlotKey(slot);
+    setWalkInSlots((current) => {
+      if (current.some((item) => getWalkInSlotKey(item) === key)) {
+        return current.filter((item) => getWalkInSlotKey(item) !== key);
+      }
+
+      return [...current, slot];
+    });
+  }, []);
+
+  const openWalkInModal = useCallback(() => {
+    if (!facilityId) {
+      showToast("Vui lòng chọn cơ sở trước khi đặt sân", "error");
+      return;
+    }
+
+    if (walkInSlots.length === 0) {
+      showToast("Vui lòng chọn ít nhất một sân trống", "error");
+      return;
+    }
+
+    setWalkInModalOpen(true);
+  }, [facilityId, walkInSlots.length]);
+
+  const createWalkInBooking = useCallback(async () => {
+    const hoTen = walkInForm.ho_ten.trim();
+    const soDienThoai = walkInForm.so_dien_thoai.trim();
+
+    if (!hoTen) {
+      showToast("Vui lòng nhập tên khách hàng", "error");
+      return;
+    }
+
+    if (!/^0\d{9}$/.test(soDienThoai)) {
+      showToast("Số điện thoại phải gồm 10 số và bắt đầu bằng 0", "error");
+      return;
+    }
+
+    if (!facilityId || walkInSlots.length === 0) {
+      showToast("Vui lòng chọn ít nhất một sân trống", "error");
+      return;
+    }
+
+    setCreatingWalkInBooking(true);
+    try {
+      const res = await api.post("/chu-san/lich-dat/vang-lai", {
+        co_so_id: Number(facilityId),
+        ngay: selectedDate,
+        ho_ten: hoTen,
+        so_dien_thoai: soDienThoai,
+        ghi_chu: walkInForm.ghi_chu.trim(),
+        da_thu_tien: Boolean(walkInForm.da_thu_tien),
+        slots: walkInSlots.map((slot) => ({
+          san_id: Number(slot.san_id),
+          khung_gio_mau_id: Number(slot.khung_gio_mau_id),
+        })),
+      });
+
+      const createdBooking = res.data?.data;
+      setWalkInSlots([]);
+      setWalkInModalOpen(false);
+      setWalkInForm({
+        ho_ten: "",
+        so_dien_thoai: "",
+        ghi_chu: "",
+        da_thu_tien: true,
+      });
+
+      await fetchBookings();
+      await fetchSchedule();
+      if (createdBooking) {
+        setSelectedBooking(createdBooking);
+      }
+
+      showToast(res.data?.message || "Tạo đơn vãng lai thành công", "success");
+    } catch (error) {
+      showToast(
+        error.response?.data?.message || "Không thể tạo đơn vãng lai",
+        "error",
+      );
+    } finally {
+      setCreatingWalkInBooking(false);
+    }
+  }, [
+    facilityId,
+    fetchBookings,
+    fetchSchedule,
+    selectedDate,
+    walkInForm,
+    walkInSlots,
+  ]);
+
   return (
     <div className="mx-auto max-w-[1400px] space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -453,7 +530,11 @@ export default function ManageBookings() {
 
           <select
             value={facilityId}
-            onChange={(event) => setFacilityId(event.target.value)}
+            onChange={(event) => {
+              setFacilityId(event.target.value);
+              setWalkInSlots([]);
+              setWalkInModalOpen(false);
+            }}
             className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium outline-none focus:border-[#349DFF]"
           >
             <option value="">{TXT.allFacilities}</option>
@@ -493,14 +574,22 @@ export default function ManageBookings() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setSelectedDate(todayValue())}
+            onClick={() => {
+              setSelectedDate(todayValue());
+              setWalkInSlots([]);
+              setWalkInModalOpen(false);
+            }}
             className="h-10 rounded-xl bg-blue-50 px-4 text-sm font-bold text-[#349DFF] hover:bg-blue-100"
           >
             {TXT.today}
           </button>
           <button
             type="button"
-            onClick={() => setSelectedDate((value) => addDays(value, -1))}
+            onClick={() => {
+              setSelectedDate((value) => addDays(value, -1));
+              setWalkInSlots([]);
+              setWalkInModalOpen(false);
+            }}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50"
             title="Ngày trước"
           >
@@ -509,12 +598,20 @@ export default function ManageBookings() {
           <input
             type="date"
             value={selectedDate}
-            onChange={(event) => setSelectedDate(event.target.value)}
+            onChange={(event) => {
+              setSelectedDate(event.target.value);
+              setWalkInSlots([]);
+              setWalkInModalOpen(false);
+            }}
             className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm font-bold outline-none focus:border-[#349DFF]"
           />
           <button
             type="button"
-            onClick={() => setSelectedDate((value) => addDays(value, 1))}
+            onClick={() => {
+              setSelectedDate((value) => addDays(value, 1));
+              setWalkInSlots([]);
+              setWalkInModalOpen(false);
+            }}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50"
             title="Ngày sau"
           >
@@ -522,17 +619,37 @@ export default function ManageBookings() {
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={fetchBookings}
-          disabled={loading}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#349DFF] px-4 text-sm font-bold text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300"
-        >
-          <i
-            className={`fa-solid ${loading ? "fa-circle-notch fa-spin" : "fa-rotate-right"}`}
-          ></i>
-          {TXT.reload}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {walkInSlots.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setWalkInSlots([])}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-700 hover:bg-gray-50"
+            >
+              <i className="fa-solid fa-xmark"></i>
+              Hủy chọn
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={openWalkInModal}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700"
+          >
+            <i className="fa-solid fa-plus"></i>
+            Đặt sân{walkInSlots.length > 0 ? ` (${walkInSlots.length})` : ""}
+          </button>
+          <button
+            type="button"
+            onClick={fetchBookings}
+            disabled={loading}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#349DFF] px-4 text-sm font-bold text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300"
+          >
+            <i
+              className={`fa-solid ${loading ? "fa-circle-notch fa-spin" : "fa-rotate-right"}`}
+            ></i>
+            {TXT.reload}
+          </button>
+        </div>
       </div>
 
       <div ref={scheduleRef}>
@@ -543,7 +660,9 @@ export default function ManageBookings() {
           schedule={schedule}
           bookings={bookings}
           focusedBookingId={focusedBookingId}
+          selectedWalkInSlotKeys={walkInSlotKeys}
           onSelectBooking={setSelectedBooking}
+          onToggleWalkInSlot={toggleWalkInSlot}
           loading={scheduleLoading}
           error={scheduleError}
         />
@@ -564,6 +683,20 @@ export default function ManageBookings() {
           confirmingPaymentId={confirmingOnsitePaymentId}
         />
       )}
+
+      {walkInModalOpen && (
+        <WalkInBookingModal
+          slots={walkInSlots}
+          total={walkInTotal}
+          form={walkInForm}
+          facilityName={selectedFacilityName}
+          selectedDate={selectedDate}
+          saving={creatingWalkInBooking}
+          onChange={setWalkInForm}
+          onClose={() => setWalkInModalOpen(false)}
+          onSubmit={createWalkInBooking}
+        />
+      )}
     </div>
   );
 }
@@ -575,12 +708,14 @@ function ScheduleGrid({
   schedule,
   bookings,
   focusedBookingId,
+  selectedWalkInSlotKeys,
   onSelectBooking,
+  onToggleWalkInSlot,
   loading,
   error,
 }) {
-  const timeSlots = schedule?.khung_gio || [];
-  const courts = schedule?.san || [];
+  const timeSlots = useMemo(() => schedule?.khung_gio || [], [schedule]);
+  const courts = useMemo(() => schedule?.san || [], [schedule]);
   const groupedCourts = useMemo(() => {
     const groups = new Map();
 
@@ -620,6 +755,7 @@ function ScheduleGrid({
 
   const legendItems = [
     { label: "Trống", className: "border-[#9a9a9a] bg-white" },
+    { label: "Đang chọn", className: "border-[#2447c6] bg-[#2f57e8]" },
     { label: "Đơn đang xem", className: "border-[#9a9a9a] bg-[#ff1010] ring-2 ring-amber-300 ring-inset" },
     { label: "Đã đặt", className: "border-[#ff1010] bg-[#ff1010]" },
     { label: "Đã qua giờ", className: "border-[#ff4d4d] bg-[#ff4d4d]" },
@@ -731,9 +867,27 @@ function ScheduleGrid({
                       );
                       const isFocused =
                         booking && Number(booking.id) === Number(focusedBookingId);
+                      const walkInSlot = slot
+                        ? {
+                            san_id: Number(court.id),
+                            ten_san: court.ten,
+                            ngay: selectedDate,
+                            khung_gio_mau_id: Number(timeSlot.id),
+                            gio_bat_dau: timeSlot.gio_bat_dau,
+                            gio_ket_thuc: timeSlot.gio_ket_thuc,
+                            gia: slot.gia,
+                            trang_thai: slot.trang_thai,
+                          }
+                        : null;
+                      const isWalkInSelected =
+                        walkInSlot &&
+                        selectedWalkInSlotKeys.has(getWalkInSlotKey(walkInSlot));
                       const cellClass = getSlotCellClass(slot?.trang_thai);
                       const focusedClass = isFocused
                         ? "ring-4 ring-amber-300 ring-inset shadow-[inset_0_0_0_1px_rgba(120,53,15,0.55)]"
+                        : "";
+                      const walkInSelectedClass = isWalkInSelected
+                        ? "bg-[#2f57e8] border-[#2447c6] shadow-[inset_0_0_0_2px_#2447c6] hover:bg-[#2f57e8]"
                         : "";
                       const cellTitle = booking
                         ? `Đơn #${booking.id} | ${booking.khach_hang?.ho_ten || TXT.noData} | ${court.ten} | ${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}`
@@ -753,9 +907,18 @@ function ScheduleGrid({
                               aria-label={`Xem chi tiết đơn ${booking.id}`}
                             />
                           ) : (
-                            <div
-                              className={`h-full min-h-[42px] border-b border-r transition ${cellClass} ${focusedClass}`}
+                            <button
+                              type="button"
+                              onClick={() => onToggleWalkInSlot(walkInSlot)}
+                              className={`h-full min-h-[42px] w-full border-b border-r transition ${cellClass} ${focusedClass} ${walkInSelectedClass} ${
+                                slot?.trang_thai === "trong" && !isWalkInSelected
+                                  ? "cursor-pointer hover:bg-blue-50"
+                                  : slot?.trang_thai === "trong"
+                                    ? "cursor-pointer"
+                                    : "cursor-not-allowed"
+                              }`}
                               title={cellTitle}
+                              aria-label={`Chọn ${court.ten} ${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}`}
                             />
                           )}
 
@@ -802,6 +965,203 @@ function ScheduleGrid({
           </div>
         ))
       )}
+    </div>
+  );
+}
+
+
+function WalkInBookingModal({
+  slots,
+  total,
+  form,
+  facilityName,
+  selectedDate,
+  saving,
+  onChange,
+  onClose,
+  onSubmit,
+}) {
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/50 p-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-5 py-4">
+          <div>
+            <h3 className="text-lg font-extrabold text-[#0a192f]">
+              Tạo đơn khách vãng lai
+            </h3>
+            <p className="mt-1 text-sm font-bold text-[#349DFF]">
+              {facilityName || TXT.noData} - {formatDate(selectedDate)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+            aria-label={TXT.close}
+          >
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <section className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-bold uppercase text-gray-500">
+                Họ tên khách
+              </span>
+              <input
+                value={form.ho_ten}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    ho_ten: event.target.value,
+                  }))
+                }
+                className="mt-1 h-11 w-full rounded-xl border border-gray-200 px-3 text-sm font-bold outline-none focus:border-[#349DFF] focus:ring-2 focus:ring-blue-100"
+                placeholder="Nhập họ tên"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold uppercase text-gray-500">
+                Số điện thoại
+              </span>
+              <input
+                value={form.so_dien_thoai}
+                onChange={(event) =>
+                  onChange((current) => ({
+                    ...current,
+                    so_dien_thoai: event.target.value.replace(/\D/g, ""),
+                  }))
+                }
+                maxLength={10}
+                className="mt-1 h-11 w-full rounded-xl border border-gray-200 px-3 text-sm font-bold outline-none focus:border-[#349DFF] focus:ring-2 focus:ring-blue-100"
+                placeholder="0xxxxxxxxx"
+              />
+            </label>
+          </section>
+
+          <section className="rounded-2xl border border-gray-200">
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+              <div className="text-xs font-bold uppercase text-gray-500">
+                Sân đã chọn
+              </div>
+              <div className="text-sm font-black text-[#0a192f]">
+                {formatCurrency(total)}
+              </div>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {slots.map((slot) => (
+                <div
+                  key={getWalkInSlotKey(slot)}
+                  className="grid gap-2 px-4 py-3 text-sm font-medium text-gray-700 sm:grid-cols-4"
+                >
+                  <div className="font-bold text-[#0a192f]">{slot.ten_san}</div>
+                  <div>{formatDate(slot.ngay)}</div>
+                  <div>
+                    {slot.gio_bat_dau} - {slot.gio_ket_thuc}
+                  </div>
+                  <div className="font-bold">{formatCurrency(slot.gia)}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="grid gap-3 rounded-2xl bg-gray-50 p-4 sm:grid-cols-2">
+            <label
+              className={`cursor-pointer rounded-xl border p-4 ${
+                form.da_thu_tien
+                  ? "border-emerald-400 bg-emerald-50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <input
+                type="radio"
+                checked={form.da_thu_tien}
+                onChange={() =>
+                  onChange((current) => ({ ...current, da_thu_tien: true }))
+                }
+                className="sr-only"
+              />
+              <div className="flex items-center gap-2 text-sm font-black text-[#0a192f]">
+                <i className="fa-solid fa-money-bill-wave text-emerald-600"></i>
+                Đã thu đủ tại sân
+              </div>
+              <p className="mt-1 text-xs font-medium text-gray-500">
+                Ghi nhận doanh thu ngay với phương thức TAI_SAN.
+              </p>
+            </label>
+            <label
+              className={`cursor-pointer rounded-xl border p-4 ${
+                !form.da_thu_tien
+                  ? "border-amber-400 bg-amber-50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <input
+                type="radio"
+                checked={!form.da_thu_tien}
+                onChange={() =>
+                  onChange((current) => ({ ...current, da_thu_tien: false }))
+                }
+                className="sr-only"
+              />
+              <div className="flex items-center gap-2 text-sm font-black text-[#0a192f]">
+                <i className="fa-solid fa-clock text-amber-600"></i>
+                Chưa thu / thu sau
+              </div>
+              <p className="mt-1 text-xs font-medium text-gray-500">
+                Tạo lịch trước, doanh thu cộng khi xác nhận thu tiền.
+              </p>
+            </label>
+          </section>
+
+          <label className="block">
+            <span className="text-xs font-bold uppercase text-gray-500">
+              Ghi chú
+            </span>
+            <textarea
+              value={form.ghi_chu}
+              onChange={(event) =>
+                onChange((current) => ({
+                  ...current,
+                  ghi_chu: event.target.value,
+                }))
+              }
+              className="mt-1 h-24 w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium outline-none focus:border-[#349DFF] focus:ring-2 focus:ring-blue-100"
+              placeholder="Ghi chú nếu có"
+            />
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={saving}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+            >
+              {saving ? (
+                <>
+                  <i className="fa-solid fa-circle-notch fa-spin"></i>
+                  Đang tạo đơn
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-check"></i>
+                  Xác nhận đặt
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {TXT.close}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
