@@ -229,13 +229,13 @@ export default function MapPage() {
           )}
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_390px]">
-            <div className="relative h-[72vh] min-h-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="relative z-0 h-[72vh] min-h-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <button
                 type="button"
                 onClick={requestCurrentLocation}
                 disabled={locationStatus === "loading"}
                 title="Vị trí của tôi"
-                className={`absolute right-4 top-4 z-[500] flex h-11 w-11 items-center justify-center rounded-full bg-white text-blue-700 shadow-lg transition hover:bg-blue-50 ${
+                className={`absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white text-blue-700 shadow-lg transition hover:bg-blue-50 ${
                   locationStatus === "loading" ? "cursor-not-allowed opacity-70" : ""
                 }`}
               >
@@ -251,7 +251,7 @@ export default function MapPage() {
               <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={12}
-                className="h-full w-full"
+                className="z-0 h-full w-full"
               >
                 <TileLayer
                   attribution="&copy; OpenStreetMap contributors"
