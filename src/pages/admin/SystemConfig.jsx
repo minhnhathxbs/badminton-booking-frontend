@@ -3,23 +3,63 @@ import api from "../../api/axios";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { showToast } from "../../components/common/ToastMessage";
 
-const initialNewConfig = {
-  key_name: "",
-  key_value: "",
-  mo_ta: "",
-};
-
 const systemConfigKeys = new Set([
   "THOI_GIAN_GIU_CHO_PHUT",
-  "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY",
-  "PHAN_TRAM_HOAN_TIEN_MAC_DINH",
-  "HOAN_TIEN_MOC_24H_GIO",
-  "HOAN_TIEN_MOC_24H_PHAN_TRAM",
-  "HOAN_TIEN_MOC_12H_GIO",
-  "HOAN_TIEN_MOC_12H_PHAN_TRAM",
-  "HOAN_TIEN_DUOI_12H_PHAN_TRAM",
+  "HOAN_TIEN_MOC_CAO_NHAT_GIO",
+  "HOAN_TIEN_MOC_CAO_NHAT_PHAN_TRAM",
+  "HOAN_TIEN_MOC_TRUNG_GIAN_GIO",
+  "HOAN_TIEN_MOC_TRUNG_GIAN_PHAN_TRAM",
+  "HOAN_TIEN_DUOI_MOC_TRUNG_GIAN_PHAN_TRAM",
   "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA",
 ]);
+
+const systemConfigDisplay = {
+  THOI_GIAN_GIU_CHO_PHUT: {
+    label: "Thời gian giữ chỗ",
+    description: "Số phút giữ chỗ tạm thời trước khi đơn hết hạn nếu chưa thanh toán.",
+  },
+  HOAN_TIEN_MOC_CAO_NHAT_GIO: {
+    label: "Mốc giờ hoàn tiền cao nhất",
+    description: "Khách hủy trước giờ chơi từ mốc này trở lên sẽ nhận mức hoàn tiền cao nhất.",
+  },
+  HOAN_TIEN_MOC_CAO_NHAT_PHAN_TRAM: {
+    label: "Phần trăm hoàn tiền cao nhất",
+    description: "Tỷ lệ hoàn tiền áp dụng khi khách đạt mốc giờ hoàn tiền cao nhất.",
+  },
+  HOAN_TIEN_MOC_TRUNG_GIAN_GIO: {
+    label: "Mốc giờ hoàn tiền trung gian",
+    description: "Khách hủy trước giờ chơi từ mốc này trở lên nhưng chưa đạt mốc cao nhất sẽ nhận mức hoàn tiền trung gian.",
+  },
+  HOAN_TIEN_MOC_TRUNG_GIAN_PHAN_TRAM: {
+    label: "Phần trăm hoàn tiền trung gian",
+    description: "Tỷ lệ hoàn tiền áp dụng khi khách đạt mốc giờ hoàn tiền trung gian.",
+  },
+  HOAN_TIEN_DUOI_MOC_TRUNG_GIAN_PHAN_TRAM: {
+    label: "Phần trăm hoàn tiền dưới mốc trung gian",
+    description: "Tỷ lệ hoàn tiền khi khách hủy dưới mốc giờ trung gian nhưng vẫn trước giờ chơi.",
+  },
+  SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA: {
+    label: "Thời gian chờ trước khi đánh giá",
+    description: "Số giờ sau khi kết thúc giờ chơi thì khách mới được đánh giá, nhập 0 để cho đánh giá ngay.",
+  },
+};
+
+const systemConfigGuide = [
+  "THOI_GIAN_GIU_CHO_PHUT",
+  "HOAN_TIEN_MOC_CAO_NHAT_GIO",
+  "HOAN_TIEN_MOC_CAO_NHAT_PHAN_TRAM",
+  "HOAN_TIEN_MOC_TRUNG_GIAN_GIO",
+  "HOAN_TIEN_MOC_TRUNG_GIAN_PHAN_TRAM",
+  "HOAN_TIEN_DUOI_MOC_TRUNG_GIAN_PHAN_TRAM",
+  "SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA",
+];
+
+const getConfigUnit = (keyName) => {
+  if (keyName === "THOI_GIAN_GIU_CHO_PHUT") return "phút";
+  if (keyName.endsWith("_GIO")) return "h";
+  if (keyName.endsWith("_PHAN_TRAM")) return "%";
+  return "";
+};
 
 const getConfigValidationMessage = (keyName, value) => {
   if (value === undefined || value === null || String(value).trim() === "") {
@@ -40,19 +80,8 @@ const getConfigValidationMessage = (keyName, value) => {
     return "THOI_GIAN_GIU_CHO_PHUT phải là số nguyên lớn hơn 0";
   }
 
-  if (keyName === "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY" && numberValue < 0) {
-    return "SO_GIO_TOI_THIEU_TRUOC_KHI_HUY phải lớn hơn hoặc bằng 0";
-  }
-
   if (
-    keyName === "PHAN_TRAM_HOAN_TIEN_MAC_DINH" &&
-    (numberValue < 0 || numberValue > 100)
-  ) {
-    return "PHAN_TRAM_HOAN_TIEN_MAC_DINH phải nằm trong khoảng 0-100";
-  }
-
-  if (
-    ["HOAN_TIEN_MOC_24H_GIO", "HOAN_TIEN_MOC_12H_GIO"].includes(keyName) &&
+    ["HOAN_TIEN_MOC_CAO_NHAT_GIO", "HOAN_TIEN_MOC_TRUNG_GIAN_GIO"].includes(keyName) &&
     numberValue < 0
   ) {
     return `${keyName} phai lon hon hoac bang 0`;
@@ -60,9 +89,9 @@ const getConfigValidationMessage = (keyName, value) => {
 
   if (
     [
-      "HOAN_TIEN_MOC_24H_PHAN_TRAM",
-      "HOAN_TIEN_MOC_12H_PHAN_TRAM",
-      "HOAN_TIEN_DUOI_12H_PHAN_TRAM",
+      "HOAN_TIEN_MOC_CAO_NHAT_PHAN_TRAM",
+      "HOAN_TIEN_MOC_TRUNG_GIAN_PHAN_TRAM",
+      "HOAN_TIEN_DUOI_MOC_TRUNG_GIAN_PHAN_TRAM",
     ].includes(keyName) &&
     (numberValue < 0 || numberValue > 100)
   ) {
@@ -83,8 +112,6 @@ export default function SystemConfig() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [searchText, setSearchText] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newConfig, setNewConfig] = useState(initialNewConfig);
   const [confirmState, setConfirmState] = useState({
     open: false,
     title: "",
@@ -124,13 +151,14 @@ export default function SystemConfig() {
   const filteredConfigs = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
     if (!keyword) return configs;
-    return configs.filter((config) =>
-      [config.key_name, config.key_value, config.mo_ta]
+    return configs.filter((config) => {
+      const displayInfo = systemConfigDisplay[config.key_name];
+      return [config.key_name, config.key_value, config.mo_ta, displayInfo?.label, displayInfo?.description]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(keyword),
-    );
+        .includes(keyword);
+    });
   }, [configs, searchText]);
 
   const changedConfigs = useMemo(
@@ -204,57 +232,6 @@ export default function SystemConfig() {
     );
   };
 
-  const handleNewConfigChange = (e) => {
-    const { name, value } = e.target;
-    setNewConfig((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const openCreateModal = () => {
-    setNewConfig(initialNewConfig);
-    setIsModalOpen(true);
-  };
-
-  const closeCreateModal = () => {
-    setIsModalOpen(false);
-    setNewConfig(initialNewConfig);
-  };
-
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    const keyName = newConfig.key_name.trim();
-    if (!/^[A-Z0-9_]+$/.test(keyName)) {
-      showToast(
-        "Tên khóa chỉ được chứa chữ in hoa, số và dấu gạch dưới (vd: THOI_GIAN_GIU_CHO_PHUT)",
-        "error",
-      );
-      return;
-    }
-
-    const validationMessage = getConfigValidationMessage(
-      keyName,
-      newConfig.key_value,
-    );
-    if (validationMessage) {
-      showToast(validationMessage, "error");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await api.post("/cau-hinh", { ...newConfig, key_name: keyName });
-      showToast("Thêm cấu hình thành công", "success");
-      closeCreateModal();
-      fetchConfigs();
-    } catch (err) {
-      showToast(
-        err.response?.data?.message || "Không thể thêm cấu hình",
-        "error",
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleDelete = (config) => {
     setConfirmState({
       open: true,
@@ -294,13 +271,6 @@ export default function SystemConfig() {
             Quản lý các thông số cấu hình chung của toàn hệ thống
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="w-full sm:w-auto justify-center bg-[#349DFF] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-600 transition-colors shadow-md shadow-blue-200 flex items-center gap-2"
-        >
-          <i className="fa-solid fa-plus"></i> Thêm cấu hình
-        </button>
       </div>
 
       <div className="bg-blue-50 rounded-2xl border border-blue-200 p-4 text-sm text-blue-900">
@@ -308,29 +278,27 @@ export default function SystemConfig() {
           <i className="fa-solid fa-circle-info"></i>
           Các khóa cấu hình đang được hệ thống sử dụng
         </div>
-        <ul className="list-disc list-inside space-y-1 text-blue-800">
-          <li>
-            <strong>THOI_GIAN_GIU_CHO_PHUT</strong> — Thời gian giữ chỗ tạm thời (phút)
-          </li>
-          <li>
-            <strong>SO_GIO_TOI_THIEU_TRUOC_KHI_HUY</strong> — Số giờ tối thiểu trước giờ chơi được phép hủy
-          </li>
-          <li>
-            <strong>PHAN_TRAM_HOAN_TIEN_MAC_DINH</strong> — Phần trăm hoàn tiền khi hủy đơn (0-100)
-          </li>
-          <li>
-            <strong>HOAN_TIEN_MOC_24H_GIO / HOAN_TIEN_MOC_24H_PHAN_TRAM</strong> — Mốc hủy sớm và phần trăm hoàn cao nhất
-          </li>
-          <li>
-            <strong>HOAN_TIEN_MOC_12H_GIO / HOAN_TIEN_MOC_12H_PHAN_TRAM</strong> — Mốc hủy trung gian và phần trăm hoàn tương ứng
-          </li>
-          <li>
-            <strong>HOAN_TIEN_DUOI_12H_PHAN_TRAM</strong> — Phần trăm hoàn khi hủy sát giờ nhưng chưa tới giờ chơi
-          </li>
-          <li>
-            <strong>SO_GIO_TRUOC_KHI_CHOI_DUOC_DANH_GIA</strong> — Số giờ sau khi kết thúc giờ chơi mới được đánh giá
-          </li>
-        </ul>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {systemConfigGuide.map((keyName) => {
+            const displayInfo = systemConfigDisplay[keyName];
+            return (
+              <div
+                key={keyName}
+                className="rounded-xl bg-white/70 border border-blue-100 px-3 py-2"
+              >
+                <div className="font-semibold text-blue-950">
+                  {displayInfo.label}
+                </div>
+                <div className="text-xs text-blue-700 break-all mt-0.5">
+                  {keyName}
+                </div>
+                <div className="text-xs text-blue-800 mt-1">
+                  {displayInfo.description}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
@@ -366,6 +334,8 @@ export default function SystemConfig() {
           filteredConfigs.map((config) => {
             const isChanged = values[config.key_name] !== config.key_value;
             const isSystemConfig = systemConfigKeys.has(config.key_name);
+            const displayInfo = systemConfigDisplay[config.key_name];
+            const unit = getConfigUnit(config.key_name);
             return (
               <div
                 key={config.key_name}
@@ -373,27 +343,41 @@ export default function SystemConfig() {
               >
                 <div className="md:w-1/3">
                   <div className="font-bold text-[#0a192f] flex items-center gap-2">
-                    {config.key_name}
+                    {displayInfo?.label || config.key_name}
                     {isChanged && (
                       <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                         đã sửa
                       </span>
                     )}
                   </div>
+                  {displayInfo && (
+                    <div className="text-[11px] text-gray-400 mt-0.5 break-all">
+                      {config.key_name}
+                    </div>
+                  )}
                   <div className="text-xs text-gray-500 mt-1">
-                    {config.mo_ta || "Chưa có mô tả"}
+                    {displayInfo?.description || config.mo_ta || "Chua co mo ta"}
                   </div>
                 </div>
-                <div className="flex-1 flex items-center gap-2">
-                  <input
-                    value={values[config.key_name] ?? ""}
-                    onChange={(e) =>
-                      handleValueChange(config.key_name, e.target.value)
-                    }
-                    className={`flex-1 px-4 py-2.5 border rounded-xl text-sm outline-none focus:border-[#349DFF] ${
-                      isChanged ? "border-amber-400 bg-amber-50" : "border-gray-200"
-                    }`}
-                  />
+                <div className="flex-1 flex items-center gap-2 md:justify-end">
+                  <div className="relative w-full md:w-40">
+                    <input
+                      value={values[config.key_name] ?? ""}
+                      onChange={(e) =>
+                        handleValueChange(config.key_name, e.target.value)
+                      }
+                      className={`w-full px-4 py-2.5 border rounded-xl text-sm outline-none focus:border-[#349DFF] ${
+                        unit ? "pr-14" : ""
+                      } ${
+                        isChanged ? "border-amber-400 bg-amber-50" : "border-gray-200"
+                      }`}
+                    />
+                    {unit && (
+                      <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-gray-400">
+                        {unit}
+                      </span>
+                    )}
+                  </div>
                   {!isSystemConfig && (
                     <button
                       type="button"
@@ -423,7 +407,7 @@ export default function SystemConfig() {
               disabled={isSaving}
               className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-70"
             >
-              Hủy thay đổi
+              {"Hủy"}
             </button>
             <button
               type="button"
@@ -431,78 +415,8 @@ export default function SystemConfig() {
               disabled={isSaving}
               className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-medium text-white bg-[#349DFF] hover:bg-blue-600 transition-colors shadow-md shadow-blue-200 disabled:opacity-70"
             >
-              {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
+              {isSaving ? "Đang lưu..." : "Lưu"}
             </button>
-          </div>
-        </div>
-      )}
-
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-100 overflow-hidden">
-            <form onSubmit={handleCreate}>
-              <div className="px-6 py-5 border-b border-gray-100">
-                <h3 className="text-lg font-bold text-[#0a192f]">
-                  Thêm cấu hình mới
-                </h3>
-              </div>
-              <div className="px-6 py-5 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tên khóa (key_name)
-                  </label>
-                  <input
-                    name="key_name"
-                    value={newConfig.key_name}
-                    onChange={handleNewConfigChange}
-                    required
-                    placeholder="vd: THOI_GIAN_GIU_CHO_PHUT"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Giá trị (key_value)
-                  </label>
-                  <input
-                    name="key_value"
-                    value={newConfig.key_value}
-                    onChange={handleNewConfigChange}
-                    required
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mô tả
-                  </label>
-                  <textarea
-                    name="mo_ta"
-                    value={newConfig.mo_ta}
-                    onChange={handleNewConfigChange}
-                    rows={2}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#349DFF]"
-                  />
-                </div>
-              </div>
-              <div className="px-6 py-4 flex justify-end gap-3 bg-[#f8fafc]">
-                <button
-                  type="button"
-                  onClick={closeCreateModal}
-                  disabled={isSaving}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 transition-all disabled:opacity-70"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-5 py-2 rounded-xl text-sm font-medium text-white bg-[#349DFF] hover:bg-blue-600 transition-all disabled:opacity-70"
-                >
-                  {isSaving ? "Đang lưu..." : "Thêm cấu hình"}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

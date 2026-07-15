@@ -8,6 +8,7 @@ export default function OwnerLayout() {
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const fetchUserData = useCallback(async () => {
     try {
@@ -86,7 +87,9 @@ export default function OwnerLayout() {
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-    navigate("/login");
+    navigate("/trang-chu", {
+      state: { toastMessage: "Đã đăng xuất thành công!", toastType: "success" },
+    });
   };
 
   return (
@@ -163,31 +166,59 @@ export default function OwnerLayout() {
             <NotificationBell />
 
             {/* ----- PHẦN AVATAR + HỌ TÊN ----- */}
-            <div className="flex items-center gap-3 pl-2 border-l border-gray-200">
-              <div className="hidden md:block text-right">
-                <div className="text-sm font-bold text-[#0a192f]">
-                  {user?.ho_ten || "Chủ sân"}
+            <div className="relative border-l border-gray-200 pl-2">
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen((current) => !current)}
+                className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-gray-50"
+              >
+                <div className="hidden md:block text-right">
+                  <div className="text-sm font-bold text-[#0a192f]">
+                    {user?.ho_ten || "Chủ sân"}
+                  </div>
+                  <div className="text-xs text-gray-500 font-medium">Owner</div>
                 </div>
-                <div className="text-xs text-gray-500 font-medium">Owner</div>
-              </div>
 
-              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-gray-200 overflow-hidden shrink-0 shadow-sm">
-                {user?.avatar ? (
-                  <img
-                    src={getAssetUrl(user.avatar)}
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = "/logo.png";
-                    }}
-                  />
-                ) : (
-                  <span className="text-[#349DFF] font-bold text-lg uppercase">
-                    {user?.ho_ten ? user.ho_ten.charAt(0).toUpperCase() : "U"}
-                  </span>
-                )}
-              </div>
+                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-gray-200 overflow-hidden shrink-0 shadow-sm">
+                  {user?.avatar ? (
+                    <img
+                      src={getAssetUrl(user.avatar)}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "/logo.png";
+                      }}
+                    />
+                  ) : (
+                    <span className="text-[#349DFF] font-bold text-lg uppercase">
+                      {user?.ho_ten ? user.ho_ten.charAt(0).toUpperCase() : "U"}
+                    </span>
+                  )}
+                </div>
+                <i className="fa-solid fa-chevron-down text-xs text-gray-400"></i>
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-2 shadow-lg">
+                  <Link
+                    to="/profile"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-[#349DFF]"
+                  >
+                    <i className="fa-regular fa-user w-4 text-center"></i>
+                    Thông tin cá nhân
+                  </Link>
+                  <Link
+                    to="/doi-mat-khau"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-[#349DFF]"
+                  >
+                    <i className="fa-solid fa-key w-4 text-center"></i>
+                    Đổi mật khẩu
+                  </Link>
+                </div>
+              )}
             </div>
             {/* ------------------------------------------------------------- */}
           </div>

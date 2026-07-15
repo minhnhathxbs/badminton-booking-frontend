@@ -11,7 +11,7 @@ const TXT = {
   pending: "Chờ duyệt",
   approved: "Đã duyệt",
   locked: "Đã khóa",
-  deleted: "Đã xóa",
+  deleted: "Đã ẩn",
   facility: "Cơ sở",
   image: "Ảnh",
   owner: "Chủ sân",

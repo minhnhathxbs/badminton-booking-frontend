@@ -72,41 +72,39 @@ function AuthButtons({ compact = false }) {
 }
 
 function PromoBannerCard({ banner, featured = false }) {
+  const imageUrl = banner.anh_nen ? getAssetUrl(banner.anh_nen) : "";
+
   return (
     <Link
       to={`/dat-san/${banner.co_so_id || banner.id}`}
-      className={`group relative isolate overflow-hidden rounded-[22px] bg-slate-900 text-white shadow-[0_16px_36px_rgb(15_23_42_/_0.16)] ${
-        featured ? "min-h-[220px] lg:col-span-2" : "min-h-[180px]"
+      className={`group relative isolate block overflow-hidden rounded-[22px] bg-slate-900 text-white shadow-[0_16px_36px_rgb(15_23_42_/_0.16)] ${
+        featured ? "min-h-[260px] sm:min-h-[220px] lg:col-span-2" : "min-h-[220px] sm:min-h-[180px]"
       }`}
     >
-      {banner.anh_nen ? (
-        <>
+      <div className="absolute inset-0 h-full w-full bg-slate-900">
+        {banner.anh_nen ? (
           <img
-            src={getAssetUrl(banner.anh_nen)}
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 h-full w-full scale-110 object-cover blur-xl"
-          />
-          <img
-            src={getAssetUrl(banner.anh_nen)}
+            src={imageUrl}
             alt={banner.ten_co_so}
-            className="absolute inset-0 h-full w-full object-contain"
+            className="h-full w-full object-cover sm:object-contain"
           />
-        </>
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/45 to-blue-950/15" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 text-white">
+            <i className="fa-regular fa-image text-2xl"></i>
+          </div>
+        )}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/45 to-slate-950/85 sm:bg-gradient-to-r sm:from-slate-950/85 sm:via-slate-950/45 sm:to-blue-950/15" />
       <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full border border-white/25" />
-      <div className="relative z-10 flex h-full flex-col justify-between p-5 sm:p-6">
+      <div className="relative z-10 flex h-full flex-col justify-between p-4 sm:p-6">
         <div>
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700 shadow-sm">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-700 shadow-sm sm:text-[11px]">
             <i className="fa-solid fa-bolt"></i>
             {banner.badge || "Khuyến mãi hot"}
           </div>
           <h2
             className={`max-w-[560px] font-semibold leading-tight ${
-              featured ? "text-3xl sm:text-4xl" : "text-2xl"
+              featured ? "text-2xl sm:text-4xl" : "text-xl sm:text-2xl"
             }`}
           >
             {banner.gia_tri_hien_thi || banner.ten_khuyen_mai}
@@ -121,7 +119,7 @@ function PromoBannerCard({ banner, featured = false }) {
             <div className="truncate text-sm font-semibold">{banner.ten_co_so}</div>
             <div className="text-xs text-white/70">Ưu đãi có hạn</div>
           </div>
-          <span className="inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-md transition group-hover:bg-blue-50">
+          <span className="inline-flex flex-shrink-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-blue-700 shadow-md transition group-hover:bg-blue-50 sm:px-4">
             {banner.nut_bam || "Đặt sân"}
             <i className="fa-solid fa-arrow-right text-xs"></i>
           </span>
@@ -225,6 +223,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveBannerIndex(0);
   }, [banners.length]);
 
@@ -411,16 +410,17 @@ export default function HomePage() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
     setIsProfileOpen(false);
-    navigate("/dang-nhap", {
+    navigate("/trang-chu", {
       state: { toastMessage: "Đã đăng xuất thành công!", toastType: "success" },
     });
   };
 
   return (
     <div className="min-h-screen bg-[#f4f8ff] font-sans text-gray-800">
-      <header className="border-b border-gray-200 bg-white">
+      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
         <div className="mx-auto grid min-h-24 w-full max-w-[1600px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:flex-nowrap sm:justify-between sm:gap-4 lg:px-8 xl:px-10">
           <Link
             to="/trang-chu"
@@ -717,7 +717,7 @@ export default function HomePage() {
                         (prev) => (prev - 1 + banners.length) % banners.length,
                       )
                     }
-                    className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-lg transition hover:bg-white hover:text-blue-600"
+                    className="absolute left-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-lg transition hover:bg-white hover:text-blue-600 sm:grid"
                     aria-label="Banner trước"
                   >
                     <i className="fa-solid fa-chevron-left text-sm"></i>
@@ -727,7 +727,7 @@ export default function HomePage() {
                     onClick={() =>
                       setActiveBannerIndex((prev) => (prev + 1) % banners.length)
                     }
-                    className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-lg transition hover:bg-white hover:text-blue-600"
+                    className="absolute right-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/95 text-slate-700 shadow-lg transition hover:bg-white hover:text-blue-600 sm:grid"
                     aria-label="Banner sau"
                   >
                     <i className="fa-solid fa-chevron-right text-sm"></i>

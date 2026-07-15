@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
 
+const LIMIT = 10;
+
 const TXT = {
   title: "Danh sách khiếu nại từ khách hàng",
   desc: "Theo dõi các khiếu nại từ khách hàng đối với cơ sở của bạn.",
@@ -32,8 +34,9 @@ const TXT = {
   pendingCount: "Chờ xử lý",
   resolvedCount: "Đã xử lý",
   loadFail: "Không thể tải danh sách khiếu nại",
-  contactAdmin: "Liên hệ Admin",
-  contactHint: "Nếu khiếu nại không hợp lý, vui lòng liên hệ hotline Admin để giải trình và cung cấp minh chứng.",
+  prev: "Trước",
+  next: "Tiếp",
+  complaintCount: "khiếu nại",
 };
 
 const STATUS_OPTIONS = [
@@ -78,6 +81,7 @@ export default function OwnerComplaints() {
   const [complaints, setComplaints] = useState([]);
   const [status, setStatus] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState(null);
 
@@ -121,6 +125,17 @@ export default function OwnerComplaints() {
     return result;
   }, [complaints, status, keyword]);
 
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filtered.length / LIMIT)),
+    [filtered.length],
+  );
+  const currentPage = Math.min(page, totalPages);
+
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * LIMIT;
+    return filtered.slice(start, start + LIMIT);
+  }, [filtered, currentPage]);
+
   const stats = useMemo(() => {
     return complaints.reduce(
       (acc, item) => {
@@ -156,7 +171,10 @@ export default function OwnerComplaints() {
             </span>
             <input
               value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
+              onChange={(event) => {
+                setKeyword(event.target.value);
+                setPage(1);
+              }}
               placeholder={TXT.search}
               className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-gray-700 shadow-sm outline-none focus:border-blue-400 sm:w-80"
             />
@@ -164,7 +182,10 @@ export default function OwnerComplaints() {
 
           <select
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm outline-none focus:border-blue-400"
           >
             {STATUS_OPTIONS.map((opt) => (
@@ -197,14 +218,6 @@ export default function OwnerComplaints() {
         />
       </div>
 
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 flex items-start gap-3">
-        <i className="fa-solid fa-circle-info mt-0.5 text-blue-600"></i>
-        <div className="text-sm font-medium text-blue-800">
-          <span className="font-bold">{TXT.contactAdmin}:</span>{" "}
-          {TXT.contactHint}
-        </div>
-      </div>
-
       {loading ? (
         <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-gray-200 bg-white">
           <div className="flex flex-col items-center gap-3 text-sm font-medium text-gray-500">
@@ -235,12 +248,12 @@ export default function OwnerComplaints() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((item, index) => {
+                {paginated.map((item, index) => {
                   const statusInfo = getStatusInfo(item.trang_thai);
 
                   return (
                     <tr key={item.id} className="hover:bg-gray-50/70">
-                      <Td strong>{index + 1}</Td>
+                      <Td strong>{(currentPage - 1) * LIMIT + index + 1}</Td>
                       <Td>
                         <div className="font-bold text-gray-900">
                           {item.khach_hang?.ho_ten || TXT.noData}
@@ -281,6 +294,12 @@ export default function OwnerComplaints() {
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={currentPage}
+            totalPages={totalPages}
+            total={filtered.length}
+            setPage={setPage}
+          />
         </div>
       )}
 
@@ -291,6 +310,36 @@ export default function OwnerComplaints() {
           imageList={imageList}
         />
       )}
+    </div>
+  );
+}
+
+function Pagination({ page, totalPages, total, setPage }) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4 text-sm text-gray-500">
+      <span>
+        Trang {page}/{totalPages} - {total} {TXT.complaintCount}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          disabled={page === 1}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium disabled:opacity-40"
+        >
+          {TXT.prev}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          disabled={page === totalPages}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium disabled:opacity-40"
+        >
+          {TXT.next}
+        </button>
+      </div>
     </div>
   );
 }

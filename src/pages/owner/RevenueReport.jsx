@@ -176,7 +176,7 @@ export default function RevenueReport() {
         setOverview(overviewRes.data?.data || {});
         setChartRows(chartRes.data?.data || []);
         setCourtRows(courtRes.data?.data || []);
-        setInvoiceRows(chartRes.data?.data ? invoiceRes.data?.data || [] : []);
+        setInvoiceRows(invoiceRes.data?.data || []);
         setWithdrawRows(withdrawRes.data?.data || []);
         setWithdrawBalance(balanceRes.data?.data || {});
       } catch (err) {
@@ -294,13 +294,13 @@ export default function RevenueReport() {
             Báo cáo doanh thu
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Theo dõi doanh thu, hóa đơn và yêu cầu rút tiền
+            Theo dõi doanh thu ròng theo đơn đã ghi nhận, hóa đơn và số dư rút tiền
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <label className="text-sm font-medium text-gray-600">
-            <span className="block mb-1">Từ ngày</span>
+            <span className="block mb-1">Từ ngày ghi nhận</span>
             <input
               type="date"
               value={filters.tu_ngay}
@@ -310,7 +310,7 @@ export default function RevenueReport() {
           </label>
 
           <label className="text-sm font-medium text-gray-600">
-            <span className="block mb-1">Đến ngày</span>
+            <span className="block mb-1">Đến ngày ghi nhận</span>
             <input
               type="date"
               value={filters.den_ngay}
@@ -384,10 +384,13 @@ export default function RevenueReport() {
           <div className="flex items-center justify-between gap-3 mb-6">
             <div>
               <h3 className="text-lg font-bold text-[#0a192f]">
-                Biểu đồ doanh thu
+                Biểu đồ doanh thu ghi nhận
               </h3>
               <p className="text-sm text-gray-500 mt-1">
                 {formatDate(filters.tu_ngay)} - {formatDate(filters.den_ngay)}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Lọc theo ngày ghi nhận cuối của đơn
               </p>
             </div>
           </div>
@@ -533,9 +536,11 @@ export default function RevenueReport() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
-            <h3 className="text-lg font-bold text-[#0a192f]">Hóa đơn</h3>
+            <h3 className="text-lg font-bold text-[#0a192f]">
+              Đơn đã ghi nhận doanh thu
+            </h3>
             <span className="text-sm text-gray-500">
-              {loading ? "..." : `${formatNumber(invoiceRows.length)} giao dịch`}
+              {loading ? "..." : `${formatNumber(invoiceRows.length)} đơn`}
             </span>
           </div>
 
@@ -543,21 +548,21 @@ export default function RevenueReport() {
             <table className="w-full text-sm text-left">
               <thead className="bg-[#f8fafc] text-gray-600 font-medium border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 whitespace-nowrap">Mã GD</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Mã đơn/GD</th>
                   <th className="px-6 py-4 whitespace-nowrap">Khách hàng</th>
                   <th className="px-6 py-4 whitespace-nowrap">Cơ sở</th>
-                  <th className="px-6 py-4 whitespace-nowrap">Loại</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Ghi nhận</th>
                   <th className="px-6 py-4 whitespace-nowrap text-right">
-                    Số tiền
+                    Doanh thu ròng
                   </th>
-                  <th className="px-6 py-4 whitespace-nowrap">Ngày</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Ngày ghi nhận</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
-                      Đang tải hóa đơn...
+                      Đang tải đơn ghi nhận doanh thu...
                     </td>
                   </tr>
                 ) : invoiceRows.length > 0 ? (
@@ -598,7 +603,7 @@ export default function RevenueReport() {
                 ) : (
                   <tr>
                     <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
-                      Chưa có hóa đơn trong khoảng ngày này
+                      Chưa có đơn ghi nhận doanh thu trong khoảng ngày này
                     </td>
                   </tr>
                 )}
@@ -611,10 +616,13 @@ export default function RevenueReport() {
           <h3 className="text-lg font-bold text-[#0a192f] mb-4">Rút tiền</h3>
           <div className="bg-[#f8fafc] rounded-xl p-4 mb-5">
             <div className="text-xs text-gray-500 font-medium mb-1">
-              Doanh thu trong bộ lọc
+              Số dư khả dụng
             </div>
             <div className="text-xl font-bold text-green-600">
               {loading ? "..." : formatCurrency(availableBalance)}
+            </div>
+            <div className="mt-1 text-[11px] font-medium text-gray-400">
+              Không phụ thuộc bộ lọc báo cáo
             </div>
           </div>
 

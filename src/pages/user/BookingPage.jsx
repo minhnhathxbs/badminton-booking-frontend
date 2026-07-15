@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import api from "../../api/axios";
 import { getSocket } from "../../api/socket";
 import promoBannerImage from "../../assets/promo-badminton-banner.png";
@@ -101,6 +101,7 @@ const PromoBanner = ({ promo, discount, compact = false }) => {
 
 export default function FacilityDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [facility, setFacility] = useState(null);
   const [courts, setCourts] = useState([]);
@@ -436,6 +437,17 @@ export default function FacilityDetailPage() {
 
   const goToConfirm = async () => {
     if (selectedItems.length === 0) return;
+
+    if (!localStorage.getItem("token")) {
+      navigate("/dang-nhap", {
+        state: {
+          from: `${location.pathname}${location.search}`,
+          toastMessage: "Vui lòng đăng nhập để đặt sân",
+          toastType: "error",
+        },
+      });
+      return;
+    }
 
     setIsHolding(true);
     try {

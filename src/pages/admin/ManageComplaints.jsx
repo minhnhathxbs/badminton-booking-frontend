@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
 
+const GIOI_HAN = 10;
+
 const TXT = {
   title: "Quản lý khiếu nại",
   desc: "Xem xét và xử lý khiếu nại từ khách hàng.",
@@ -95,6 +97,17 @@ export default function ManageComplaints() {
   const [decision, setDecision] = useState(null);
   const [note, setNote] = useState("");
   const [detail, setDetail] = useState(null);
+  const [page, setPage] = useState(1);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(complaints.length / GIOI_HAN)),
+    [complaints.length],
+  );
+
+  const pagedComplaints = useMemo(() => {
+    const start = (page - 1) * GIOI_HAN;
+    return complaints.slice(start, start + GIOI_HAN);
+  }, [complaints, page]);
 
   const fetchComplaints = async () => {
     setLoading(true);
@@ -117,6 +130,11 @@ export default function ManageComplaints() {
     fetchComplaints();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const stats = useMemo(() => {
     return complaints.reduce(
@@ -186,7 +204,10 @@ export default function ManageComplaints() {
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") fetchComplaints();
+                if (event.key === "Enter") {
+                  setPage(1);
+                  fetchComplaints();
+                }
               }}
               placeholder={TXT.search}
               className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-gray-700 shadow-sm outline-none focus:border-blue-400 sm:w-80"
@@ -195,7 +216,10 @@ export default function ManageComplaints() {
 
           <select
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm outline-none focus:border-blue-400"
           >
             {STATUS_OPTIONS.map((opt) => (
@@ -258,12 +282,12 @@ export default function ManageComplaints() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {complaints.map((item, index) => {
+                {pagedComplaints.map((item, index) => {
                   const statusInfo = getStatusInfo(item.trang_thai);
 
                   return (
                     <tr key={item.id} className="hover:bg-gray-50/70">
-                      <Td strong>{index + 1}</Td>
+                      <Td strong>{(page - 1) * GIOI_HAN + index + 1}</Td>
                       <Td>
                         <div className="font-bold text-gray-900">
                           {item.khach_hang?.ho_ten || TXT.noData}
@@ -326,6 +350,15 @@ export default function ManageComplaints() {
               </tbody>
             </table>
           </div>
+          {complaints.length > GIOI_HAN && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={complaints.length}
+              label="khiếu nại"
+              onPageChange={setPage}
+            />
+          )}
         </div>
       )}
 
@@ -355,6 +388,36 @@ export default function ManageComplaints() {
           onConfirm={submitDecision}
         />
       )}
+    </div>
+  );
+}
+
+function Pagination({ page, totalPages, total, label, onPageChange }) {
+  return (
+    <div className="flex items-center justify-between border-t border-gray-100 px-4 py-4 text-sm text-gray-500">
+      <span>
+        Trang {page}/{totalPages} · {total} {label}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onPageChange((current) => Math.max(1, current - 1))}
+          disabled={page === 1}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium hover:border-[#349DFF] hover:text-[#349DFF] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Trước
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onPageChange((current) => Math.min(totalPages, current + 1))
+          }
+          disabled={page === totalPages}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium hover:border-[#349DFF] hover:text-[#349DFF] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Tiếp
+        </button>
+      </div>
     </div>
   );
 }

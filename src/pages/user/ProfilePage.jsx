@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api, { getAssetUrl } from "../../api/axios";
-import UserHeader from "../../components/common/UserHeader";
 
 const normalizeGender = (value) => {
   const map = {
@@ -125,8 +124,6 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#f4f8ff] font-sans text-slate-800">
-      <UserHeader />
-
       <main className="mx-auto mb-12 mt-8 w-full max-w-[900px] px-4">
         <h1 className="mb-6 text-2xl font-bold text-[#0a192f]">
           Quản lý tài khoản
@@ -243,7 +240,15 @@ export default function ProfilePage() {
                 </select>
               </div>
 
-              <div className="col-span-1 flex justify-end pt-6 md:col-span-2">
+              <div className="col-span-1 flex flex-col-reverse justify-end gap-3 pt-6 md:col-span-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => window.history.back()}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
+                >
+                  <i className="fa-solid fa-arrow-left"></i>
+                  Quay lại
+                </button>
                 <button
                   type="submit"
                   disabled={loading}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import api, { getAssetUrl } from "../../api/axios";
 import ConfirmDialog from "../../components/common/ConfirmDialog";
 import { showToast } from "../../components/common/ToastMessage";
@@ -14,30 +14,10 @@ const initialForm = {
   hinh_anh: [],
 };
 
-const getTrangThaiDuyet = (value) => {
-  switch (Number(value)) {
-    case 1:
-      return {
-        label: "Đã duyệt",
-        className: "bg-green-50 text-green-700 border border-green-200",
-      };
-    case 2:
-      return {
-        label: "Từ chối",
-        className: "bg-red-50 text-red-700 border border-red-200",
-      };
-    default:
-      return {
-        label: "Chờ duyệt",
-        className: "bg-yellow-50 text-yellow-700 border border-yellow-200",
-      };
-  }
-};
-
 const getTrangThaiCoSo = (trangThai, trangThaiDuyet) => {
   if (Number(trangThai) === 0) {
     return {
-      label: "Đã xóa",
+      label: "Đã ẩn",
       className: "bg-gray-100 text-gray-600 border border-gray-200",
     };
   }
@@ -70,6 +50,7 @@ const getTrangThaiCoSo = (trangThai, trangThaiDuyet) => {
 
 export default function ManageFacilities() {
   const [facilities, setFacilities] = useState([]);
+  const [lockedFacilities, setLockedFacilities] = useState([]);
   const [formData, setFormData] = useState(initialForm);
   const [editingFacility, setEditingFacility] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -88,8 +69,12 @@ export default function ManageFacilities() {
   const fetchFacilities = async () => {
     setIsLoading(true);
     try {
-      const res = await api.get(`/co-so/cua-toi?trang_thai=${statusFilter}`);
+      const [res, lockedRes] = await Promise.all([
+        api.get(`/co-so/cua-toi?trang_thai=${statusFilter}`),
+        api.get("/co-so/cua-toi?trang_thai=2"),
+      ]);
       setFacilities(res.data);
+      setLockedFacilities(lockedRes.data || []);
     } catch (err) {
       setError(err.response?.data?.message || "Không thể tải danh sách cơ sở");
     } finally {
@@ -209,9 +194,9 @@ export default function ManageFacilities() {
   const handleDelete = async (facility) => {
     setConfirmState({
       open: true,
-      title: "Xác nhận xóa cơ sở",
-      message: `Bạn chắc chắn muốn xóa cơ sở "${facility.ten}"?`,
-      confirmText: "Xóa cơ sở",
+      title: "Xác nhận ẩn cơ sở",
+      message: `Bạn chắc chắn muốn ẩn cơ sở "${facility.ten}"?`,
+      confirmText: "Ẩn cơ sở",
       danger: true,
       action: () => deleteFacility(facility),
     });
@@ -222,11 +207,11 @@ export default function ManageFacilities() {
     setError("");
     try {
       const res = await api.delete(`/co-so/${facility.id}`);
-      showToast(res.data.message || "Xóa cơ sở thành công", "success");
+      showToast(res.data.message || "Ẩn cơ sở thành công", "success");
       setConfirmState((prev) => ({ ...prev, open: false }));
       fetchFacilities();
     } catch (err) {
-      showToast(err.response?.data?.message || "Không thể xóa cơ sở", "error");
+      showToast(err.response?.data?.message || "Không thể ẩn cơ sở", "error");
     } finally {
       setIsLoading(false);
     }
@@ -299,13 +284,41 @@ export default function ManageFacilities() {
               : "text-gray-600 hover:bg-[#eef3ff]"
           }`}
         >
-          Đã xóa
+          {"Đã ẩn"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(2)}
+          className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap ${
+            statusFilter === 2
+              ? "bg-[#349DFF] text-white"
+              : "text-gray-600 hover:bg-[#eef3ff]"
+          }`}
+        >
+          {"Đã khóa"}
         </button>
       </div>
 
       {error && (
         <div className="bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium">
           {error}
+        </div>
+      )}
+
+      {lockedFacilities.length > 0 && statusFilter !== 2 && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="font-medium">
+            {lockedFacilities.length === 1
+              ? "Có 1 cơ sở của bạn đã bị admin khóa."
+              : `Có ${lockedFacilities.length} cơ sở của bạn đã bị admin khóa.`}
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusFilter(2)}
+            className="self-start sm:self-auto rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-100 transition-colors"
+          >
+            {"Xem cơ sở bị khóa"}
+          </button>
         </div>
       )}
 
@@ -338,8 +351,10 @@ export default function ManageFacilities() {
                 <tr>
                   <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                     {statusFilter === 1
-                      ? "Chưa có cơ sở nào"
-                      : "Không có cơ sở đã xóa"}
+                      ? "Chua co co so nao"
+                      : statusFilter === 2
+                        ? "Khong co co so da khoa"
+                        : "Khong co co so da an"}
                   </td>
                 </tr>
               ) : (
@@ -396,20 +411,20 @@ export default function ManageFacilities() {
                             <button
                               onClick={() => handleDelete(facility)}
                               className="text-gray-400 hover:text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg transition-colors"
-                              title="Xóa"
+                              title={"Ẩn"}
                             >
                               <i className="fa-solid fa-trash text-xs"></i>
                             </button>
                           </>
-                        ) : (
+                        ) : statusFilter === 0 ? (
                           <button
                             onClick={() => handleRestore(facility)}
                             className="text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-green-200 text-xs font-medium"
-                            title="Khôi phục"
+                            title={"Khôi phục"}
                           >
-                            Khôi phục
+                            {"Khôi phục"}
                           </button>
-                        )}
+                        ) : null}
                       </td>
                     </tr>
                   );

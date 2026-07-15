@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
-import UserHeader from "../../components/common/UserHeader";
 
 const PASSWORD_MESSAGE =
   "Mật khẩu phải có ít nhất 8 ký tự, gồm ít nhất 1 chữ và 1 số";
@@ -54,8 +53,6 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="min-h-screen bg-[#f4f8ff] font-sans text-slate-800">
-      <UserHeader />
-
       <main className="mx-auto mb-12 mt-8 w-full max-w-[600px] px-4">
         <h1 className="mb-6 text-2xl font-semibold text-[#0a192f]">
           Đổi mật khẩu
@@ -136,9 +133,10 @@ export default function ChangePasswordPage() {
                 <button
                   type="button"
                   onClick={() => window.history.back()}
-                  className="rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
                 >
-                  Hủy bỏ
+                  <i className="fa-solid fa-arrow-left"></i>
+                  Quay lại
                 </button>
                 <button
                   type="submit"

@@ -464,7 +464,10 @@ function PromotionTable({ promotions, page, isLoading, activeTab, onEdit, onDele
                 <tr key={promo.id} className="hover:bg-gray-50">
                   <Td strong>{(page - 1) * LIMIT + index + 1}</Td>
                   <Td>
-                    <span className="rounded-lg border border-blue-100 bg-blue-50 px-2 py-1 font-mono font-black text-blue-700">
+                    <span
+                      title={promo.ma_khuyen_mai}
+                      className="block max-w-[92px] truncate rounded-lg border border-blue-100 bg-blue-50 px-2 py-1 font-mono font-black text-blue-700"
+                    >
                       {promo.ma_khuyen_mai}
                     </span>
                   </Td>

@@ -27,9 +27,11 @@ const TXT = {
   noData: "Không có khuyến mãi trong nhóm này",
   loading: "Đang tải dữ liệu...",
   approve: "Duyệt",
+  reject: "Hủy",
   lock: "Khóa",
   unlock: "Mở khóa",
   approveTitle: "Duyệt khuyến mãi",
+  rejectTitle: "Hủy khuyến mãi",
   lockTitle: "Khóa khuyến mãi",
   unlockTitle: "Mở khóa khuyến mãi",
   success: "Thao tác thành công",
@@ -190,6 +192,13 @@ export default function ManageAllPromotions() {
         confirmText: TXT.approve,
         endpoint: `/khuyen-mai/${promo.id}/duyet`,
       },
+      reject: {
+        title: TXT.rejectTitle,
+        message: `${TXT.reject} ${promo.ma_khuyen_mai}?`,
+        confirmText: TXT.reject,
+        endpoint: `/khuyen-mai/${promo.id}/tu-choi`,
+        danger: true,
+      },
       lock: {
         title: TXT.lockTitle,
         message: `${TXT.lock} ${promo.ma_khuyen_mai}?`,
@@ -291,7 +300,10 @@ export default function ManageAllPromotions() {
                   <tr key={promo.id} className="hover:bg-gray-50">
                     <Td strong>{(page - 1) * LIMIT + index + 1}</Td>
                     <Td>
-                      <span className="rounded-lg border border-blue-100 bg-blue-50 px-2 py-1 font-mono font-black text-blue-700">
+                      <span
+                        title={promo.ma_khuyen_mai}
+                        className="block max-w-[92px] truncate rounded-lg border border-blue-100 bg-blue-50 px-2 py-1 font-mono font-black text-blue-700"
+                      >
                         {promo.ma_khuyen_mai}
                       </span>
                     </Td>
@@ -324,12 +336,20 @@ export default function ManageAllPromotions() {
                       <div className="inline-flex gap-1">
                         {Number(promo.trang_thai_duyet) === 0 &&
                           Number(promo.trang_thai) !== 0 && (
-                            <IconButton
-                              title={TXT.approve}
-                              icon="fa-solid fa-check"
-                              success
-                              onClick={() => actionRequest(promo, "approve")}
-                            />
+                            <>
+                              <IconButton
+                                title={TXT.approve}
+                                icon="fa-solid fa-check"
+                                success
+                                onClick={() => actionRequest(promo, "approve")}
+                              />
+                              <IconButton
+                                title={TXT.reject}
+                                icon="fa-solid fa-xmark"
+                                danger
+                                onClick={() => actionRequest(promo, "reject")}
+                              />
+                            </>
                           )}
                         {Number(promo.trang_thai) === 2 ? (
                           <IconButton
@@ -337,7 +357,8 @@ export default function ManageAllPromotions() {
                             icon="fa-solid fa-lock-open"
                             onClick={() => actionRequest(promo, "unlock")}
                           />
-                        ) : Number(promo.trang_thai) === 1 ? (
+                        ) : Number(promo.trang_thai) === 1 &&
+                          Number(promo.trang_thai_duyet) === 1 ? (
                           <IconButton
                             title={TXT.lock}
                             icon="fa-solid fa-lock"

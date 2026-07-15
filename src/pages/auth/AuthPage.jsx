@@ -1,15 +1,27 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import LoginForm from "../../components/auth/LoginForm";
 import RegisterForm from "../../components/auth/RegisterForm";
 import ForgotPasswordForm from "../../components/auth/ForgotPasswordForm";
 import { showToast } from "../../components/common/ToastMessage";
 
 export default function AuthPage({ initialForm = "login" }) {
+  const location = useLocation();
   const [activeForm, setActiveForm] = useState(initialForm);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveForm(initialForm);
   }, [initialForm]);
+
+  useEffect(() => {
+    if (location.state?.toastMessage) {
+      showToast(
+        location.state.toastMessage,
+        location.state.toastType || "success",
+      );
+    }
+  }, [location.state]);
 
   const handleSetActiveForm = (form, toastOptions = null) => {
     setActiveForm(form);

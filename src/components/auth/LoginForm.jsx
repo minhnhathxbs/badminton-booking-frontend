@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import { showToast } from "../common/ToastMessage";
 
 export default function LoginForm({ setActiveForm }) {
   const [formData, setFormData] = useState({ tai_khoan: "", mat_khau: "" });
   const [loading, setLoading] = useState(false);
+  const location = useLocation();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -33,7 +34,12 @@ export default function LoginForm({ setActiveForm }) {
       } else if (Number(data.user.role) === 1) {
         navigate("/chu-san", { state });
       } else {
-        navigate("/trang-chu", { state });
+        const redirectTo =
+          typeof location.state?.from === "string" &&
+          location.state.from.startsWith("/")
+            ? location.state.from
+            : "/trang-chu";
+        navigate(redirectTo, { state });
       }
     } catch (err) {
       showToast(err.response?.data?.message || "Lỗi kết nối máy chủ", "error");

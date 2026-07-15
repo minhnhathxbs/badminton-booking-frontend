@@ -96,6 +96,7 @@ export default function ManageWithdrawRequests() {
   }, [tuKhoa, trangThai, trang]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRequests();
   }, [fetchRequests]);
 
@@ -211,7 +212,7 @@ export default function ManageWithdrawRequests() {
                 <th className="px-6 py-4 whitespace-nowrap">Trạng thái</th>
                 <th className="px-6 py-4 whitespace-nowrap">Ngày tạo</th>
                 <th className="px-6 py-4 whitespace-nowrap">Ngày xử lý</th>
-                <th className="px-6 py-4 whitespace-nowrap text-right">
+                <th className="px-6 py-4 whitespace-nowrap text-center">
                   Thao tác
                 </th>
               </tr>
@@ -241,7 +242,7 @@ export default function ManageWithdrawRequests() {
                       <div className="h-4 bg-gray-100 rounded w-24" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-8 bg-gray-100 rounded-lg w-28 ml-auto" />
+                      <div className="mx-auto h-9 w-20 rounded-lg bg-gray-100" />
                     </td>
                   </tr>
                 ))
@@ -295,24 +296,30 @@ export default function ManageWithdrawRequests() {
                       <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
                         {formatDateTime(item.ngay_xu_ly)}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4">
                         {isPending ? (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-center gap-2">
                             <button
+                              type="button"
+                              title="Duyệt"
+                              aria-label="Duyệt yêu cầu rút tiền"
                               onClick={() => setApproveTarget(item)}
-                              className="px-3 py-1.5 rounded-lg text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-800"
                             >
-                              Duyệt
+                              <i className="fa-solid fa-check text-sm" />
                             </button>
                             <button
+                              type="button"
+                              title="Từ chối"
+                              aria-label="Từ chối yêu cầu rút tiền"
                               onClick={() => setRejectTarget(item)}
-                              className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 transition hover:bg-rose-100 hover:text-rose-700"
                             >
-                              Từ chối
+                              <i className="fa-solid fa-xmark text-sm" />
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400">
+                          <span className="flex justify-center text-xs text-gray-400">
                             Đã xử lý
                           </span>
                         )}
@@ -417,17 +424,25 @@ export default function ManageWithdrawRequests() {
                   type="button"
                   disabled={actionLoading}
                   onClick={approveTarget ? handleApprove : handleReject}
-                  className={`w-full sm:w-auto px-5 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-70 ${
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-2 text-sm font-medium text-white disabled:opacity-70 sm:w-auto ${
                     approveTarget
                       ? "bg-green-600 hover:bg-green-700"
                       : "bg-red-600 hover:bg-red-700"
                   }`}
                 >
-                  {actionLoading
-                    ? "Đang xử lý..."
-                    : approveTarget
-                      ? "Xác nhận duyệt"
-                      : "Xác nhận từ chối"}
+                  {actionLoading ? (
+                    <>
+                      <i className="fa-solid fa-circle-notch fa-spin" />
+                      Đang xử lý
+                    </>
+                  ) : (
+                    <>
+                      <i
+                        className={`fa-solid ${approveTarget ? "fa-check" : "fa-xmark"}`}
+                      />
+                      {approveTarget ? "Duyệt" : "Từ chối"}
+                    </>
+                  )}
                 </button>
               </div>
             </div>

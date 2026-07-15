@@ -62,10 +62,11 @@ export default function Header() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
     setIsProfileOpen(false);
     setIsMobileMenuOpen(false);
-    navigate("/login", {
+    navigate("/trang-chu", {
       state: { toastMessage: "Đã đăng xuất thành công!", toastType: "success" },
     });
   };
@@ -81,7 +82,7 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="bg-transparent lg:bg-white border-b-0 lg:border-b border-gray-200 px-4 md:px-8 py-4 lg:py-3 relative z-50">
+    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white px-4 py-4 shadow-sm md:px-8 lg:py-3">
       <div className="flex flex-wrap items-center justify-between">
         {/* Mobile Header Layout */}
         <div className="flex lg:hidden items-center justify-between w-full">

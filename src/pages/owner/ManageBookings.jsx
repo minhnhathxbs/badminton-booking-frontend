@@ -30,7 +30,7 @@ const TXT = {
 const STATUS_OPTIONS = [
   { value: "", label: TXT.allStatus },
   { value: "0", label: "Giữ chỗ" },
-  { value: "1", label: "Đã đặt" },
+  { value: "1", label: "Đã cọc/đã thanh toán" },
   { value: "2", label: "Đã hủy" },
   { value: "4", label: "Hoàn thành" },
   { value: "5", label: "Đang khiếu nại" },
@@ -61,6 +61,8 @@ const formatDate = (value) =>
 const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString("vi-VN") : TXT.noData;
 
+const formatTime = (value) => String(value || "").slice(0, 5);
+
 const getLocalDateKey = (value) => {
   if (!value) return "";
 
@@ -78,6 +80,25 @@ const getWalkInSlotKey = (slot) =>
     Number(slot?.khung_gio_mau_id),
     String(slot?.ngay || "").slice(0, 10),
   ].join("-");
+
+const isBookingOccupyingSchedule = (booking) =>
+  [0, 1, 4, 5].includes(Number(booking?.trang_thai));
+
+const getEarliestStartDate = (booking) => {
+  const starts = (booking?.chi_tiet || [])
+    .map((item) => {
+      const datePart = getLocalDateKey(item.ngay);
+      const startTime = formatTime(item.gio_bat_dau);
+      if (!datePart || !startTime) return null;
+
+      const startDate = new Date(`${datePart}T${startTime}:00`);
+      return Number.isNaN(startDate.getTime()) ? null : startDate;
+    })
+    .filter(Boolean);
+
+  if (!starts.length) return null;
+  return starts.reduce((earliest, date) => (date < earliest ? date : earliest));
+};
 
 const getSlotCellClass = (status) => {
   switch (status) {
@@ -108,6 +129,10 @@ const getStatusInfo = (bookingOrStatus) => {
     status === 2 &&
     Number(booking.da_thanh_toan || 0) === 0 &&
     String(booking.ly_do_huy || "").toLowerCase().includes("hết hạn");
+  const isPaymentOverdue =
+    booking &&
+    status === 2 &&
+    String(booking.ly_do_huy || "").toLowerCase().includes("quá hạn thanh toán");
 
   switch (status) {
     case 0:
@@ -117,16 +142,45 @@ const getStatusInfo = (bookingOrStatus) => {
         blockClass: "border-amber-300 bg-amber-100 text-amber-900",
       };
     case 1:
+      if (booking) {
+        const thanhTien = Number(booking.thanh_tien || 0);
+        const daThanhToan = Number(booking.da_thanh_toan || 0);
+
+        if (daThanhToan >= thanhTien && thanhTien > 0) {
+          return {
+            label: "Đã thanh toán",
+            className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+            blockClass: "border-emerald-500 bg-emerald-600 text-white",
+          };
+        }
+
+        if (daThanhToan > 0) {
+          return {
+            label: "Đã cọc",
+            className: "border-blue-200 bg-blue-50 text-blue-700",
+            blockClass: "border-blue-500 bg-blue-600 text-white",
+          };
+        }
+      }
+
       return {
-        label: "Đã đặt",
-        className: "border-blue-200 bg-blue-50 text-blue-700",
-        blockClass: "border-blue-500 bg-blue-600 text-white",
+        label: "Đang giữ chỗ",
+        className: "border-amber-200 bg-amber-50 text-amber-700",
+        blockClass: "border-amber-300 bg-amber-100 text-amber-900",
       };
     case 2:
       return {
-        label: isExpiredHold ? "Hết hạn giữ chỗ" : "Đã hủy",
-        className: "border-rose-200 bg-rose-50 text-rose-700",
-        blockClass: "border-rose-300 bg-rose-100 text-rose-800",
+        label: isPaymentOverdue
+          ? "Quá hạn thanh toán"
+          : isExpiredHold
+            ? "Hết hạn giữ chỗ"
+            : "Đã hủy",
+        className: isPaymentOverdue
+          ? "border-orange-200 bg-orange-50 text-orange-700"
+          : "border-rose-200 bg-rose-50 text-rose-700",
+        blockClass: isPaymentOverdue
+          ? "border-orange-300 bg-orange-100 text-orange-800"
+          : "border-rose-300 bg-rose-100 text-rose-800",
       };
     case 4:
       return {
@@ -250,14 +304,17 @@ export default function ManageBookings() {
   }, [facilityId, selectedDate]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchFacilities();
   }, [fetchFacilities]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBookings();
   }, [fetchBookings]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSchedule();
   }, [fetchSchedule]);
 
@@ -640,7 +697,8 @@ export default function ManageBookings() {
           <button
             type="button"
             onClick={openWalkInModal}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700"
+            disabled={walkInSlots.length === 0}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
           >
             <i className="fa-solid fa-plus"></i>
             Đặt sân{walkInSlots.length > 0 ? ` (${walkInSlots.length})` : ""}
@@ -744,6 +802,8 @@ function ScheduleGrid({
     const map = new Map();
 
     bookings.forEach((booking) => {
+      if (!isBookingOccupyingSchedule(booking)) return;
+
       (booking.chi_tiet || []).forEach((detail) => {
         const key = [
           Number(detail.san_id),
@@ -764,7 +824,7 @@ function ScheduleGrid({
     { label: "Trống", className: "border-[#9a9a9a] bg-white" },
     { label: "Đang chọn", className: "border-[#2447c6] bg-[#2f57e8]" },
     { label: "Đơn đang xem", className: "border-[#9a9a9a] bg-[#ff1010] ring-2 ring-amber-300 ring-inset" },
-    { label: "Đã đặt", className: "border-[#ff1010] bg-[#ff1010]" },
+    { label: "Đã giữ/đã cọc", className: "border-[#ff1010] bg-[#ff1010]" },
     { label: "Đã qua giờ", className: "border-[#ff4d4d] bg-[#ff4d4d]" },
     { label: "Khóa", className: "border-[#9a9a9a] bg-[#b9b9b9]" },
   ];
@@ -890,6 +950,7 @@ function ScheduleGrid({
                         walkInSlot &&
                         selectedWalkInSlotKeys.has(getWalkInSlotKey(walkInSlot));
                       const cellClass = getSlotCellClass(slot?.trang_thai);
+                      const isSelectableSlot = slot?.trang_thai === "trong";
                       const focusedClass = isFocused
                         ? "ring-4 ring-amber-300 ring-inset shadow-[inset_0_0_0_1px_rgba(120,53,15,0.55)]"
                         : "";
@@ -909,7 +970,7 @@ function ScheduleGrid({
                             <button
                               type="button"
                               onClick={() => onSelectBooking(booking)}
-                              className={`block h-full min-h-[42px] w-full cursor-pointer border-b border-r transition hover:ring-2 hover:ring-amber-300 hover:ring-inset ${cellClass} ${focusedClass}`}
+                              className={`block h-full min-h-[42px] w-full cursor-pointer border-b border-r transition hover:ring-2 hover:ring-amber-300 hover:ring-inset focus:outline-none ${cellClass} ${focusedClass}`}
                               title={cellTitle}
                               aria-label={`Xem chi tiết đơn ${booking.id}`}
                             />
@@ -917,13 +978,14 @@ function ScheduleGrid({
                             <button
                               type="button"
                               onClick={() => onToggleWalkInSlot(walkInSlot)}
+                              disabled={!isSelectableSlot}
                               className={`h-full min-h-[42px] w-full border-b border-r transition ${cellClass} ${focusedClass} ${walkInSelectedClass} ${
-                                slot?.trang_thai === "trong" && !isWalkInSelected
+                                isSelectableSlot && !isWalkInSelected
                                   ? "cursor-pointer hover:bg-blue-50"
-                                  : slot?.trang_thai === "trong"
+                                  : isSelectableSlot
                                     ? "cursor-pointer"
                                     : "cursor-not-allowed"
-                              }`}
+                              } focus:outline-none disabled:pointer-events-none`}
                               title={cellTitle}
                               aria-label={`Chọn ${court.ten} ${timeSlot.gio_bat_dau} - ${timeSlot.gio_ket_thuc}`}
                             />
@@ -1206,7 +1268,7 @@ function BookingTable({ bookings, loading, onSelect, onViewSchedule }) {
                           <div>{formatDate(firstDetail.ngay)}</div>
                           <div className="mt-1 text-xs font-bold text-gray-500">
                             {firstDetail.gio_bat_dau} - {firstDetail.gio_ket_thuc}
-                            {detailCount > 1 ? ` Â· ${detailCount} khung` : ""}
+                            {detailCount > 1 ? ` · ${detailCount} khung` : ""}
                           </div>
                         </>
                       ) : (
@@ -1266,9 +1328,12 @@ function BookingDetail({
   confirmingPaymentId,
 }) {
   const statusInfo = getStatusInfo(booking);
+  const earliestStart = getEarliestStartDate(booking);
   const canConfirmOnsitePayment =
     [1, 4].includes(Number(booking.trang_thai)) &&
-    Number(booking.con_lai || 0) > 0;
+    Number(booking.con_lai || 0) > 0 &&
+    earliestStart &&
+    new Date() < earliestStart;
   const isConfirmingPayment =
     Number(confirmingPaymentId) === Number(booking.id);
 

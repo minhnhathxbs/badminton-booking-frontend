@@ -35,9 +35,10 @@ export default function UserHeader() {
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setUser(null);
     setIsProfileOpen(false);
-    navigate("/dang-nhap", {
+    navigate("/trang-chu", {
       state: { toastMessage: "Đã đăng xuất thành công!", toastType: "success" },
     });
   };

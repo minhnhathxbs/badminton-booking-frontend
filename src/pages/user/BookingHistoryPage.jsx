@@ -77,6 +77,7 @@ const TXT = {
   confirmed: "Đã cọc",
   paidFull: "Đã thanh toán",
   cancelled: "Đã hủy",
+  paymentOverdue: "Quá hạn thanh toán",
   refundPending: "Hoàn tiền chờ xử lý",
   refundApproved: "Đã hoàn tiền",
   refundRejected: "Từ chối hoàn tiền",
@@ -89,6 +90,8 @@ const TXT = {
   action: "Thao tác",
   choosePaymentType: "Chọn loại thanh toán",
 };
+
+const PAGE_SIZE = 10;
 
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString("vi-VN")}đ`;
@@ -175,6 +178,10 @@ const isExpiredHoldCancel = (order) =>
   Number(order.da_thanh_toan || 0) === 0 &&
   String(order.ly_do_huy || "").toLowerCase().includes("hết hạn");
 
+const isPaymentOverdueCancel = (order) =>
+  Number(order.trang_thai) === 2 &&
+  String(order.ly_do_huy || "").toLowerCase().includes("quá hạn thanh toán");
+
 const isCancelledLike = (order) => Number(order.trang_thai) === 2;
 
 const canComplainOrder = (order) => {
@@ -227,6 +234,7 @@ const getPaymentKind = (order) => {
   if (bookingStatus === 5) return "complaint";
   if (bookingStatus === 6) return "complaintRefunded";
   if (bookingStatus === 2) {
+    if (isPaymentOverdueCancel(order)) return "paymentOverdue";
     return isExpiredHoldCancel(order) ? "expired" : "cancelled";
   }
   if (bookingStatus === 0 && isHoldExpired(order)) return "expired";
@@ -257,6 +265,11 @@ const getStatusInfo = (order) => {
       return {
         label: TXT.cancelled,
         className: "bg-rose-50 text-rose-700 border-rose-200",
+      };
+    case "paymentOverdue":
+      return {
+        label: TXT.paymentOverdue,
+        className: "bg-orange-50 text-orange-700 border-orange-200",
       };
     case "expired":
       return {
@@ -318,7 +331,11 @@ const getPrimaryAction = (order) => {
   if (kind === "waiting") {
     return { label: TXT.payDeposit, type: "choose" };
   }
-  if (kind === "deposit" && Number(order.con_lai) > 0) {
+  if (
+    kind === "deposit" &&
+    Number(order.con_lai) > 0 &&
+    new Date() < getEarliestStartDate(order)
+  ) {
     return { label: TXT.payRemaining, type: "remaining" };
   }
   return null;
@@ -338,6 +355,7 @@ export default function BookingHistoryPage() {
   const [complaintReason, setComplaintReason] = useState("");
   const [complaintImages, setComplaintImages] = useState([]);
   const [complaintSending, setComplaintSending] = useState(false);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -345,6 +363,7 @@ export default function BookingHistoryPage() {
       try {
         const res = await api.get("/dat-san/lich-su-cua-toi");
         setOrders(res.data || []);
+        setPage(1);
       } catch (err) {
         if (err.response?.status === 401) {
           navigate("/dang-nhap");
@@ -360,6 +379,12 @@ export default function BookingHistoryPage() {
   }, [navigate]);
 
   const sortedOrders = useMemo(() => orders, [orders]);
+  const totalPages = Math.max(1, Math.ceil(sortedOrders.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedOrders = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return sortedOrders.slice(start, start + PAGE_SIZE);
+  }, [currentPage, sortedOrders]);
 
   const handlePay = async (order, type) => {
     if (type === "choose") {
@@ -553,7 +578,8 @@ export default function BookingHistoryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {sortedOrders.map((order, index) => {
+                  {pagedOrders.map((order, index) => {
+                    const orderIndex = (currentPage - 1) * PAGE_SIZE + index + 1;
                     const status = getStatusInfo(order);
                     const refundStatus = getRefundStatusInfo(order.hoan_tien);
                     const complaintStatus = getComplaintStatusInfo(order.khieu_nai);
@@ -563,7 +589,7 @@ export default function BookingHistoryPage() {
 
                     return (
                       <tr key={order.id} className="hover:bg-slate-50/70">
-                        <Td strong>{index + 1}</Td>
+                        <Td strong>{orderIndex}</Td>
                         <Td>{order.co_so?.ten || TXT.unknownFacility}</Td>
                         <Td>{courtNames.join(", ") || TXT.noData}</Td>
                         <Td>{playDates.join(", ") || TXT.noData}</Td>
@@ -603,7 +629,7 @@ export default function BookingHistoryPage() {
                           <div className="flex min-w-[92px] justify-center gap-2">
                             <button
                               type="button"
-                              onClick={() => setSelectedOrder({ ...order, stt: index + 1 })}
+                              onClick={() => setSelectedOrder({ ...order, stt: orderIndex })}
                               title={TXT.viewDetail}
                               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50"
                             >
@@ -612,7 +638,7 @@ export default function BookingHistoryPage() {
                             {canComplainOrder(order) && (
                               <button
                                 type="button"
-                                onClick={() => handleOpenComplaint({ ...order, stt: index + 1 })}
+                                onClick={() => handleOpenComplaint({ ...order, stt: orderIndex })}
                                 title={TXT.complaint}
                                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-orange-200 text-sm text-orange-600 hover:bg-orange-50"
                               >
@@ -622,7 +648,7 @@ export default function BookingHistoryPage() {
                             {canCancelOrder(order) && (
                               <button
                                 type="button"
-                                onClick={() => handleOpenCancel({ ...order, stt: index + 1 })}
+                                onClick={() => handleOpenCancel({ ...order, stt: orderIndex })}
                                 title={TXT.cancel}
                                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-200 text-sm text-rose-600 hover:bg-rose-50"
                               >
@@ -637,6 +663,12 @@ export default function BookingHistoryPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              page={currentPage}
+              totalPages={totalPages}
+              total={sortedOrders.length}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </main>
@@ -685,6 +717,36 @@ export default function BookingHistoryPage() {
           onConfirm={handleConfirmComplaint}
         />
       )}
+    </div>
+  );
+}
+
+function Pagination({ page, totalPages, total, onPageChange }) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 text-sm font-semibold text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        Trang {page}/{totalPages} · {total} đơn đặt sân
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={page === 1}
+          onClick={() => onPageChange((current) => Math.max(1, current - 1))}
+          className="rounded-xl border border-slate-200 px-4 py-2 font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Trước
+        </button>
+        <button
+          type="button"
+          disabled={page === totalPages}
+          onClick={() =>
+            onPageChange((current) => Math.min(totalPages, current + 1))
+          }
+          className="rounded-xl border border-slate-200 px-4 py-2 font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Tiếp
+        </button>
+      </div>
     </div>
   );
 }

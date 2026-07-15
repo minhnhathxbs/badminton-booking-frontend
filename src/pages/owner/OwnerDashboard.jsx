@@ -11,13 +11,6 @@ import {
 } from "recharts";
 import api from "../../api/axios";
 
-const today = () => new Date().toISOString().slice(0, 10);
-
-const firstDayOfMonth = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-};
-
 const currencyFormatter = new Intl.NumberFormat("vi-VN", {
   style: "currency",
   currency: "VND",
@@ -28,14 +21,6 @@ const numberFormatter = new Intl.NumberFormat("vi-VN");
 const formatCurrency = (value) => currencyFormatter.format(Number(value || 0));
 
 const formatNumber = (value) => numberFormatter.format(Number(value || 0));
-
-const formatDate = (value) => {
-  if (!value) return "";
-  return new Intl.DateTimeFormat("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-  }).format(new Date(value));
-};
 
 const formatTime = (value) => String(value || "").slice(0, 5);
 
@@ -74,10 +59,6 @@ const getStatusClass = (status) => {
 };
 
 export default function OwnerDashboard() {
-  const [filters, setFilters] = useState({
-    tu_ngay: firstDayOfMonth(),
-    den_ngay: today(),
-  });
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -90,9 +71,7 @@ export default function OwnerDashboard() {
       setError("");
 
       try {
-        const res = await api.get("/dashboard-chu-san", {
-          params: filters,
-        });
+        const res = await api.get("/dashboard-chu-san");
 
         if (!ignore) {
           setDashboard(res.data?.data || {});
@@ -117,28 +96,29 @@ export default function OwnerDashboard() {
     return () => {
       ignore = true;
     };
-  }, [filters]);
+  }, []);
 
   const tongQuan = dashboard?.thong_ke_tong_quan || {};
   const lichHomNay = dashboard?.lich_hom_nay || [];
 
   const chartData = useMemo(() => {
-    return (dashboard?.doanh_thu_theo_ngay || []).map((item) => ({
-      ngay: formatDate(item.ngay),
+    return (dashboard?.doanh_thu_theo_co_so_hom_nay || []).map((item) => ({
+      co_so: item.ten_co_so,
       doanh_thu: Number(item.doanh_thu || 0),
+      so_don: Number(item.so_don || 0),
     }));
   }, [dashboard]);
 
   const stats = [
     {
-      label: "Doanh thu",
+      label: "Doanh thu hôm nay",
       value: formatCurrency(tongQuan.tong_doanh_thu),
       icon: "fa-wallet",
       color: "text-green-600",
       bg: "bg-green-50",
     },
     {
-      label: "Đơn đặt sân",
+      label: "Đơn hôm nay",
       value: formatNumber(tongQuan.tong_don_dat_san),
       icon: "fa-calendar-check",
       color: "text-blue-600",
@@ -168,39 +148,8 @@ export default function OwnerDashboard() {
             Tổng quan hoạt động
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Số liệu thống kê theo khoảng ngày đã chọn
+            {"Số liệu hoạt động hôm nay của các cơ sở"}
           </p>
-        </div>
-
-        <div className="hidden">
-          <label className="text-sm font-medium text-gray-600">
-            <span className="block mb-1">Từ ngày</span>
-            <input
-              type="date"
-              value={filters.tu_ngay}
-              onChange={(e) =>
-                setFilters((current) => ({
-                  ...current,
-                  tu_ngay: e.target.value,
-                }))
-              }
-              className="h-10 px-3 rounded-xl border border-gray-200 bg-white outline-none focus:border-[#349DFF]"
-            />
-          </label>
-          <label className="text-sm font-medium text-gray-600">
-            <span className="block mb-1">Đến ngày</span>
-            <input
-              type="date"
-              value={filters.den_ngay}
-              onChange={(e) =>
-                setFilters((current) => ({
-                  ...current,
-                  den_ngay: e.target.value,
-                }))
-              }
-              className="h-10 px-3 rounded-xl border border-gray-200 bg-white outline-none focus:border-[#349DFF]"
-            />
-          </label>
         </div>
       </div>
 
@@ -237,7 +186,7 @@ export default function OwnerDashboard() {
         <div className="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between gap-3 mb-6">
             <h3 className="text-lg font-bold text-[#0a192f]">
-              Doanh thu theo ngày
+              {"Doanh thu theo cơ sở hôm nay"}
             </h3>
             <span className="text-sm text-gray-500">
               Đơn hủy: {loading ? "..." : formatNumber(tongQuan.tong_don_huy)}
@@ -261,7 +210,7 @@ export default function OwnerDashboard() {
                     stroke="#e5e7eb"
                   />
                   <XAxis
-                    dataKey="ngay"
+                    dataKey="co_so"
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: "#64748b", fontSize: 12 }}
@@ -296,7 +245,7 @@ export default function OwnerDashboard() {
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-sm text-gray-500">
-                Chưa có doanh thu trong khoảng ngày này
+                {"Hôm nay chưa có doanh thu theo cơ sở"}
               </div>
             )}
           </div>

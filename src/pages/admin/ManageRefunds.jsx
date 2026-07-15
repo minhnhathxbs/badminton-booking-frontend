@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
 
+const GIOI_HAN = 10;
+
 const TXT = {
   title: "Lịch sử hoàn tiền",
   desc: "Theo dõi các giao dịch hoàn tiền tự động từ những đơn đã hủy.",
@@ -73,6 +75,17 @@ export default function ManageRefunds() {
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(false);
   const [detailRefund, setDetailRefund] = useState(null);
+  const [page, setPage] = useState(1);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(refunds.length / GIOI_HAN)),
+    [refunds.length],
+  );
+
+  const pagedRefunds = useMemo(() => {
+    const start = (page - 1) * GIOI_HAN;
+    return refunds.slice(start, start + GIOI_HAN);
+  }, [refunds, page]);
 
   const fetchRefunds = async () => {
     setLoading(true);
@@ -95,6 +108,11 @@ export default function ManageRefunds() {
     fetchRefunds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const stats = useMemo(() => {
     return refunds.reduce(
@@ -125,7 +143,10 @@ export default function ManageRefunds() {
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") fetchRefunds();
+                if (event.key === "Enter") {
+                  setPage(1);
+                  fetchRefunds();
+                }
               }}
               placeholder={TXT.search}
               className="h-11 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm font-medium outline-none focus:border-[#349DFF] sm:w-80"
@@ -133,7 +154,10 @@ export default function ManageRefunds() {
           </div>
           <select
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
             className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium outline-none focus:border-[#349DFF]"
           >
             {STATUS_OPTIONS.map((option) => (
@@ -144,7 +168,10 @@ export default function ManageRefunds() {
           </select>
           <button
             type="button"
-            onClick={fetchRefunds}
+            onClick={() => {
+              setPage(1);
+              fetchRefunds();
+            }}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#349DFF] px-4 text-sm font-bold text-white hover:bg-blue-600"
           >
             <i className="fa-solid fa-rotate-right"></i>
@@ -198,7 +225,7 @@ export default function ManageRefunds() {
                   </td>
                 </tr>
               ) : (
-                refunds.map((refund) => {
+                pagedRefunds.map((refund) => {
                   const statusInfo = getStatusInfo(refund.trang_thai);
                   return (
                     <tr key={refund.id} className="hover:bg-gray-50/70">
@@ -245,6 +272,15 @@ export default function ManageRefunds() {
             </tbody>
           </table>
         </div>
+        {!loading && refunds.length > GIOI_HAN && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={refunds.length}
+            label="yêu cầu"
+            onPageChange={setPage}
+          />
+        )}
       </div>
 
       {detailRefund && (
@@ -253,6 +289,36 @@ export default function ManageRefunds() {
           onClose={() => setDetailRefund(null)}
         />
       )}
+    </div>
+  );
+}
+
+function Pagination({ page, totalPages, total, label, onPageChange }) {
+  return (
+    <div className="flex items-center justify-between border-t border-gray-100 px-4 py-4 text-sm text-gray-500">
+      <span>
+        Trang {page}/{totalPages} · {total} {label}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onPageChange((current) => Math.max(1, current - 1))}
+          disabled={page === 1}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium hover:border-[#349DFF] hover:text-[#349DFF] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Trước
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onPageChange((current) => Math.min(totalPages, current + 1))
+          }
+          disabled={page === totalPages}
+          className="rounded-lg border border-gray-200 px-3 py-1.5 font-medium hover:border-[#349DFF] hover:text-[#349DFF] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Tiếp
+        </button>
+      </div>
     </div>
   );
 }
@@ -354,6 +420,7 @@ function DetailItem({ label, value }) {
   );
 }
 
+// eslint-disable-next-line no-unused-vars
 function DecisionModal({
   decision,
   note,
