@@ -116,6 +116,8 @@ export default function OwnerDashboard() {
       icon: "fa-wallet",
       color: "text-green-600",
       bg: "bg-green-50",
+      cardClass: "md:col-span-2 xl:col-span-2",
+      valueClass: "text-3xl",
     },
     {
       label: "Đơn hôm nay",
@@ -125,18 +127,18 @@ export default function OwnerDashboard() {
       bg: "bg-blue-50",
     },
     {
+      label: "Đơn hủy hôm nay",
+      value: formatNumber(tongQuan.tong_don_huy),
+      icon: "fa-calendar-xmark",
+      color: "text-red-600",
+      bg: "bg-red-50",
+    },
+    {
       label: "Cơ sở hoạt động",
       value: formatNumber(tongQuan.tong_co_so_hoat_dong),
       icon: "fa-building",
       color: "text-purple-600",
       bg: "bg-purple-50",
-    },
-    {
-      label: "Sân hoạt động",
-      value: formatNumber(tongQuan.tong_san_hoat_dong),
-      icon: "fa-layer-group",
-      color: "text-orange-600",
-      bg: "bg-orange-50",
     },
   ];
 
@@ -159,11 +161,11 @@ export default function OwnerDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-center gap-4 min-h-32"
+            className={`bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-center gap-4 min-h-32 ${stat.cardClass || ""}`}
           >
             <div
               className={`w-14 h-14 rounded-full flex items-center justify-center text-xl shrink-0 ${stat.bg} ${stat.color}`}
@@ -174,7 +176,10 @@ export default function OwnerDashboard() {
               <div className="text-sm text-gray-500 font-medium mb-1">
                 {stat.label}
               </div>
-              <div className="text-2xl font-bold text-[#0a192f] break-words">
+              <div
+                className={`${stat.valueClass || "text-2xl"} font-bold text-[#0a192f] leading-tight break-words`}
+                title={stat.value}
+              >
                 {loading ? "..." : stat.value}
               </div>
             </div>
