@@ -212,6 +212,32 @@ export default function FacilityDetailPage() {
   }, [id, selectedDate, refreshKey]);
 
   useEffect(() => {
+    if (!facility?.id) return undefined;
+
+    window.dispatchEvent(
+      new CustomEvent("chat:facility-context", {
+        detail: {
+          id: facility.id,
+          ten: facility.ten,
+          dia_chi: facility.dia_chi,
+          phuong_xa: facility.phuong_xa,
+          tinh_thanh: facility.tinh_thanh,
+        },
+      }),
+    );
+
+    return () => {
+      window.dispatchEvent(new CustomEvent("chat:facility-context-clear"));
+    };
+  }, [
+    facility?.dia_chi,
+    facility?.id,
+    facility?.phuong_xa,
+    facility?.ten,
+    facility?.tinh_thanh,
+  ]);
+
+  useEffect(() => {
     const socket = getSocket();
     if (!socket) return undefined;
 
