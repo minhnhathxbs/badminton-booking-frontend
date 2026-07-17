@@ -48,6 +48,10 @@ const formatDistance = (distanceKm) => {
   return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km`;
 };
 
+const hasAvailableCourt = (facility) =>
+  Number(facility?.so_slot_trong_hom_nay || 0) > 0 ||
+  Number(facility?.con_san || 0) === 1;
+
 function AuthButtons({ compact = false }) {
   return (
     <div className={`flex items-center ${compact ? "gap-2" : "gap-3"}`}>
@@ -787,6 +791,7 @@ export default function HomePage() {
               ) : (
                 visibleFacilities.map((facility) => {
                   const facilityPosition = getFacilityPosition(facility);
+                  const facilityHasAvailableCourt = hasAvailableCourt(facility);
 
                   return (
                   <article
@@ -878,9 +883,21 @@ export default function HomePage() {
                           <span>05:00 - 23:00</span>
                         </div>
                         <div className="mt-2 flex items-center justify-between gap-3">
-                          <div className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-600">
-                            <i className="fa-solid fa-circle-check text-[10px]"></i>
-                            <span>Còn sân</span>
+                          <div
+                            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+                              facilityHasAvailableCourt
+                                ? "bg-blue-50 text-blue-600"
+                                : "bg-gray-100 text-gray-500"
+                            }`}
+                          >
+                            <i
+                              className={`fa-solid ${
+                                facilityHasAvailableCourt
+                                  ? "fa-circle-check"
+                                  : "fa-circle-xmark"
+                              } text-[10px]`}
+                            ></i>
+                            <span>{facilityHasAvailableCourt ? "Còn sân" : "Hết sân"}</span>
                           </div>
                           <Link
                             to={`/dat-san/${facility.id}`}
