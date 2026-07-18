@@ -47,9 +47,6 @@ const TXT = {
   cancelTitle: "Hủy đặt sân",
   cancelDesc: "Nhập lý do hủy. Hệ thống sẽ tự tính số tiền hoàn theo thời điểm hủy so với giờ chơi.",
   cancelPolicyTitle: "Chính sách hoàn tiền",
-  cancelPolicy24h: "Trước giờ chơi từ 24 giờ: hoàn 100% số tiền đã thanh toán.",
-  cancelPolicy12h: "Trước giờ chơi từ 12 đến dưới 24 giờ: hoàn 70%.",
-  cancelPolicyLate: "Dưới 12 giờ nhưng chưa tới giờ chơi: hoàn 50%.",
   cancelPlaceholder: "VD: Bận việc đột xuất, không thể đến sân...",
   cancelReasonRequired: "Vui lòng nhập lý do hủy",
   cancelSuccess: "Hủy đặt sân thành công",
@@ -93,8 +90,36 @@ const TXT = {
 
 const PAGE_SIZE = 10;
 
+const DEFAULT_REFUND_POLICY = {
+  moc_cao_nhat_gio: 24,
+  phan_tram_cao_nhat: 100,
+  moc_trung_gian_gio: 12,
+  phan_tram_trung_gian: 50,
+  phan_tram_duoi_moc_trung_gian: 0,
+};
+
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString("vi-VN")}đ`;
+
+const formatPolicyNumber = (value) =>
+  Number(value || 0).toLocaleString("vi-VN");
+
+const buildRefundPolicyLines = (policy = DEFAULT_REFUND_POLICY) => {
+  const highHour = formatPolicyNumber(policy.moc_cao_nhat_gio);
+  const highPercent = formatPolicyNumber(policy.phan_tram_cao_nhat);
+  const midHour = formatPolicyNumber(policy.moc_trung_gian_gio);
+  const midPercent = formatPolicyNumber(policy.phan_tram_trung_gian);
+  const latePercent = Number(policy.phan_tram_duoi_moc_trung_gian || 0);
+  const latePercentText = formatPolicyNumber(latePercent);
+
+  return [
+    `Trước giờ chơi từ ${highHour} giờ: hoàn ${highPercent}% số tiền đã thanh toán.`,
+    `Trước giờ chơi từ ${midHour} đến dưới ${highHour} giờ: hoàn ${midPercent}%.`,
+    latePercent > 0
+      ? `Dưới ${midHour} giờ nhưng chưa tới giờ chơi: hoàn ${latePercentText}%.`
+      : `Dưới ${midHour} giờ nhưng chưa tới giờ chơi: vẫn được hủy, không hoàn tiền.`,
+  ];
+};
 
 const formatDate = (value) => {
   if (!value) return TXT.noData;
@@ -356,6 +381,7 @@ export default function BookingHistoryPage() {
   const [complaintImages, setComplaintImages] = useState([]);
   const [complaintSending, setComplaintSending] = useState(false);
   const [page, setPage] = useState(1);
+  const [refundPolicy, setRefundPolicy] = useState(DEFAULT_REFUND_POLICY);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -377,6 +403,24 @@ export default function BookingHistoryPage() {
 
     fetchOrders();
   }, [navigate]);
+
+  useEffect(() => {
+    const fetchRefundPolicy = async () => {
+      try {
+        const res = await api.get("/cau-hinh/chinh-sach-hoan-tien");
+        setRefundPolicy(res.data || DEFAULT_REFUND_POLICY);
+      } catch {
+        setRefundPolicy(DEFAULT_REFUND_POLICY);
+      }
+    };
+
+    fetchRefundPolicy();
+  }, []);
+
+  const refundPolicyLines = useMemo(
+    () => buildRefundPolicyLines(refundPolicy),
+    [refundPolicy],
+  );
 
   const sortedOrders = useMemo(() => orders, [orders]);
   const totalPages = Math.max(1, Math.ceil(sortedOrders.length / PAGE_SIZE));
@@ -697,6 +741,7 @@ export default function BookingHistoryPage() {
         <CancelBookingModal
           order={cancelOrder}
           reason={cancelReason}
+          policyLines={refundPolicyLines}
           loading={cancellingId === cancelOrder.id}
           onReasonChange={setCancelReason}
           onClose={() => setCancelOrder(null)}
@@ -1035,6 +1080,7 @@ function OrderDetailModal({ order, payingId, onClose, onPay, onCancel, onComplai
 function CancelBookingModal({
   order,
   reason,
+  policyLines,
   loading,
   onReasonChange,
   onClose,
@@ -1073,9 +1119,9 @@ function CancelBookingModal({
               {TXT.cancelPolicyTitle}
             </div>
             <ul className="space-y-1 font-medium">
-              <li>{TXT.cancelPolicy24h}</li>
-              <li>{TXT.cancelPolicy12h}</li>
-              <li>{TXT.cancelPolicyLate}</li>
+              {policyLines.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
             </ul>
           </div>
           <textarea
