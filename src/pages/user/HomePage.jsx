@@ -887,7 +887,7 @@ export default function HomePage() {
                             className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
                               facilityHasAvailableCourt
                                 ? "bg-blue-50 text-blue-600"
-                                : "bg-gray-100 text-gray-500"
+                                : "bg-red-50 text-red-600"
                             }`}
                           >
                             <i
