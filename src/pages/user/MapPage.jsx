@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import L from "leaflet";
 import {
   MapContainer,
@@ -16,6 +16,7 @@ import "leaflet/dist/leaflet.css";
 
 import api, { getAssetUrl } from "../../api/axios";
 import UserHeader from "../../components/common/UserHeader";
+import { showToast } from "../../components/common/ToastMessage";
 import FacilityReviews from "../../components/user/FacilityReviews";
 import {
   loadCachedUserLocation,
@@ -125,9 +126,12 @@ function FitFacilityMarkers({ positions }) {
 }
 
 export default function MapPage() {
+  const navigate = useNavigate();
   const cachedLocation = loadCachedUserLocation();
   const [facilities, setFacilities] = useState([]);
   const [selectedFacility, setSelectedFacility] = useState(null);
+  const [favoriteFacilityIds, setFavoriteFacilityIds] = useState(new Set());
+  const [favoriteLoadingIds, setFavoriteLoadingIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [userLocation, setUserLocation] = useState(() =>
@@ -155,6 +159,71 @@ export default function MapPage() {
 
     fetchFacilities();
   }, []);
+
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!localStorage.getItem("token")) {
+        setFavoriteFacilityIds(new Set());
+        return;
+      }
+
+      try {
+        const res = await api.get("/yeu-thich");
+        const favoriteIds = (res.data?.data || [])
+          .map((item) => Number(item.co_so_id || item.id))
+          .filter(Boolean);
+        setFavoriteFacilityIds(new Set(favoriteIds));
+      } catch {
+        setFavoriteFacilityIds(new Set());
+      }
+    };
+
+    fetchFavorites();
+  }, []);
+
+  const toggleFavorite = async (facilityId) => {
+    const normalizedId = Number(facilityId);
+    if (!localStorage.getItem("token")) {
+      showToast("Vui lòng đăng nhập để yêu thích cơ sở", "error");
+      navigate("/dang-nhap");
+      return;
+    }
+
+    if (favoriteLoadingIds.has(normalizedId)) return;
+
+    const wasFavorite = favoriteFacilityIds.has(normalizedId);
+    setFavoriteLoadingIds((prev) => new Set(prev).add(normalizedId));
+    setFavoriteFacilityIds((prev) => {
+      const next = new Set(prev);
+      if (wasFavorite) next.delete(normalizedId);
+      else next.add(normalizedId);
+      return next;
+    });
+
+    try {
+      if (wasFavorite) {
+        await api.delete(`/yeu-thich/${normalizedId}`);
+        showToast("Đã bỏ yêu thích cơ sở");
+      } else {
+        await api.post(`/yeu-thich/${normalizedId}`);
+        showToast("Đã thêm vào yêu thích");
+      }
+    } catch (error) {
+      setFavoriteFacilityIds((prev) => {
+        const next = new Set(prev);
+        if (wasFavorite) next.add(normalizedId);
+        else next.delete(normalizedId);
+        return next;
+      });
+      showToast(error.response?.data?.message || "Không thể cập nhật yêu thích", "error");
+    } finally {
+      setFavoriteLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(normalizedId);
+        return next;
+      });
+    }
+  };
 
   const requestCurrentLocation = async () => {
     setLocationStatus("loading");
@@ -328,6 +397,9 @@ export default function MapPage() {
                   facility={selectedFacility}
                   distanceKm={selectedDistance}
                   userLocation={userLocation}
+                  isFavorite={favoriteFacilityIds.has(Number(selectedFacility.id))}
+                  favoriteLoading={favoriteLoadingIds.has(Number(selectedFacility.id))}
+                  onToggleFavorite={toggleFavorite}
                 />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center px-8 text-center">
@@ -352,7 +424,14 @@ export default function MapPage() {
   );
 }
 
-function FacilityDetailPanel({ facility, distanceKm, userLocation }) {
+function FacilityDetailPanel({
+  facility,
+  distanceKm,
+  userLocation,
+  isFavorite,
+  favoriteLoading,
+  onToggleFavorite,
+}) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="relative h-52 flex-shrink-0 bg-gray-100">
@@ -370,10 +449,16 @@ function FacilityDetailPanel({ facility, distanceKm, userLocation }) {
 
         <button
           type="button"
-          className="absolute right-32 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-rose-500 shadow-md"
+          onClick={() => onToggleFavorite(facility.id)}
+          disabled={favoriteLoading}
+          className={`absolute right-32 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-600 shadow-md transition hover:bg-gray-100 hover:text-rose-500 ${
+            favoriteLoading ? "cursor-not-allowed opacity-60" : ""
+          }`}
           aria-label="Yêu thích"
         >
-          <i className="fa-solid fa-heart"></i>
+          <i
+            className={`${isFavorite ? "fa-solid text-rose-500" : "fa-regular"} fa-heart`}
+          ></i>
         </button>
 
         <Link
@@ -401,9 +486,12 @@ function FacilityDetailPanel({ facility, distanceKm, userLocation }) {
         <section className="border-b border-gray-100 p-5">
           <div className="mb-3 flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-extrabold text-[#0a192f]">
+              <Link
+                to={`/dat-san/${facility.id}`}
+                className="text-xl font-extrabold text-[#0a192f] transition hover:text-blue-600"
+              >
                 {facility.ten}
-              </h2>
+              </Link>
               <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                 <i className="fa-solid fa-medal"></i>
                 {facility.so_san || 0} sân

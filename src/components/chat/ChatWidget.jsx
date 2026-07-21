@@ -62,6 +62,11 @@ const appendUniqueMessage = (messages, message) => {
   return [...messages, message];
 };
 
+const getMessagePreview = (message) =>
+  message?.noi_dung || (message?.hinh_anh_url ? "[Hình ảnh]" : "");
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(() => readCurrentUser());
@@ -69,6 +74,7 @@ export default function ChatWidget() {
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [content, setContent] = useState("");
+  const [imageFile, setImageFile] = useState(null);
   const [query, setQuery] = useState("");
   const [facilities, setFacilities] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
@@ -77,9 +83,14 @@ export default function ChatWidget() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [currentFacility, setCurrentFacility] = useState(null);
   const [typingConversationId, setTypingConversationId] = useState(null);
+  const [widgetPosition, setWidgetPosition] = useState(null);
+  const widgetRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const imageInputRef = useRef(null);
   const typingStopTimerRef = useRef(null);
   const remoteTypingTimerRef = useRef(null);
+  const dragStateRef = useRef(null);
+  const dragMovedRef = useRef(false);
 
   const userId = user?.id ?? null;
   const isOwner = Number(user?.role) === 1;
@@ -89,6 +100,10 @@ export default function ChatWidget() {
     () => getConversationTitle(activeConversation, userId),
     [activeConversation, userId],
   );
+  const imagePreviewUrl = useMemo(
+    () => (imageFile ? URL.createObjectURL(imageFile) : ""),
+    [imageFile],
+  );
   const unreadTotal = useMemo(
     () =>
       conversations.reduce(
@@ -97,6 +112,12 @@ export default function ChatWidget() {
       ),
     [conversations],
   );
+  const widgetStyle = widgetPosition
+    ? {
+        left: `${widgetPosition.x}px`,
+        top: `${widgetPosition.y}px`,
+      }
+    : undefined;
 
   const refreshUser = useCallback(() => {
     setUser(readCurrentUser());
@@ -119,6 +140,10 @@ export default function ChatWidget() {
   const openConversation = useCallback(async (conversation) => {
     if (!conversation?.id) return;
 
+    setImageFile(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
     setActiveConversation(conversation);
     setMessages([]);
     setLoadingMessages(true);
@@ -163,7 +188,8 @@ export default function ChatWidget() {
 
   const handleSend = async () => {
     const text = content.trim();
-    if (!text || !activeConversation?.id || sending) return;
+    const selectedImage = imageFile;
+    if ((!text && !selectedImage) || !activeConversation?.id || sending) return;
 
     const socket = getSocket();
     socket?.emit("chat:typing", {
@@ -177,9 +203,13 @@ export default function ChatWidget() {
 
     setSending(true);
     setContent("");
+    setImageFile(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
 
     try {
-      const res = await sendChatMessage(activeConversation.id, text);
+      const res = await sendChatMessage(activeConversation.id, text, selectedImage);
       const message = res.data?.message;
       const conversation = res.data?.conversation;
 
@@ -196,10 +226,82 @@ export default function ChatWidget() {
       }
     } catch (error) {
       setContent(text);
+      setImageFile(selectedImage);
       showToast(error.response?.data?.message || "Không gửi được tin nhắn", "error");
     } finally {
       setSending(false);
     }
+  };
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showToast("Chỉ hỗ trợ gửi hình ảnh", "error");
+      event.target.value = "";
+      return;
+    }
+
+    setImageFile(file);
+  };
+
+  const clearSelectedImage = () => {
+    setImageFile(null);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  };
+
+  const getClampedPosition = useCallback((x, y) => {
+    const rect = widgetRef.current?.getBoundingClientRect();
+    const width = rect?.width || 56;
+    const height = rect?.height || 56;
+    const padding = 12;
+
+    return {
+      x: clamp(x, padding, window.innerWidth - width - padding),
+      y: clamp(y, padding, window.innerHeight - height - padding),
+    };
+  }, []);
+
+  const handleDragStart = (event) => {
+    if (event.button !== undefined && event.button !== 0) return;
+
+    const rect = widgetRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: rect.left,
+      originY: rect.top,
+    };
+    dragMovedRef.current = false;
+  };
+
+  const handleDragMove = (event) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+    const nextX = dragState.originX + event.clientX - dragState.startX;
+    const nextY = dragState.originY + event.clientY - dragState.startY;
+    if (
+      Math.abs(event.clientX - dragState.startX) > 3 ||
+      Math.abs(event.clientY - dragState.startY) > 3
+    ) {
+      dragMovedRef.current = true;
+    }
+    setWidgetPosition(getClampedPosition(nextX, nextY));
+  };
+
+  const handleDragEnd = (event) => {
+    if (dragStateRef.current?.pointerId !== event.pointerId) return;
+
+    dragStateRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
   };
 
   const handleContentChange = (event) => {
@@ -293,11 +395,16 @@ export default function ChatWidget() {
   }, []);
 
   useEffect(() => {
-    if (open) {
-      refreshUser();
+    if (user) {
       loadConversations();
     }
-  }, [loadConversations, open, refreshUser]);
+  }, [loadConversations, user]);
+
+  useEffect(() => {
+    if (open) {
+      refreshUser();
+    }
+  }, [open, refreshUser]);
 
   useEffect(() => {
     if (!open || !user || isOwner || isAdmin || query.trim().length < 2) {
@@ -320,6 +427,27 @@ export default function ChatWidget() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, activeConversation?.id]);
+
+  useEffect(() => {
+    if (!widgetPosition) return undefined;
+
+    const keepWidgetInView = () => {
+      setWidgetPosition((position) =>
+        position ? getClampedPosition(position.x, position.y) : position,
+      );
+    };
+
+    window.addEventListener("resize", keepWidgetInView);
+    return () => window.removeEventListener("resize", keepWidgetInView);
+  }, [getClampedPosition, widgetPosition]);
+
+  useEffect(() => {
+    if (imagePreviewUrl) {
+      return () => URL.revokeObjectURL(imagePreviewUrl);
+    }
+
+    return undefined;
+  }, [imagePreviewUrl]);
 
   useEffect(() => {
     if (!user || !conversations.length) return undefined;
@@ -345,6 +473,24 @@ export default function ChatWidget() {
   }, [conversations, user]);
 
   useEffect(() => {
+    if (!userId) return undefined;
+
+    const socket = getSocket();
+    if (!socket) return undefined;
+
+    const joinUserRoom = () => {
+      socket.emit("notification:join", { nguoi_dung_id: userId });
+    };
+
+    joinUserRoom();
+    socket.on("connect", joinUserRoom);
+
+    return () => {
+      socket.off("connect", joinUserRoom);
+    };
+  }, [userId]);
+
+  useEffect(() => {
     if (!user) return undefined;
 
     const socket = getSocket();
@@ -355,14 +501,14 @@ export default function ChatWidget() {
 
       setConversations((items) => {
         const current = items.find((item) => item.id === conversation.id);
-        const isActive = activeConversation?.id === conversation.id;
+        const isReading = open && activeConversation?.id === conversation.id;
         const nextConversation = {
           ...(current || conversation),
           ...conversation,
-          tin_nhan_cuoi: message.noi_dung,
+          tin_nhan_cuoi: getMessagePreview(message),
           thoi_gian_tin_cuoi: message.ngay_tao,
           so_chua_doc:
-            isActive || Number(message.nguoi_gui_id) === Number(userId)
+            isReading || Number(message.nguoi_gui_id) === Number(userId)
               ? 0
               : Number(current?.so_chua_doc || 0) + 1,
         };
@@ -373,7 +519,7 @@ export default function ChatWidget() {
         ];
       });
 
-      if (activeConversation?.id === conversation.id) {
+      if (open && activeConversation?.id === conversation.id) {
         setTypingConversationId(null);
         setMessages((items) => appendUniqueMessage(items, message));
       }
@@ -381,7 +527,7 @@ export default function ChatWidget() {
 
     socket.on("chat:message-new", onNewMessage);
     return () => socket.off("chat:message-new", onNewMessage);
-  }, [activeConversation?.id, user, userId]);
+  }, [activeConversation?.id, open, user, userId]);
 
   useEffect(() => {
     if (!open || !user) return undefined;
@@ -514,7 +660,10 @@ export default function ChatWidget() {
           <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-3">
             <button
               type="button"
-              onClick={() => setActiveConversation(null)}
+              onClick={() => {
+                clearSelectedImage();
+                setActiveConversation(null);
+              }}
               className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
               aria-label="Back"
             >
@@ -549,6 +698,9 @@ export default function ChatWidget() {
             ) : messages.length ? (
               messages.map((message) => {
                 const mine = Number(message.nguoi_gui_id) === Number(userId);
+                const imageUrl = message.hinh_anh_url
+                  ? getAssetUrl(message.hinh_anh_url)
+                  : "";
 
                 return (
                   <div
@@ -574,9 +726,18 @@ export default function ChatWidget() {
                           : "rounded-bl-md bg-white text-gray-900"
                       }`}
                     >
-                      <div className="whitespace-pre-wrap break-words">
-                        {message.noi_dung}
-                      </div>
+                      {imageUrl && (
+                        <img
+                          src={imageUrl}
+                          alt="Hình ảnh trong tin nhắn"
+                          className="mb-2 max-h-52 w-full rounded-xl object-cover"
+                        />
+                      )}
+                      {message.noi_dung && (
+                        <div className="whitespace-pre-wrap break-words">
+                          {message.noi_dung}
+                        </div>
+                      )}
                       <div
                         className={`mt-1 text-right text-[10px] ${
                           mine ? "text-sky-100" : "text-gray-400"
@@ -627,7 +788,43 @@ export default function ChatWidget() {
           </div>
 
           <div className="border-t border-gray-200 bg-white p-3">
+            {imagePreviewUrl && (
+              <div className="mb-2 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2">
+                <img
+                  src={imagePreviewUrl}
+                  alt="Ảnh đã chọn"
+                  className="h-14 w-14 rounded-lg object-cover"
+                />
+                <div className="min-w-0 flex-1 text-xs font-medium text-gray-600">
+                  <div className="truncate">{imageFile?.name}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearSelectedImage}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-200 hover:text-gray-800"
+                  aria-label="Remove image"
+                >
+                  <i className="fa-solid fa-xmark text-xs"></i>
+                </button>
+              </div>
+            )}
             <div className="flex items-end gap-2">
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={sending}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-600 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 disabled:bg-gray-100 disabled:text-gray-300"
+                aria-label="Choose image"
+              >
+                <i className="fa-regular fa-image text-sm"></i>
+              </button>
               <textarea
                 value={content}
                 onChange={handleContentChange}
@@ -645,7 +842,7 @@ export default function ChatWidget() {
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={!content.trim() || sending}
+                disabled={(!content.trim() && !imageFile) || sending}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-600 text-white shadow-md transition hover:bg-sky-700 disabled:bg-gray-300"
                 aria-label="Send"
               >
@@ -730,9 +927,15 @@ export default function ChatWidget() {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-[9998] font-sans">
+    <div
+      ref={widgetRef}
+      style={widgetStyle}
+      className={`fixed z-[9998] font-sans ${
+        widgetPosition ? "" : "bottom-5 right-5"
+      }`}
+    >
       {open && (
-        <div className="mb-3 h-[min(620px,calc(100vh-7rem))] w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+        <div className="absolute bottom-16 right-0 h-[min(620px,calc(100vh-7rem))] w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
           <div className="relative h-full">
             {renderPanel()}
             <button
@@ -749,8 +952,19 @@ export default function ChatWidget() {
 
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="relative ml-auto flex h-14 w-14 items-center justify-center rounded-full bg-sky-600 text-white shadow-xl transition hover:bg-sky-700"
+        onPointerDown={handleDragStart}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+        onPointerCancel={handleDragEnd}
+        onClick={() => {
+          if (dragMovedRef.current) {
+            dragMovedRef.current = false;
+            return;
+          }
+
+          setOpen((value) => !value);
+        }}
+        className="relative ml-auto flex h-14 w-14 touch-none items-center justify-center rounded-full bg-sky-600 text-white shadow-xl transition hover:bg-sky-700"
         aria-label="Open chat"
       >
         <i className={`fa-regular ${open ? "fa-comment-dots" : "fa-comments"} text-xl`}></i>

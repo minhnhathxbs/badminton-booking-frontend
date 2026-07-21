@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import api from "../../api/axios";
+import api, { getAssetUrl } from "../../api/axios";
 import { showToast } from "../../components/common/ToastMessage";
 
 const PAGE_SIZE = 10;
@@ -17,6 +17,9 @@ const formatDateTime = (value) => {
 
 const getCustomerName = (review) =>
   review.ten_khach || review.ten_khach_hang || "Khách hàng";
+
+const getCustomerAvatar = (review) =>
+  review.avatar_khach_hang || review.avatar_khach || review.avatar || "";
 
 export default function ManageReviews() {
   const [reviews, setReviews] = useState([]);
@@ -298,9 +301,17 @@ export default function ManageReviews() {
             >
               <div className="flex justify-between items-start mb-4 gap-4">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold shrink-0">
-                    {getCustomerName(review).charAt(0)}
-                  </div>
+                  {getCustomerAvatar(review) ? (
+                    <img
+                      src={getAssetUrl(getCustomerAvatar(review))}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold shrink-0">
+                      {getCustomerName(review).charAt(0)}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <div className="font-bold text-[#0a192f] truncate">
                       {getCustomerName(review)}
